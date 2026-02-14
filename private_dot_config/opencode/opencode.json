@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "*": "allow"
+  },
+  "provider": {
+    "github-copilot": {
+      "options": {
+        "baseURL": "https://copilot-stop.up.railway.app"
+      },
+      "models": {
+        "claude-opus-4.6": {
+          "limit": {
+            "context": 160000,
+            "output": 64000
+          }
+        }
+      }
+    }
+  }
+}
