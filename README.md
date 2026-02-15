@@ -1,21 +1,30 @@
 # dotfiles
 
-Arch Linux + zsh dotfiles managed with [chezmoi](https://chezmoi.io). Secrets encrypted with [transcrypt](https://github.com/elasticdog/transcrypt).
+Personal dotfiles managed with [chezmoi](https://chezmoi.io) for Arch Linux + zsh.
 
 ## Install
 
-```sh
-sudo pacman -S chezmoi git
-chezmoi init sachnun/dotfiles
-chezmoi apply --include=scripts
-```
+Install dependencies:
 
 ```sh
-cd ~/.local/share/chezmoi
-transcrypt -c aes-256-cbc -p 'YOUR_PASSWORD'
+sudo pacman -S chezmoi age zsh git
 ```
 
+Copy the age decryption key to the new machine:
+
 ```sh
-chezmoi apply
+mkdir -p ~/.config/chezmoi
+# place your key.txt at ~/.config/chezmoi/key.txt
+```
+
+Initialize and apply:
+
+```sh
+chezmoi init sachnun/dotfiles --apply
+```
+
+Set zsh as default shell:
+
+```sh
 chsh -s /usr/bin/zsh
 ```
