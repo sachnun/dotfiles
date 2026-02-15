@@ -4,26 +4,22 @@
 set -euo pipefail
 
 # Install official packages
-echo "Installing official packages..."
 PACMAN_PACKAGES=(
 {{- range .packages.arch.pacman }}
   {{ . }}
 {{- end }}
 )
-pacman -S --needed --noconfirm "${PACMAN_PACKAGES[@]}"
+pacman -Sy --needed --noconfirm "${PACMAN_PACKAGES[@]}"
 
 {{ if .packages.arch.aur -}}
 # Install AUR packages
 if command -v yay &>/dev/null; then
-  echo "Installing AUR packages..."
   AUR_PACKAGES=(
   {{- range .packages.arch.aur }}
     {{ . }}
   {{- end }}
   )
-  yay -S --needed --noconfirm "${AUR_PACKAGES[@]}"
-else
-  echo "WARNING: yay not found, skipping AUR packages"
+  yay -Sy --needed --noconfirm "${AUR_PACKAGES[@]}"
 fi
 {{- end }}
 {{ end -}}
