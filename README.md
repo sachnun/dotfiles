@@ -11,5 +11,5 @@ Personal dotfiles managed with [chezmoi](https://chezmoi.io). Secrets encrypted 
 
 2. Decrypt secrets and apply dotfiles:
    ```sh
-   chezmoi cd && transcrypt -c aes-256-cbc -p 'YOUR_PASSWORD' && chezmoi apply
+   chezmoi cd && transcrypt && chezmoi apply
    ```
