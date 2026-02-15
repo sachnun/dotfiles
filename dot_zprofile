@@ -1,1 +1,1 @@
-chezmoi update --apply >/dev/null &!
+chezmoi update --apply &!
