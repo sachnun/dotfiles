@@ -1,6 +1,7 @@
 [user]
 	name = sachnun
 	email = sachnun12@gmail.com
+	signingkey = 95A9ECFC7CB65E2D
 
 [core]
 	editor = nano
@@ -46,3 +47,7 @@
 	unstage = reset HEAD --
 	last = log -1 HEAD
 	amend = commit --amend --no-edit
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
