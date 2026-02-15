@@ -1,0 +1,22 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+# Install zsh
+echo "Installing zsh..."
+{{- if eq .chezmoi.osRelease.id "arch" }}
+sudo pacman -S --needed --noconfirm zsh
+{{- else if or (eq .chezmoi.osRelease.id "ubuntu") (eq .chezmoi.osRelease.id "debian") }}
+sudo apt-get update && sudo apt-get install -y zsh
+{{- end }}
+
+# Install oh-my-zsh
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+  echo "Installing oh-my-zsh..."
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+fi
+
+# Change default shell to zsh
+echo "Changing default shell to zsh..."
+chsh -s "$(which zsh)"
+{{ end -}}

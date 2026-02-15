@@ -25,7 +25,6 @@ packages:
       - valkey
       - wget
       - zellij
-      - zsh
     aur:
       - transcrypt
       - yay
