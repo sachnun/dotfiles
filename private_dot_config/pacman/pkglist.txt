@@ -7,8 +7,6 @@ btop
 cairo
 chezmoi
 cups
-docker
-docker-compose
 ex-vi-compat
 fastfetch
 git
