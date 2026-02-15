@@ -1,6 +1,5 @@
 packages:
   pacman:
-    - age
     - base
     - base-devel
     - bore
