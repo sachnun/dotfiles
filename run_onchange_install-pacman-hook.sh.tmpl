@@ -1,0 +1,29 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# pkglist.txt hash: {{ include "private_dot_config/pacman/pkglist.txt" | sha256sum }}
+# This script installs a pacman hook that auto-updates the package list
+# whenever packages are installed or removed, and syncs it to chezmoi.
+
+set -euo pipefail
+
+HOOK_DIR="/etc/pacman.d/hooks"
+HOOK_FILE="${HOOK_DIR}/pkglist.hook"
+PKGLIST_PATH="{{ .chezmoi.homeDir }}/.config/pacman/pkglist.txt"
+CHEZMOI_BIN="{{ lookPath "chezmoi" }}"
+
+sudo mkdir -p "${HOOK_DIR}"
+
+sudo tee "${HOOK_FILE}" > /dev/null << HOOK
+[Trigger]
+Operation = Install
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+When = PostTransaction
+Exec = /bin/sh -c '/usr/bin/pacman -Qqen > ${PKGLIST_PATH} && ${CHEZMOI_BIN} re-add ${PKGLIST_PATH}'
+HOOK
+
+echo "Pacman hook installed: ${HOOK_FILE}"
+{{ end -}}

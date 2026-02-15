@@ -1,0 +1,17 @@
+age
+base
+base-devel
+btop
+bun
+chezmoi
+fastfetch
+git
+github-cli
+go
+nano
+npm
+sudo
+tmux
+uv
+wget
+zsh
