@@ -1,0 +1,11 @@
+#!/bin/bash
+# bun-global-packages-hash: {{ include "dot_bun/install/global/package.json" | sha256sum }}
+
+if ! command -v bun &>/dev/null; then
+  echo "bun not found, skipping global packages install"
+  exit 0
+fi
+
+echo "Installing bun global packages..."
+cd ~/.bun/install/global && bun install
+echo "Done!"
