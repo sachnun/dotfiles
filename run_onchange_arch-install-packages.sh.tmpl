@@ -6,18 +6,18 @@ set -euo pipefail
 # Install official packages
 echo "Installing official packages..."
 PACMAN_PACKAGES=(
-{{- range .packages.pacman }}
+{{- range .packages.arch.pacman }}
   {{ . }}
 {{- end }}
 )
 pacman -S --needed --noconfirm "${PACMAN_PACKAGES[@]}"
 
-{{ if .packages.aur -}}
+{{ if .packages.arch.aur -}}
 # Install AUR packages
 if command -v yay &>/dev/null; then
   echo "Installing AUR packages..."
   AUR_PACKAGES=(
-  {{- range .packages.aur }}
+  {{- range .packages.arch.aur }}
     {{ . }}
   {{- end }}
   )
