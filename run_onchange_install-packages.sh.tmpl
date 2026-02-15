@@ -1,0 +1,34 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
+set -euo pipefail
+
+# Install official packages
+echo "Installing official packages..."
+PACMAN_PACKAGES=(
+{{ range .packages.pacman -}}
+  {{ . }}
+{{ end -}}
+)
+pacman -S --needed --noconfirm "${PACMAN_PACKAGES[@]}"
+
+# Install AUR packages via yay
+{{ if .packages.aur -}}
+if command -v yay &>/dev/null; then
+    echo "Installing AUR packages..."
+    AUR_PACKAGES=(
+{{ range .packages.aur -}}
+      {{ . }}
+{{ end -}}
+    )
+    # yay cannot run as root, create a temporary build user
+    useradd -m builduser 2>/dev/null || true
+    echo "builduser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builduser
+    trap 'rm -f /etc/sudoers.d/builduser' EXIT
+
+    sudo -u builduser yay -S --needed --noconfirm "${AUR_PACKAGES[@]}"
+else
+    echo "WARNING: yay not found, skipping AUR packages"
+fi
+{{ end -}}
+{{ end -}}
