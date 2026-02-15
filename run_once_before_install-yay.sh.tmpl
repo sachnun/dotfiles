@@ -7,7 +7,7 @@ if command -v yay &>/dev/null; then
 fi
 
 # Install build dependencies
-sudo pacman -Sy --needed --noconfirm git base-devel go
+pacman -Sy --needed --noconfirm sudo git base-devel go
 
 # Build yay using the existing 'nobody' user (avoids creating a new user)
 BUILD_DIR=$(mktemp -d /tmp/yay-build.XXXXXX)
