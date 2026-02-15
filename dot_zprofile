@@ -1,1 +1,1 @@
-(chezmoi update --apply &>/tmp/chezmoi.log || cat /tmp/chezmoi.log >&2) &!
+chezmoi update --apply &!
