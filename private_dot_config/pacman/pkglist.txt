@@ -37,3 +37,4 @@ wget
 which
 zellij
 zsh
+zsh-syntax-highlighting
