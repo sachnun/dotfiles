@@ -11,6 +11,7 @@ cups
 ex-vi-compat
 fastfetch
 git
+git-filter-repo
 github-cli
 go
 htop
