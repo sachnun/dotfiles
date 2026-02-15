@@ -27,4 +27,5 @@ packages:
     - zellij
     - zsh
   aur:
+    - transcrypt
     - yay
