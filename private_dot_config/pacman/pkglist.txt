@@ -4,7 +4,6 @@ base-devel
 btop
 bun
 chezmoi
-cmatrix
 ex-vi-compat
 fastfetch
 git
