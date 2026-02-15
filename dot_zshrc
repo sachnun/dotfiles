@@ -103,11 +103,9 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-
 export OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT=true
 export OPENCODE_EXPERIMENTAL_EXA=true
 export OPENCODE_EXPERIMENTAL_MARKDOWN=true
 
 export PATH="/root/.config/herd-lite/bin:$PATH"
 export PHP_INI_SCAN_DIR="/root/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
-
