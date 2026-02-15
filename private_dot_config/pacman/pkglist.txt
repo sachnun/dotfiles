@@ -4,10 +4,11 @@ at-spi2-core
 base
 base-devel
 btop
-bun
 cairo
 chezmoi
 cups
+docker
+docker-compose
 ex-vi-compat
 fastfetch
 git
@@ -34,6 +35,5 @@ unzip
 uv
 valkey
 wget
-which
 zellij
 zsh

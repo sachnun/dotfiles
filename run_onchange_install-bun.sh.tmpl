@@ -1,0 +1,11 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+if [ ! -f "$HOME/.bun/bin/bun" ]; then
+    echo "Installing bun..."
+    curl -fsSL https://bun.sh/install | bash
+else
+    echo "bun already installed: $($HOME/.bun/bin/bun --version)"
+fi
+{{ end -}}

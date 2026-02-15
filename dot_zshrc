@@ -105,3 +105,10 @@ source $ZSH/oh-my-zsh.sh
 
 export PATH="/root/.config/herd-lite/bin:$PATH"
 export PHP_INI_SCAN_DIR="/root/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
+
+# bun completions
+[ -s "/root/.bun/_bun" ] && source "/root/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
