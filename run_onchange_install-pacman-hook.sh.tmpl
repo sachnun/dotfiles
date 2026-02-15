@@ -11,6 +11,10 @@ HOOK_FILE="${HOOK_DIR}/pkglist.hook"
 PKGLIST_PATH="{{ .chezmoi.homeDir }}/.config/pacman/pkglist.txt"
 CHEZMOI_BIN="{{ lookPath "chezmoi" }}"
 
+# Install missing packages from pkglist.txt
+echo "Installing packages from pkglist.txt..."
+sudo pacman -S --needed --noconfirm - < "${PKGLIST_PATH}"
+
 sudo mkdir -p "${HOOK_DIR}"
 
 sudo tee "${HOOK_FILE}" > /dev/null << HOOK
