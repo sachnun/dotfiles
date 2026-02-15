@@ -1,13 +1,11 @@
 # dotfiles
 
-Arch Linux + zsh dotfiles managed with [chezmoi](https://chezmoi.io). Secrets encrypted with [transcrypt](https://github.com/elasticdog/transcrypt).
+Personal dotfiles managed with [chezmoi](https://chezmoi.io). Secrets encrypted with [transcrypt](https://github.com/elasticdog/transcrypt).
 
 ## Install
 
 ```sh
-sudo pacman -S chezmoi git
-chezmoi init sachnun/dotfiles
-chezmoi apply --include=scripts
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply --include=scripts sachnun
 ```
 
 ```sh
