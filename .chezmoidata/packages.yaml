@@ -1,0 +1,29 @@
+packages:
+  pacman:
+    - age
+    - base
+    - base-devel
+    - bore
+    - btop
+    - chezmoi
+    - cmatrix
+    - fastfetch
+    - git
+    - git-filter-repo
+    - github-cli
+    - go
+    - htop
+    - nano
+    - npm
+    - openssh
+    - postgresql
+    - python
+    - sudo
+    - tmux
+    - unzip
+    - uv
+    - wget
+    - zellij
+    - zsh
+  aur:
+    - yay
