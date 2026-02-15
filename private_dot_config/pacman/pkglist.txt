@@ -13,10 +13,12 @@ htop
 nano
 npm
 openssh
+postgresql
 sudo
 tmux
 unzip
 uv
+valkey
 wget
 which
 zellij
