@@ -1,0 +1,31 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+if command -v yay &>/dev/null; then
+  echo "yay is already installed, skipping"
+  exit 0
+fi
+
+echo "Installing yay..."
+
+# Install build dependencies
+sudo pacman -S --needed --noconfirm git base-devel go
+
+# Build yay using the existing 'nobody' user (avoids creating a new user)
+BUILD_DIR=$(mktemp -d /tmp/yay-build.XXXXXX)
+trap 'rm -rf "$BUILD_DIR"' EXIT
+
+git clone https://aur.archlinux.org/yay.git "$BUILD_DIR/yay"
+chown -R nobody:nobody "$BUILD_DIR"
+
+sudo -u nobody env \
+  GOCACHE="$BUILD_DIR/go-cache" \
+  GOPATH="$BUILD_DIR/go-path" \
+  HOME="$BUILD_DIR" \
+  makepkg -s --noconfirm -D "$BUILD_DIR/yay"
+
+sudo pacman -U --noconfirm "$BUILD_DIR"/yay/yay-*.pkg.tar.zst
+
+echo "yay installed successfully: $(yay --version)"
+{{ end -}}
