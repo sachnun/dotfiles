@@ -15,6 +15,7 @@ npm
 openssh
 sudo
 tmux
+unzip
 uv
 wget
 which
