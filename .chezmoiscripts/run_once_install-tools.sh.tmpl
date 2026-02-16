@@ -1,8 +1,0 @@
-{{- if eq .chezmoi.os "linux" -}}
-#!/bin/bash
-set -euo pipefail
-
-curl -fsSL https://bun.sh/install | bash
-
-curl -fsSL https://opencode.ai/install | bash
-{{ end -}}
