@@ -21,3 +21,7 @@ collab = true
 
 [tui]
 status_line = ["project-root", "git-branch", "five-hour-limit"]
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+http_headers = { "CONTEXT7_API_KEY" = "REDACTED_CONTEXT7_API_KEY" }
