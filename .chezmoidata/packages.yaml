@@ -25,7 +25,6 @@ packages:
       - uv
       - valkey
       - wget
-      - zellij
       - zsh
     aur:
       - yay
