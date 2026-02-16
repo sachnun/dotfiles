@@ -19,6 +19,7 @@ packages:
       - npm
       - openssh
       - postgresql
+      - pm2
       - python
       - sudo
       - tmux
