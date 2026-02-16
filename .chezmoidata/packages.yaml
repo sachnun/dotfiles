@@ -25,5 +25,7 @@ packages:
       - valkey
       - wget
       - zellij
+      - zsh
     aur:
+      - oh-my-zsh-git
       - yay
