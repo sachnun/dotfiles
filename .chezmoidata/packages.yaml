@@ -26,5 +26,4 @@ packages:
       - wget
       - zellij
     aur:
-      - transcrypt
       - yay
