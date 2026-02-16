@@ -1,7 +1,10 @@
+{{- $sshSigningKey := glob (joinPath .chezmoi.homeDir ".ssh/id_ed25519.pub") -}}
 [user]
 	name = sachnun
 	email = sachnun12@gmail.com
-
+{{- if $sshSigningKey }}
+	signingkey = {{ joinPath .chezmoi.homeDir ".ssh/id_ed25519.pub" }}
+{{- end }}
 
 [core]
 	editor = nano
@@ -47,4 +50,17 @@
 	unstage = reset HEAD --
 	last = log -1 HEAD
 	amend = commit --amend --no-edit
+{{- if $sshSigningKey }}
 
+[gpg]
+	format = ssh
+
+[gpg "ssh"]
+	allowedSignersFile = ~/.ssh/allowed_signers
+
+[commit]
+	gpgsign = true
+
+[tag]
+	gpgsign = true
+{{- end }}
