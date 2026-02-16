@@ -28,6 +28,5 @@ packages:
       - zellij
       - zsh
     aur:
-      - oh-my-zsh-git
       - opencode-bin
       - yay

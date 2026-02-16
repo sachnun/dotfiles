@@ -1,0 +1,10 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+if [ -d "${ZSH:-$HOME/.oh-my-zsh}" ]; then
+  exit 0
+fi
+
+sh -c "$(curl -fsSL https://install.ohmyz.sh)" "" --unattended
+{{ end -}}
