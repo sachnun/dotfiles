@@ -28,5 +28,4 @@ packages:
       - zellij
       - zsh
     aur:
-      - opencode-bin
       - yay
