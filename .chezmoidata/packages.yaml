@@ -5,6 +5,7 @@ packages:
       - base-devel
       - bore
       - btop
+      - bun
       - chezmoi
       - cmatrix
       - fastfetch
@@ -28,4 +29,5 @@ packages:
       - zsh
     aur:
       - oh-my-zsh-git
+      - opencode-bin
       - yay
