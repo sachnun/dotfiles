@@ -112,8 +112,6 @@ fi
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
-alias oc="opencode"
-alias occ="opencode -c"
 
 export PATH="/root/.config/herd-lite/bin:$PATH"
 export PHP_INI_SCAN_DIR="/root/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
