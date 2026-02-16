@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "linux" -}}
 #!/bin/sh
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -8,4 +7,3 @@ if [ ! -f "$HOME/.config/chezmoi/key.txt" ]; then
     chezmoi age decrypt --output "$HOME/.config/chezmoi/key.txt" --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
     chmod 600 "$HOME/.config/chezmoi/key.txt"
 fi
-{{ end -}}
