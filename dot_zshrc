@@ -75,6 +75,7 @@ plugins=(git z zsh-autosuggestions zsh-syntax-highlighting zsh-shift-select)
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
+# PROMPT='$(git_custom_status)%F{#FF6600}[%~% ]%f%B$%b '
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
