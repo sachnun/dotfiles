@@ -119,3 +119,8 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 # opencode
 export PATH=/root/.opencode/bin:$PATH
+
+clear() {
+    /usr/bin/clear
+    fastfetch
+}
