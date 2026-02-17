@@ -3,15 +3,6 @@
   "permission": {
     "*": "allow"
   },
-  "mode": {
-    "build": {
-      "color": "primary"
-    },
-    "plan": {
-      "color": "secondary"
-    },
-  },
-  "theme": "system",
   "provider": {
     "github-copilot": {
       "options": {
