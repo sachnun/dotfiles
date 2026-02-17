@@ -1,0 +1,11 @@
+{{- if eq .chezmoi.osRelease.id "arch" -}}
+#!/bin/bash
+set -euo pipefail
+
+# Generate en_US.UTF-8 locale
+if ! locale -a 2>/dev/null | grep -qi "en_US.utf8"; then
+  echo "Generating en_US.UTF-8 locale..."
+  grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen || echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+  locale-gen
+fi
+{{ end -}}
