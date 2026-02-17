@@ -15,3 +15,4 @@ set -gx PHP_INI_SCAN_DIR "/root/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
 set -gx OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT true
 set -gx OPENCODE_EXPERIMENTAL_EXA true
 set -gx OPENCODE_EXPERIMENTAL_MARKDOWN true
+starship init fish | source
