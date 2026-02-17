@@ -28,5 +28,6 @@ packages:
       - valkey
       - wget
       - fish
+      - starship
     aur:
       - yay
