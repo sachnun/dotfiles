@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Set zsh as the default shell if it isn't already
-if [ "$SHELL" != "$(which zsh)" ]; then
-  chsh -s "$(which zsh)"
+# Set fish as the default shell if it isn't already
+if [ "$SHELL" != "$(which fish)" ]; then
+  chsh -s "$(which fish)"
 fi

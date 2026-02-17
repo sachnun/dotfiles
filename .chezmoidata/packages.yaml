@@ -27,6 +27,6 @@ packages:
       - uv
       - valkey
       - wget
-      - zsh
+      - fish
     aur:
       - yay
