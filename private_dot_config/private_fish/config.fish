@@ -16,5 +16,4 @@ set -gx OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT true
 set -gx OPENCODE_EXPERIMENTAL_EXA true
 set -gx OPENCODE_EXPERIMENTAL_MARKDOWN true
 
-
 starship init fish | source
