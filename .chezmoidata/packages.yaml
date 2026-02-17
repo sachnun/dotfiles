@@ -29,5 +29,6 @@ packages:
       - wget
       - fish
       - starship
+      - fisher
     aur:
       - yay
