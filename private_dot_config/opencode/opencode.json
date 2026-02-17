@@ -3,6 +3,14 @@
   "permission": {
     "*": "allow"
   },
+  "agent": {
+    "build": {
+      "color": "primary"
+    },
+    "plan": {
+      "color": "secondary",
+    }
+  },
   "provider": {
     "github-copilot": {
       "options": {
