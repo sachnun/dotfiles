@@ -27,6 +27,7 @@ packages:
       - uv
       - valkey
       - wget
+      - vi
       - fish
       - starship
       - fisher
