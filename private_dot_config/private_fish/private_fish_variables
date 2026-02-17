@@ -3,13 +3,15 @@
 SETUVAR --export BROWSER:wslview
 SETUVAR __fish_initialized:4300
 SETUVAR __fish_webconfig_theme_notification:set\x2dtheme\x2dv1\x2d\x236
+SETUVAR _fisher_laughedelic_2F_pisces_files:\x7e/\x2econfig/fish/functions/_pisces_append\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_backspace\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_bind_pair\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_complete\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_insert_identical\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_insert_left\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_insert_right\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_jump\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_lookup\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_remove\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_should_insert\x2efish\x1e\x7e/\x2econfig/fish/functions/_pisces_skip\x2efish\x1e\x7e/\x2econfig/fish/conf\x2ed/pisces\x2efish
 SETUVAR _fisher_mattmc3_2F_magic_2D_enter_2E_fish_files:\x7e/\x2econfig/fish/conf\x2ed/magic\x2denter\x2efish
 SETUVAR _fisher_meaningful_2D_ooo_2F_sponge_files:\x7e/\x2econfig/fish/functions/_sponge_clear_state\x2efish\x1e\x7e/\x2econfig/fish/functions/_sponge_on_exit\x2efish\x1e\x7e/\x2econfig/fish/functions/_sponge_on_postexec\x2efish\x1e\x7e/\x2econfig/fish/functions/_sponge_on_preexec\x2efish\x1e\x7e/\x2econfig/fish/functions/_sponge_on_prompt\x2efish\x1e\x7e/\x2econfig/fish/functions/_sponge_remove_from_history\x2efish\x1e\x7e/\x2econfig/fish/functions/sponge_filter_failed\x2efish\x1e\x7e/\x2econfig/fish/functions/sponge_filter_matched\x2efish\x1e\x7e/\x2econfig/fish/conf\x2ed/sponge\x2efish
-SETUVAR _fisher_plugins:mattmc3/magic\x2denter\x2efish\x1emeaningful\x2dooo/sponge\x1erealiserad/fish\x2dai
+SETUVAR _fisher_plugins:mattmc3/magic\x2denter\x2efish\x1emeaningful\x2dooo/sponge\x1erealiserad/fish\x2dai\x1elaughedelic/pisces
 SETUVAR _fisher_realiserad_2F_fish_2D_ai_files:\x7e/\x2econfig/fish/functions/_fish_ai_autocomplete\x2efish\x1e\x7e/\x2econfig/fish/functions/_fish_ai_autocomplete_or_fix\x2efish\x1e\x7e/\x2econfig/fish/functions/_fish_ai_codify\x2efish\x1e\x7e/\x2econfig/fish/functions/_fish_ai_codify_or_explain\x2efish\x1e\x7e/\x2econfig/fish/functions/_fish_ai_explain\x2efish\x1e\x7e/\x2econfig/fish/functions/_fish_ai_fix\x2efish\x1e\x7e/\x2econfig/fish/functions/fish_ai_bug_report\x2efish\x1e\x7e/\x2econfig/fish/functions/fish_ai_put_api_key\x2efish\x1e\x7e/\x2econfig/fish/functions/fish_ai_switch_context\x2efish\x1e\x7e/\x2econfig/fish/conf\x2ed/fish_ai\x2efish
 SETUVAR _fisher_upgraded_to_4_4:\x1d
 SETUVAR fish_greeting:\x1d
 SETUVAR fish_user_paths:/root/\x2eopencode/bin\x1e/root/\x2ebun/bin
+SETUVAR pisces_pairs:\x28\x2c\x29\x1e\x5b\x2c\x5d\x1e\x7b\x2c\x7d\x1e\x22\x2c\x22\x1e\x27\x2c\x27
 SETUVAR sponge_allow_previously_successful:true
 SETUVAR sponge_delay:2
 SETUVAR sponge_filters:sponge_filter_failed\x1esponge_filter_matched
