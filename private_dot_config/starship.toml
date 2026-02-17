@@ -13,10 +13,10 @@ $python\
 $character"""
 
 [directory]
-style = "blue"
+style = "cyan"
 
 [character]
-success_symbol = "[❯](purple)"
+success_symbol = "[❯](cyan)"
 error_symbol = "[❯](red)"
 vimcmd_symbol = "[❮](green)"
 
