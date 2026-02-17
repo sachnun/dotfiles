@@ -20,7 +20,7 @@ use_linux_sandbox_bwrap = true
 collab = true
 
 [tui]
-status_line = ["project-root", "git-branch", "five-hour-limit"]
+status_line = ["project-root", "git-branch", "five-hour-limit", "context-remaining"]
 
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"
