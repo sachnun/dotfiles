@@ -8,6 +8,7 @@ packages:
       - bun
       - chezmoi
       - cmatrix
+      - cowsay
       - fastfetch
       - git
       - git-filter-repo
