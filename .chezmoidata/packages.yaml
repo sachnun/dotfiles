@@ -31,5 +31,7 @@ packages:
       - fish
       - starship
       - fisher
+      - zoxide
+      - fzf
     aur:
       - yay
