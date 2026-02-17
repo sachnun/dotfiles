@@ -19,3 +19,4 @@ set -gx OPENCODE_EXPERIMENTAL_EXA true
 set -gx OPENCODE_EXPERIMENTAL_MARKDOWN true
 
 starship init fish | source
+zoxide init fish | source
