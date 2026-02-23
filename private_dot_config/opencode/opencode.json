@@ -1,5 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "command": {
+    "push": {
+      "template": "Categorize commits then push",
+      "description": "Commit and push"
+    }
+  },
   "provider": {
     "github-copilot": {
       "options": {
