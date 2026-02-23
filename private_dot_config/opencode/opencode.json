@@ -1,11 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    "openslimedit@latest"
-  ],
-  "permission": {
-    "*": "allow"
-  },
   "provider": {
     "github-copilot": {
       "options": {
