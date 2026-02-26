@@ -1,4 +1,0 @@
-#!/usr/bin/env fish
-if type -q fisher
-    fisher update
-end
