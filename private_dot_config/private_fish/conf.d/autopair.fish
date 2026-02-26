@@ -43,7 +43,7 @@ end
 
 function __autopair_complete
     if commandline --paging-mode
-        commandline -f down-or-search
+        commandline -f downline
     else
         if string match -rq '\$.*"$' -- (commandline -t)
             commandline -f delete-char
