@@ -20,7 +20,7 @@ hide_full_access_warning = true
 
 [features]
 use_linux_sandbox_bwrap = true
-collab = true
+multi_agent = true
 
 [tui]
 status_line = ["project-root", "git-branch", "five-hour-limit", "context-remaining"]
