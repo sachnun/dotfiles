@@ -3,36 +3,29 @@ packages:
     pacman:
       - base
       - base-devel
-      - bore
       - btop
       - bun
       - chezmoi
-      - cmatrix
-      - cowsay
+      - docker
       - fastfetch
+      - fish
+      - fisher
+      - fzf
       - git
-      - git-filter-repo
       - github-cli
-      - go
-      - htop
       - jq
       - nano
       - npm
       - openssh
-      - postgresql
       - pm2
       - python
+      - starship
       - sudo
       - tmux
       - unzip
       - uv
-      - valkey
+      - vim
       - wget
-      - vi
-      - fish
-      - starship
-      - fisher
       - zoxide
-      - fzf
     aur:
       - yay
