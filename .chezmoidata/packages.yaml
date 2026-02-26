@@ -9,7 +9,6 @@ packages:
       - docker
       - fastfetch
       - fish
-      - fisher
       - fzf
       - git
       - github-cli
