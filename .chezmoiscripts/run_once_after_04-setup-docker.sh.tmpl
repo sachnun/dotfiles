@@ -1,0 +1,16 @@
+{{- if eq .chezmoi.osRelease.id "arch" -}}
+#!/bin/bash
+set -euo pipefail
+
+# Enable docker socket activation (on-demand, not at startup)
+# Docker daemon will only start when `docker` command is invoked
+systemctl disable docker.service 2>/dev/null || true
+systemctl disable containerd.service 2>/dev/null || true
+systemctl enable docker.socket
+systemctl start docker.socket
+
+# Add current user to docker group (if not root)
+if [ "$(id -u)" -ne 0 ]; then
+  sudo usermod -aG docker "$USER"
+fi
+{{ end -}}
