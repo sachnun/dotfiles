@@ -6,14 +6,6 @@
       "description": "Commit and push"
     }
   },
-  "agent": {
-    "explore": {
-      "disable": true
-    },
-    "general": {
-      "disable": true
-    }
-  },
   "provider": {
     "github-copilot": {
       "options": {
