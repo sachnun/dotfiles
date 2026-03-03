@@ -19,7 +19,11 @@ if command -v yay &>/dev/null; then
     {{ . }}
   {{- end }}
   )
-  yay -Sy --needed --noconfirm "${AUR_PACKAGES[@]}"
+  if ! yay -Sy --needed --noconfirm "${AUR_PACKAGES[@]}"; then
+    printf 'Warning: failed to install AUR packages with yay. Continuing...\n' >&2
+  fi
+else
+  printf 'Warning: yay not found. Skipping AUR package installation.\n' >&2
 fi
 {{- end }}
 
