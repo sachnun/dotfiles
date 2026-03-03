@@ -1,4 +1,4 @@
-{{- if eq .chezmoi.osRelease.id "arch" -}}
+{{- if regexMatch "^arch" .chezmoi.osRelease.id -}}
 #!/bin/bash
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
