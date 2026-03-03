@@ -13,14 +13,17 @@ pacman -Sy --needed --noconfirm sudo git base-devel go
 BUILD_DIR=$(mktemp -d /tmp/yay-build.XXXXXX)
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
-git clone https://aur.archlinux.org/yay.git "$BUILD_DIR/yay"
-chown -R nobody:nobody "$BUILD_DIR"
-
-sudo -u nobody env \
-  GOCACHE="$BUILD_DIR/go-cache" \
-  GOPATH="$BUILD_DIR/go-path" \
-  HOME="$BUILD_DIR" \
-  makepkg -s --noconfirm -D "$BUILD_DIR/yay"
-
-sudo pacman -U --noconfirm "$BUILD_DIR"/yay/yay-*.pkg.tar.zst
+if ! {
+  git clone https://aur.archlinux.org/yay.git "$BUILD_DIR/yay" &&
+  chown -R nobody:nobody "$BUILD_DIR" &&
+  sudo -u nobody env \
+    GOCACHE="$BUILD_DIR/go-cache" \
+    GOPATH="$BUILD_DIR/go-path" \
+    HOME="$BUILD_DIR" \
+    makepkg -s --noconfirm -D "$BUILD_DIR/yay" &&
+  sudo pacman -U --noconfirm "$BUILD_DIR"/yay/yay-*.pkg.tar.zst
+}; then
+  printf 'Warning: failed to install yay. Continuing without yay.\n' >&2
+  exit 0
+fi
 {{ end -}}
