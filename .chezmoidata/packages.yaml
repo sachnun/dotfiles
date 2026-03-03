@@ -18,6 +18,7 @@ packages:
       - openssh
       - pm2
       - python
+      - ripgrep
       - starship
       - sudo
       - tmux
