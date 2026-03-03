@@ -17,6 +17,16 @@
             "context": 160000,
             "output": 64000
           }
+        },
+        "gpt-5.3-codex": {
+          "name": "GPT-5.3 Codex",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "variants": {
+            "xhigh": {}
+          }
         }
       }
     }
