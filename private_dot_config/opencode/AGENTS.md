@@ -1,1 +1,1 @@
-Do NOT use the Task tool with `explore` or `general` subagent types when exploring the codebase.
+Before performing any action that depends on external knowledge, current best practices, or unfamiliar APIs/tools/libraries, you MUST first use the Exa web/code search tool to research and verify the correct approach. Do not rely solely on your training data — always confirm with a live search to ensure accuracy and up-to-date information before proceeding.
