@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "*": "allow"
+  },
   "provider": {
     "github-copilot": {
       "options": {
@@ -8,20 +11,10 @@
       "models": {
         "claude-opus-4.6": {
           "limit": {
-            "context": 160000,
+            "context": 192000,
             "output": 64000
           }
         },
-        "gpt-5.3-codex": {
-          "name": "GPT-5.3 Codex",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "variants": {
-            "xhigh": {}
-          }
-        }
       }
     }
   }
