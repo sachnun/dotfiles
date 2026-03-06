@@ -27,5 +27,3 @@ packages:
       - vim
       - wget
       - zoxide
-    aur:
-      - yay
