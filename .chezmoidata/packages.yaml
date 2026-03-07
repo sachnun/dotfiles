@@ -4,8 +4,8 @@ packages:
       - base
       - base-devel
       - btop
-      - bun
       - chezmoi
+      - curl
       - docker
       - fastfetch
       - fish
@@ -16,14 +16,11 @@ packages:
       - nano
       - npm
       - openssh
-      - pm2
       - python
       - ripgrep
-      - starship
       - sudo
       - tmux
       - unzip
-      - uv
       - vim
       - wget
       - zoxide
