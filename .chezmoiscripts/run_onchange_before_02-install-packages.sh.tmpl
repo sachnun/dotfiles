@@ -1,0 +1,71 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
+set -euo pipefail
+
+OS_ID="{{ .chezmoi.osRelease.id }}"
+IS_CODESPACES="${CODESPACES:-false}"
+
+filter_codespaces_packages() {
+  local filtered=()
+  local pkg
+
+  for pkg in "$@"; do
+    case "$pkg" in
+      docker|docker.io)
+        continue
+        ;;
+      *)
+        filtered+=("$pkg")
+        ;;
+    esac
+  done
+
+  printf '%s\n' "${filtered[@]}"
+}
+
+install_arch_packages() {
+  local packages=(
+{{- range .packages.arch.pacman }}
+    {{ . }}
+{{- end }}
+  )
+
+  if [ "$IS_CODESPACES" = "true" ]; then
+    mapfile -t packages < <(filter_codespaces_packages "${packages[@]}")
+  fi
+
+  pacman -Sy --needed --noconfirm "${packages[@]}"
+}
+
+install_apt_packages() {
+  local packages=(
+{{- if eq .chezmoi.osRelease.id "ubuntu" }}
+{{- range .packages.ubuntu.apt }}
+    {{ . }}
+{{- end }}
+{{- else if eq .chezmoi.osRelease.id "debian" }}
+{{- range .packages.debian.apt }}
+    {{ . }}
+{{- end }}
+{{- end }}
+  )
+
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y "${packages[@]}"
+}
+
+case "$OS_ID" in
+  arch|archlinux)
+    install_arch_packages
+    ;;
+  ubuntu|debian)
+    install_apt_packages
+    ;;
+  *)
+    echo "Skipping package install: unsupported distro '$OS_ID'."
+    ;;
+esac
+
+{{ end -}}
