@@ -1,11 +1,33 @@
-{{- if regexMatch "^arch" .chezmoi.osRelease.id -}}
+{{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 set -euo pipefail
 
-# Generate en_US.UTF-8 locale
-if ! locale -a 2>/dev/null | grep -qi "en_US.utf8"; then
-  echo "Generating en_US.UTF-8 locale..."
-  grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen || echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-  locale-gen
+if [ "${CODESPACES:-false}" = "true" ]; then
+  echo "Skipping locale generation in GitHub Codespaces."
+  exit 0
 fi
+
+if ! command -v locale-gen >/dev/null 2>&1; then
+  echo "Skipping locale generation: locale-gen is unavailable."
+  exit 0
+fi
+
+if locale -a 2>/dev/null | grep -qi "^en_US\.utf8$"; then
+  exit 0
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  SUDO="sudo"
+else
+  echo "Skipping locale generation: root or passwordless sudo required."
+  exit 0
+fi
+
+echo "Generating en_US.UTF-8 locale..."
+if ! grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen; then
+  printf '%s\n' "en_US.UTF-8 UTF-8" | ${SUDO:-} tee -a /etc/locale.gen >/dev/null
+fi
+${SUDO:-} locale-gen
 {{ end -}}

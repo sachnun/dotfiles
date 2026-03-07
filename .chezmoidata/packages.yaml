@@ -27,3 +27,48 @@ packages:
       - vim
       - wget
       - zoxide
+  debian:
+    apt:
+      - build-essential
+      - btop
+      - ca-certificates
+      - curl
+      - fastfetch
+      - fish
+      - fzf
+      - gh
+      - git
+      - jq
+      - nano
+      - npm
+      - openssh-client
+      - python3
+      - python3-pip
+      - ripgrep
+      - tmux
+      - unzip
+      - vim
+      - wget
+      - zoxide
+  ubuntu:
+    apt:
+      - build-essential
+      - btop
+      - ca-certificates
+      - curl
+      - fish
+      - fzf
+      - gh
+      - git
+      - jq
+      - nano
+      - npm
+      - openssh-client
+      - python3
+      - python3-pip
+      - ripgrep
+      - tmux
+      - unzip
+      - vim
+      - wget
+      - zoxide
