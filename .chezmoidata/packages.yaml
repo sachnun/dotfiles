@@ -10,6 +10,7 @@ packages:
       - fish
       - fzf
       - git
+      - git-lfs
       - github-cli
       - grep
       - jq
@@ -35,6 +36,7 @@ packages:
       - fzf
       - gh
       - git
+      - git-lfs
       - grep
       - jq
       - nano
@@ -58,6 +60,7 @@ packages:
       - fzf
       - gh
       - git
+      - git-lfs
       - grep
       - jq
       - nano
