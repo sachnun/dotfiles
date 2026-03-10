@@ -6,7 +6,6 @@ packages:
       - btop
       - chezmoi
       - curl
-      - docker
       - fastfetch
       - fish
       - fzf
