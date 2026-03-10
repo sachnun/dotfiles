@@ -37,10 +37,25 @@ fi
 
 # Enable docker socket activation (on-demand, not at startup)
 # Docker daemon will only start when `docker` command is invoked
+systemctl stop docker.service 2>/dev/null || true
 systemctl disable docker.service 2>/dev/null || true
-systemctl disable containerd.service 2>/dev/null || true
+
+# containerd must remain enabled — Docker depends on it at runtime.
+# Disabling it causes socket activation to fail silently.
+systemctl enable containerd.service 2>/dev/null || true
+
+# Clean up stale socket before (re)enabling
+systemctl stop docker.socket 2>/dev/null || true
+rm -f /var/run/docker.sock
+
+systemctl daemon-reload
 systemctl enable docker.socket
 systemctl start docker.socket
+
+# Verify socket is actually listening
+if ! systemctl is-active --quiet docker.socket; then
+  echo "WARNING: docker.socket failed to start. Check: journalctl -u docker.socket"
+fi
 
 # Add current user to docker group (if not root)
 if [ "$(id -u)" -ne 0 ] && getent group docker >/dev/null 2>&1; then
