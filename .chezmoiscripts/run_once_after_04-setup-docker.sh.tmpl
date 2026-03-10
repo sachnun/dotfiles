@@ -7,6 +7,24 @@ if [ "${CODESPACES:-false}" = "true" ]; then
   exit 0
 fi
 
+# Install Docker packages
+OS_ID="{{ .chezmoi.osRelease.id }}"
+
+case "$OS_ID" in
+  arch|archlinux)
+    pacman -Sy --needed --noconfirm docker docker-compose
+    ;;
+  ubuntu|debian)
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y docker.io docker-compose
+    ;;
+  *)
+    echo "Skipping Docker install: unsupported distro '$OS_ID'."
+    exit 0
+    ;;
+esac
+
 if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
   echo "Skipping Docker setup: systemd is unavailable."
   exit 0
