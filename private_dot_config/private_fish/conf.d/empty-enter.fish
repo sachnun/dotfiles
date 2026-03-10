@@ -1,7 +1,18 @@
 function empty-enter
     set -l cmd (commandline)
     if test -z "$cmd"
-        commandline -r clear
+        if test "$__empty_enter_last_dir" != "$PWD" -o "$__empty_enter_state" = clear
+            set -g __empty_enter_last_dir $PWD
+            set -g __empty_enter_state info
+            if git rev-parse --is-inside-work-tree &>/dev/null
+                commandline -r "git status -sb"
+            else
+                commandline -r ll
+            end
+        else
+            set -g __empty_enter_state clear
+            commandline -r clear
+        end
     end
     commandline -f execute
 end
