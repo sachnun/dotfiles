@@ -17,4 +17,8 @@ if command -v curl >/dev/null 2>&1; then
   if ! command -v bun >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
     curl -fsSL https://bun.sh/install | bash
   fi
+
+  if ! command -v hf >/dev/null 2>&1; then
+    curl -LsSf https://hf.co/cli/install.sh | bash
+  fi
 fi
