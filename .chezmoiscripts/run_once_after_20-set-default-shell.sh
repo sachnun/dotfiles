@@ -21,8 +21,8 @@ if [ ! -t 0 ]; then
   exit 0
 fi
 
-# Set fish as the default shell if it isn't already
 fish_path="$(command -v fish)"
-if [ "$SHELL" != "$fish_path" ]; then
+current_shell="${SHELL:-}"
+if [ "$current_shell" != "$fish_path" ]; then
   chsh -s "$fish_path"
 fi
