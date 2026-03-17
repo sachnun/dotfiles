@@ -14,7 +14,7 @@ install_with_bash() {
     return 0
   fi
 
-  curl -fsSL "$install_url" | bash
+  yes | bash <(curl -fsSL "$install_url")
 }
 
 install_with_sh() {
