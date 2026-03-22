@@ -2,4 +2,4 @@
 description: Commit and push
 ---
 
-Categorize commits then push once.
+Categorize commits then push.
