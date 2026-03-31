@@ -3,9 +3,6 @@
   "permission": {
     "*": "allow"
   },
-  "plugin": [
-    "opencode-lore"
-  ],
   "provider": {
     "github-copilot": {
       "options": {
