@@ -16,7 +16,6 @@ set -gx BUN_INSTALL $HOME/.bun
 set -gx OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT true
 set -gx OPENCODE_EXPERIMENTAL_EXA true
 set -gx OPENCODE_EXPERIMENTAL_MARKDOWN true
-set -gx OPENCODE_EXPERIMENTAL_WORKSPACES true
 
 starship init fish | source
 zoxide init fish | source
