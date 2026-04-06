@@ -15,6 +15,18 @@ install_arch_packages() {
   pacman -Sy --needed --noconfirm "${packages[@]}"
 }
 
+install_gh_repo() {
+  if [ ! -f /etc/apt/sources.list.d/github-cli.list ]; then
+    mkdir -p -m 755 /etc/apt/keyrings
+    out=$(mktemp)
+    wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    cat "$out" | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
+    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      | tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+  fi
+}
+
 install_apt_packages() {
   local packages=(
 {{- if eq .chezmoi.osRelease.id "ubuntu" }}
@@ -29,8 +41,9 @@ install_apt_packages() {
   )
 
   export DEBIAN_FRONTEND=noninteractive
+  install_gh_repo
   apt-get update
-  apt-get install -y "${packages[@]}"
+  apt-get install -y "${packages[@]}" gh
 }
 
 case "$OS_ID" in

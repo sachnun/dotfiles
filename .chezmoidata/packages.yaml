@@ -28,13 +28,10 @@ packages:
   debian:
     apt:
       - build-essential
-      - btop
       - ca-certificates
       - curl
-      - fastfetch
       - fish
       - fzf
-      - gh
       - git
       - git-lfs
       - grep
@@ -49,16 +46,13 @@ packages:
       - unzip
       - vim
       - wget
-      - zoxide
   ubuntu:
     apt:
       - build-essential
-      - btop
       - ca-certificates
       - curl
       - fish
       - fzf
-      - gh
       - git
       - git-lfs
       - grep
@@ -73,4 +67,3 @@ packages:
       - unzip
       - vim
       - wget
-      - zoxide
