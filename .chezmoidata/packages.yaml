@@ -24,7 +24,6 @@ packages:
       - unzip
       - vim
       - wget
-      - zoxide
   debian:
     apt:
       - build-essential
