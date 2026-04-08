@@ -3,19 +3,14 @@
   "permission": {
     "*": "allow"
   },
+  "compaction": {
+    "auto": false
+  },
   "provider": {
     "github-copilot": {
       "options": {
         "baseURL": "https://copilot-stop.up.railway.app"
       },
-      "models": {
-        "claude-opus-4.6": {
-          "limit": {
-            "context": 192000,
-            "output": 64000
-          }
-        },
-      }
     }
   }
 }
