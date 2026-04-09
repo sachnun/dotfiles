@@ -10,7 +10,7 @@
     "push": {
       "template": "Categorize commit then push, dont ask.",
       "description": "Commit and push",
-      "model": "opencode/big-pickle",
+      "model": "github-copilot/claude-haiku-4.5",
       "subtask": true
     }
   },
