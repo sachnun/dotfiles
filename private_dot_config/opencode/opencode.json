@@ -6,6 +6,14 @@
   "compaction": {
     "auto": false
   },
+  "command": {
+    "push": {
+      "template": "Categorize commit then push, dont ask.",
+      "description": "Commit and push",
+      "model": "opencode/big-pickle",
+      "subtask": true
+    }
+  },
   "provider": {
     "github-copilot": {
       "options": {
