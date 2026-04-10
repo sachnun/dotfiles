@@ -4,11 +4,12 @@
     "*": "allow"
   },
   "compaction": {
-    "auto": false
+    "auto": false,
+    "prune": true
   },
   "command": {
     "push": {
-      "template": "Categorize commit then push, dont ask.",
+      "template": "Categorize commits by changes, then push.",
       "description": "Commit and push",
       "model": "github-copilot/claude-haiku-4.5",
       "subtask": true
@@ -26,7 +27,7 @@
         "baseURL": "https://proxy.opendum.tech/v1",
       },
       "models": {
-        "gpt-5-4": {},
+        "gpt-5.4": {},
         "glm-5.1": {}
       }
     }
