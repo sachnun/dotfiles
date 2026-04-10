@@ -19,6 +19,16 @@
       "options": {
         "baseURL": "https://copilot-stop.up.railway.app"
       },
+    },
+    "opendum": {
+      "name": "Opendum",
+      "options": {
+        "baseURL": "https://proxy.opendum.tech/v1",
+      },
+      "models": {
+        "gpt-5-4": {},
+        "glm-5.1": {}
+      }
     }
   }
 }
