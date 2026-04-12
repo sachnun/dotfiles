@@ -5,13 +5,13 @@
   },
   "compaction": {
     "auto": false,
-    "prune": true
   },
   "command": {
     "push": {
       "template": "Categorize commits by changes, then push.",
       "description": "Commit and push",
       "model": "github-copilot/claude-haiku-4.5",
+      "agent": "build",
       "subtask": true
     }
   },
