@@ -10,7 +10,7 @@
     "push": {
       "template": "Categorize commits by changes, then push.",
       "description": "Commit and push",
-      "model": "github-copilot/claude-haiku-4.5",
+      "model": "opencode/big-pickle",
       "agent": "build",
       "subtask": true
     }
@@ -27,8 +27,12 @@
         "baseURL": "https://proxy.opendum.tech/v1",
       },
       "models": {
-        "gpt-5.4": {},
-        "glm-5.1": {}
+        "gpt-5.4": {
+          "name": "GPT 5.4"
+        },
+        "glm-5.1": {
+          "name": "GLM 5.1"
+        }
       }
     }
   }
