@@ -10,7 +10,6 @@
     "push": {
       "template": "Categorize commits by changes, then push.",
       "description": "Commit and push",
-      "model": "opencode/big-pickle",
       "agent": "build",
       "subtask": true
     }
