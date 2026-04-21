@@ -8,7 +8,7 @@
   },
   "command": {
     "push": {
-      "template": "Categorize commits by changes, then push.",
+      "template": "Categorize commit, then push.",
       "description": "Commit and push",
       "agent": "build",
       "subtask": true
@@ -20,11 +20,6 @@
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
       },
     },
-    "github-copilot": {
-      "options": {
-        "baseURL": "https://copilot-stop.up.railway.app"
-      },
-    },
     "opendum": {
       "name": "Opendum",
       "options": {
@@ -34,9 +29,6 @@
         "gpt-5.4": {
           "name": "GPT 5.4",
           "variants": {
-            "high": {
-              "reasoningEffort": "high",
-            },
             "xhigh": {
               "reasoningEffort": "xhigh",
             },
