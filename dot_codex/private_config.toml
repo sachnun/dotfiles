@@ -1,5 +1,5 @@
-model = "gpt-5.3-codex"
-model_reasoning_effort = "xhigh"
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
 [projects."/root"]
 trust_level = "trusted"
 
@@ -12,11 +12,15 @@ trust_level = "trusted"
 [projects."/root/desk"]
 trust_level = "trusted"
 
+[projects."/root/nimeplay-nuxt"]
+trust_level = "trusted"
+
 [notice]
 hide_full_access_warning = true
 
 [notice.model_migrations]
 "gpt-5.2-codex" = "gpt-5.3-codex"
+"gpt-5.3-codex" = "gpt-5.4"
 
 [features]
 use_linux_sandbox_bwrap = true
