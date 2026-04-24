@@ -4,37 +4,35 @@
     "*": "allow"
   },
   "compaction": {
-    "auto": false,
+    "auto": false
   },
   "command": {
     "push": {
       "template": "Categorize commit, then push.",
-      "description": "Commit and push",
-      "agent": "build",
-      "subtask": true
+      "description": "Commit and push"
     }
   },
   "provider": {
     "opencode": {
       "options": {
-        "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
-      },
+        "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+      }
     },
     "opendum": {
       "name": "Opendum",
       "options": {
-        "baseURL": "https://proxy.opendum.tech/v1",
+        "baseURL": "https://proxy.opendum.tech/v1"
       },
       "models": {
         "gpt-5.5": {
           "name": "GPT 5.5",
           "variants": {
             "xhigh": {
-              "reasoningEffort": "xhigh",
-            },
+              "reasoningEffort": "xhigh"
+            }
           }
-        },
+        }
       }
-    },
+    }
   }
 }
