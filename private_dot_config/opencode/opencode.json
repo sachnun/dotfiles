@@ -27,8 +27,8 @@
         "gpt-5.5": {
           "name": "GPT 5.5",
           "variants": {
-            "medium": {
-              "reasoningEffort": "medium"
+            "high": {
+              "reasoningEffort": "high"
             }
           }
         }
