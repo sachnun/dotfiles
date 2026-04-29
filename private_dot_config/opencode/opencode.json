@@ -3,9 +3,6 @@
   "permission": {
     "*": "allow"
   },
-  "compaction": {
-    "auto": false
-  },
   "command": {
     "push": {
       "template": "Categorize commit, then push.",
@@ -26,6 +23,15 @@
       "models": {
         "gpt-5.5": {
           "name": "GPT 5.5",
+          "modalities": {
+            "input": [
+              "image",
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
           "variants": {
             "medium": {
               "reasoningEffort": "medium"
