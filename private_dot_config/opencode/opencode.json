@@ -9,6 +9,9 @@
       "description": "Commit and push"
     }
   },
+  "compaction": {
+    "auto": false
+  },
   "provider": {
     "opencode": {
       "options": {
@@ -31,6 +34,11 @@
             "output": [
               "text"
             ]
+          },
+          "limit": {
+            "context": 400000,
+            "input": 272000,
+            "output": 128000
           },
           "variants": {
             "medium": {
