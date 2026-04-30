@@ -40,12 +40,15 @@
             "input": 272000,
             "output": 128000
           },
+          "options": {
+            "serviceTier": "priority"
+          },
           "variants": {
             "medium": {
               "reasoningEffort": "medium"
             },
             "xhigh": {
-              "reasoningEffort": "xhigh"
+              "reasoningEffort": "xhigh",
             }
           }
         }
