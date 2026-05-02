@@ -33,8 +33,7 @@
             ]
           },
           "limit": {
-            "context": 400000,
-            "input": 272000,
+            "context": 272000,
             "output": 128000
           },
           "options": {
