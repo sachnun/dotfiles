@@ -32,11 +32,11 @@
           },
           "options": {
             "reasoningEffort": "high",
-            "serviceTier": "flex"
           },
           "variants": {
             "thinking": {
               "reasoningEffort": "xhigh",
+              "serviceTier": "flex"
             }
           }
         }
