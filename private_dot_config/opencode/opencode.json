@@ -3,12 +3,6 @@
   "permission": {
     "*": "allow"
   },
-  "command": {
-    "push": {
-      "template": "Categorize commit, then push.",
-      "description": "Commit and push"
-    }
-  },
   "provider": {
     "opencode": {
       "options": {
@@ -36,13 +30,13 @@
             "context": 272000,
             "output": 128000
           },
+          "options": {
+            "reasoningEffort": "high",
+            "serviceTier": "flex"
+          },
           "variants": {
-            "high": {
-              "reasoningEffort": "high",
-            },
-            "xhigh": {
+            "thinking": {
               "reasoningEffort": "xhigh",
-              "serviceTier": "priority"
             }
           }
         }
