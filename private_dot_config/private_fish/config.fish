@@ -18,3 +18,7 @@ set -gx OPENCODE_EXPERIMENTAL_EXA true
 set -gx OPENCODE_EXPERIMENTAL_MARKDOWN true
 
 starship init fish | source
+
+# >>> railway initialize >>>
+source "$HOME/.railway/env.fish"
+# <<< railway initialize <<<
