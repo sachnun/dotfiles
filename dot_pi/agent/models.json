@@ -1,0 +1,18 @@
+{
+	"providers": {
+		"opencode": {
+			"baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+			"models": [
+				{
+					"id": "deepseek-v4-flash-free",
+					"reasoning": true,
+					"contextWindow": 1000000,
+					"input": [
+						"text",
+						"image"
+					]
+				}
+			]
+		}
+	}
+}
