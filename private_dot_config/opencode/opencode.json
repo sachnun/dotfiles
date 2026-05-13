@@ -3,6 +3,7 @@
   "permission": {
     "*": "allow"
   },
+  "lsp": true,
   "provider": {
     "opencode": {
       "options": {
@@ -37,6 +38,14 @@
             "thinking": {
               "reasoningEffort": "xhigh",
               "serviceTier": "flex"
+            }
+          }
+        },
+        "claude-opus-4-7": {
+          "name": "Opus 4.7",
+          "variants": {
+            "thinking": {
+              "reasoningEffort": "high"
             }
           }
         }
