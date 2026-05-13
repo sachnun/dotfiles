@@ -1,3 +1,4 @@
+{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
 #!/bin/sh
 set -eu
 
@@ -12,3 +13,4 @@ fi
 mkdir -p "$HOME/.config/chezmoi"
 chezmoi age decrypt --output "$key_path" --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
 chmod 600 "$key_path"
+{{ end -}}

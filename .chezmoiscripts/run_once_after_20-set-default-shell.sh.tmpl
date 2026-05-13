@@ -1,3 +1,4 @@
+{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
 #!/bin/bash
 set -euo pipefail
 
@@ -26,3 +27,4 @@ current_shell="${SHELL:-}"
 if [ "$current_shell" != "$fish_path" ]; then
   chsh -s "$fish_path"
 fi
+{{ end -}}

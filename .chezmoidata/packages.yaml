@@ -1,68 +1,25 @@
 packages:
-  arch:
-    pacman:
-      - base
-      - base-devel
-      - btop
-      - chezmoi
-      - curl
-      - fastfetch
-      - fish
-      - fzf
-      - git
-      - git-lfs
-      - github-cli
-      - grep
-      - jq
-      - nano
-      - npm
-      - openssh
-      - python
-      - ripgrep
-      - sudo
-      - tmux
-      - unzip
-      - vim
-      - wget
-  debian:
-    apt:
-      - build-essential
-      - ca-certificates
-      - curl
-      - fish
-      - fzf
-      - git
-      - git-lfs
-      - grep
-      - jq
-      - nano
-      - npm
-      - openssh-client
-      - python3
-      - python3-pip
-      - ripgrep
-      - tmux
-      - unzip
-      - vim
-      - wget
-  ubuntu:
-    apt:
-      - build-essential
-      - ca-certificates
-      - curl
-      - fish
-      - fzf
-      - git
-      - git-lfs
-      - grep
-      - jq
-      - nano
-      - npm
-      - openssh-client
-      - python3
-      - python3-pip
-      - ripgrep
-      - tmux
-      - unzip
-      - vim
-      - wget
+  pacman:
+    - base
+    - base-devel
+    - btop
+    - chezmoi
+    - curl
+    - fastfetch
+    - fish
+    - fzf
+    - git
+    - git-lfs
+    - github-cli
+    - grep
+    - jq
+    - nano
+    - nodejs-lts-krypton
+    - openssh
+    - python
+    - ripgrep
+    - sudo
+    - tmux
+    - unzip
+    - vim
+    - wget
