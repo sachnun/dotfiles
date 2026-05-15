@@ -15,6 +15,7 @@ packages:
     - jq
     - nano
     - nodejs-lts-krypton
+    - npm
     - openssh
     - python
     - ripgrep
