@@ -41,12 +41,10 @@
             }
           }
         },
-        "claude-opus-4-7": {
-          "name": "Opus 4.7",
-          "variants": {
-            "thinking": {
-              "reasoningEffort": "high"
-            }
+        "claude-opus-4-6": {
+          "name": "Opus 4.6",
+          "options": {
+            "reasoningEffort": "high"
           }
         }
       }
