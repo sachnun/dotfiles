@@ -5,11 +5,6 @@
   },
   "lsp": true,
   "provider": {
-    "opencode": {
-      "options": {
-        "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
-      }
-    },
     "opendum": {
       "name": "Opendum",
       "options": {
@@ -32,7 +27,7 @@
             "output": 128000
           },
           "options": {
-            "reasoningEffort": "high",
+            "reasoningEffort": "high"
           },
           "variants": {
             "thinking": {
