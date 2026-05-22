@@ -1,7 +1,10 @@
 {
   "lastChangelogVersion": "0.75.4",
-  "defaultProvider": "opencode",
-  "defaultModel": "deepseek-v4-flash-free",
-  "defaultThinkingLevel": "high",
-  "hideThinkingBlock": false
+  "defaultProvider": "opendum",
+  "defaultModel": "big-pickle",
+  "packages": [
+    "npm:pi-research"
+  ],
+  "hideThinkingBlock": false,
+  "treeFilterMode": "default"
 }
