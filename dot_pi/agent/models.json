@@ -3,6 +3,7 @@
     "opendum": {
       "baseUrl": "https://proxy.opendum.tech/v1",
       "api": "openai-completions",
+      "apiKey": "!jq -r '.opendum.key' ~/.pi/agent/auth.json",
       "models": [
         {
           "id": "big-pickle",
