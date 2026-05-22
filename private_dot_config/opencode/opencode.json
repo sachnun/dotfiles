@@ -10,6 +10,19 @@
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       }
     },
+    "buff": {
+      "options": {
+        "baseURL": "https://buff-production.up.railway.app/v1",
+      },
+      "models": {
+        "moonshotai/kimi-k2.6": {
+          "name": "Kimi 2.6"
+        },
+        "deepseek/deepseek-v4-pro": {
+          "name": "Deepseek V4 Pro"
+        }
+      }
+    },
     "opendum": {
       "name": "Opendum",
       "options": {
