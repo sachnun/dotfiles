@@ -13,15 +13,16 @@
     "openbux": {
       "name": "Openbux",
       "options": {
-        "baseURL": "https://buff-production.up.railway.app/v1",
+        "baseURL": "https://openbux-production.up.railway.app/v1",
+        "apiKey": "sk-zzz"
       },
       "models": {
         "moonshotai/kimi-k2.6": {
-          "name": "Kimi 2.6"
+          "name": "Kimi 2.6",
+          "options": {
+            "reasoningEffort": "high",
+          },
         },
-        "deepseek/deepseek-v4-pro": {
-          "name": "Deepseek V4 Pro"
-        }
       }
     },
     "opendum": {
@@ -51,7 +52,6 @@
           "variants": {
             "thinking": {
               "reasoningEffort": "xhigh",
-              "serviceTier": "flex"
             }
           }
         },

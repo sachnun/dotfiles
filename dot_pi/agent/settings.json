@@ -1,10 +1,8 @@
 {
-  "lastChangelogVersion": "0.75.4",
+  "lastChangelogVersion": "0.75.5",
   "defaultProvider": "opendum",
   "defaultModel": "big-pickle",
-  "packages": [
-    "npm:pi-research"
-  ],
+  "packages": [],
   "hideThinkingBlock": false,
   "treeFilterMode": "default"
 }
