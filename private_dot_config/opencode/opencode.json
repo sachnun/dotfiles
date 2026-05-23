@@ -8,6 +8,14 @@
     "opencode": {
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+      },
+      "models": {
+        "big-pickle": {
+          "limit": {
+            "context": 1000000,
+            "output": 128000
+          }
+        }
       }
     },
     "buff": {
