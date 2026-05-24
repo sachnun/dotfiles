@@ -3,6 +3,9 @@
   "permission": {
     "*": "allow"
   },
+  "plugin": [
+    "@prevalentware/opencode-goal-plugin"
+  ],
   "lsp": true,
   "provider": {
     "opencode": {
@@ -21,6 +24,12 @@
           "name": "Kimi 2.6",
           "options": {
             "reasoningEffort": "high",
+          },
+        },
+        "deepseek/deepseek-v4-pro": {
+          "name": "Deepseek V4 Pro",
+          "options": {
+            "reasoningEffort": "max",
           },
         },
       }
