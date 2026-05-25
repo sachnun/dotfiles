@@ -3,10 +3,15 @@
   "permission": {
     "*": "allow"
   },
-  "plugin": [
-    "@prevalentware/opencode-goal-plugin"
-  ],
   "lsp": true,
+  "agent": {
+    "explore": {
+      "disable": true
+    },
+    "general": {
+      "disable": true
+    }
+  },
   "provider": {
     "opencode": {
       "options": {
