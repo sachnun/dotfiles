@@ -12,6 +12,13 @@
       "disable": true
     }
   },
+  "mcp": {
+    "exa": {
+      "type": "remote",
+      "url": "https://unroxy.koyeb.app/mcp.exa.ai/mcp",
+      "enabled": true
+    }
+  },
   "provider": {
     "opencode": {
       "options": {
