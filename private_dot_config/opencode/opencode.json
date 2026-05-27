@@ -59,14 +59,31 @@
           },
           "options": {
             "reasoningEffort": "high",
+            "serviceTier": "priority"
           },
           "variants": {
             "thinking": {
               "reasoningEffort": "xhigh",
+              "serviceTier": "flex"
             }
           }
         },
       }
-    }
-  }
+    },
+    "command": {
+      "name": "Command",
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "baseURL": "https://api.commandcode.ai/provider/v1",
+      },
+      "models": {
+        "deepseek/deepseek-v4-pro": {
+          "name": "Deepseek V4 Pro",
+          "options": {
+            "reasoningEffort": "max",
+          },
+        },
+      }
+    },
+  },
 }
