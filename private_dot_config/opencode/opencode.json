@@ -79,7 +79,7 @@
         "deepseek/deepseek-v4-pro": {
           "name": "Deepseek V4 Pro",
           "options": {
-            "reasoningEffort": "max",
+            "reasoningEffort": "high",
           },
         },
       }
