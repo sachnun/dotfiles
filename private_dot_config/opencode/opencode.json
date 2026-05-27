@@ -24,7 +24,7 @@
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
       "models": {
-        "big-picle": {
+        "big-pickle": {
           "options": {
             "reasoningEffort": "max",
           }
@@ -52,6 +52,12 @@
         "baseURL": "https://proxy.opendum.tech/v1"
       },
       "models": {
+        "claude-opus-4-6": {
+          "name": "Opus 4.6",
+          "options": {
+            "reasoningEffort": "high",
+          },
+        },
         "gpt-5.5": {
           "name": "GPT 5.5",
           "modalities": {
@@ -79,6 +85,6 @@
           }
         },
       }
-    }
+    },
   },
 }
