@@ -3,9 +3,12 @@
   "permission": {
     "*": "allow"
   },
+  "compaction": {
+    "auto": false
+  },
   "lsp": true,
   "agent": {
-    "general": {
+    "explore": {
       "disable": true
     }
   },
@@ -20,6 +23,13 @@
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
+      "models": {
+        "big-picle": {
+          "options": {
+            "reasoningEffort": "max",
+          }
+        }
+      }
     },
     "openbux": {
       "name": "Openbux",
@@ -69,20 +79,6 @@
           }
         },
       }
-    },
-    "command": {
-      "name": "Command",
-      "options": {
-        "baseURL": "https://api.commandcode.ai/provider/v1",
-      },
-      "models": {
-        "deepseek/deepseek-v4-pro": {
-          "name": "Deepseek V4 Pro",
-          "options": {
-            "reasoningEffort": "high",
-          },
-        },
-      }
-    },
+    }
   },
 }
