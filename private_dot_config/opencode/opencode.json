@@ -72,7 +72,6 @@
     },
     "command": {
       "name": "Command",
-      "npm": "@ai-sdk/anthropic",
       "options": {
         "baseURL": "https://api.commandcode.ai/provider/v1",
       },
