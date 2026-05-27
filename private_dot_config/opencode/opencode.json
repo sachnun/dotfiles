@@ -31,21 +31,6 @@
         }
       }
     },
-    "openbux": {
-      "name": "Openbux",
-      "options": {
-        "baseURL": "https://openbux-production.up.railway.app/v1",
-        "apiKey": "sk-zzz"
-      },
-      "models": {
-        "moonshotai/kimi-k2.6": {
-          "name": "Kimi 2.6",
-          "options": {
-            "reasoningEffort": "high",
-          },
-        },
-      }
-    },
     "opendum": {
       "name": "Opendum",
       "options": {
@@ -83,6 +68,20 @@
               "serviceTier": "flex"
             }
           }
+        },
+      }
+    },
+    "command": {
+      "name": "Command",
+      "options": {
+        "baseURL": "http://localhost:8080/v1",
+      },
+      "models": {
+        "deepseek/deepseek-v4-pro": {
+          "name": "V4 Pro",
+          "options": {
+            "reasoningEffort": "high",
+          },
         },
       }
     },
