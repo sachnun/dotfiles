@@ -1,8 +1,9 @@
 {
-  "lastChangelogVersion": "0.75.5",
-  "defaultProvider": "opendum",
-  "defaultModel": "big-pickle",
+  "lastChangelogVersion": "0.76.0",
+  "defaultProvider": "xiaomi",
+  "defaultModel": "mimo-v2.5-pro",
   "packages": [],
   "hideThinkingBlock": false,
-  "treeFilterMode": "default"
+  "treeFilterMode": "default",
+  "defaultThinkingLevel": "high"
 }
