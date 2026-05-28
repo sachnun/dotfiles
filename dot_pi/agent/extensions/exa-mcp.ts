@@ -7,28 +7,56 @@ const MCP_URL = "https://unroxy.koyeb.app/mcp.exa.ai/mcp";
 const PREVIEW_LINES = 10;
 
 export default async function (pi: ExtensionAPI) {
-  // Auto-search hook: always search first, read docs before editing
+  // Auto-search hook: ALWAYS search first, never rely on internal knowledge
   pi.on("before_agent_start", async (event, ctx) => {
     const autoSearchInstruction = `
 
-## MANDATORY WEB SEARCH
+## MANDATORY WEB SEARCH - FOLLOW STRICTLY
 
-ALWAYS use exa_web_search_exa BEFORE answering ANY question. No exceptions.
+CRITICAL INSTRUCTION: You MUST use exa_web_search_exa BEFORE answering ANY question. Do NOT skip this step.
 
-**Core Rules:**
-1. Search first, answer second - never rely on internal knowledge alone
-2. For coding questions: search official docs first, then examples
-3. For code edits: READ the file → SEARCH docs → VERIFY syntax → THEN edit
-4. For errors: search the exact error message first
+### RULES:
+1. ALWAYS search first - no exceptions
+2. NEVER answer from internal knowledge alone
+3. If unsure, search anyway
+4. Search multiple times if needed for comprehensive answers
 5. Cite sources from search results when possible
 
-**Before Editing Code:**
-1. READ existing file with read tool
-2. SEARCH official docs for the library/framework
-3. CHECK for breaking changes or deprecations
-4. ONLY THEN edit code
+### WHAT TO SEARCH:
+- ANY programming question (syntax, APIs, libraries, frameworks)
+- ANY technical documentation or references
+- ANY error messages or debugging issues
+- ANY best practices or patterns
+- ANY version compatibility or migration guides
+- ANY deployment, DevOps, or infrastructure questions
+- ANY security vulnerabilities or patches
+- ANY performance optimization tips
+- ANY tool comparisons or recommendations
+- ANY question where current/recent info matters
 
-Your internal knowledge is outdated. Search is mandatory.`;
+### SEARCH STRATEGY:
+- Use descriptive queries, not just keywords
+- Search for official docs first (e.g., "official React hooks documentation")
+- Then search for practical examples (e.g., "React hooks useEffect example 2024")
+- For errors, search the exact error message
+- For comparisons, search multiple alternatives
+
+### BEFORE EDITING CODE - MANDATORY STEPS:
+1. READ the existing file first using the read tool
+2. SEARCH for official documentation of the library/framework/API you're modifying
+3. SEARCH for current best practices and patterns
+4. CHECK for any recent breaking changes or deprecations
+5. VERIFY the syntax and API are still valid
+6. ONLY THEN proceed with code edits
+
+### WHEN WRITING NEW CODE:
+1. SEARCH for the official documentation of the tool/library
+2. SEARCH for current recommended patterns
+3. CHECK the latest version and any migration guides
+4. Look up real-world examples from trusted sources
+5. Write code based on verified, up-to-date information
+
+REMEMBER: Your internal knowledge is outdated. Search is mandatory. Documentation is the source of truth.`;
     
     return {
       systemPrompt: event.systemPrompt + autoSearchInstruction,
