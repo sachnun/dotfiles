@@ -7,41 +7,28 @@ const MCP_URL = "https://unroxy.koyeb.app/mcp.exa.ai/mcp";
 const PREVIEW_LINES = 10;
 
 export default async function (pi: ExtensionAPI) {
-  // Auto-search hook: ALWAYS search first, never rely on internal knowledge
+  // Auto-search hook: always search first, read docs before editing
   pi.on("before_agent_start", async (event, ctx) => {
     const autoSearchInstruction = `
 
-## MANDATORY WEB SEARCH - FOLLOW STRICTLY
+## MANDATORY WEB SEARCH
 
-CRITICAL INSTRUCTION: You MUST use exa_web_search_exa BEFORE answering ANY question. Do NOT skip this step.
+ALWAYS use exa_web_search_exa BEFORE answering ANY question. No exceptions.
 
-### RULES:
-1. ALWAYS search first - no exceptions
-2. NEVER answer from internal knowledge alone
-3. If unsure, search anyway
-4. Search multiple times if needed for comprehensive answers
+**Core Rules:**
+1. Search first, answer second - never rely on internal knowledge alone
+2. For coding questions: search official docs first, then examples
+3. For code edits: READ the file → SEARCH docs → VERIFY syntax → THEN edit
+4. For errors: search the exact error message first
 5. Cite sources from search results when possible
 
-### WHAT TO SEARCH:
-- ANY programming question (syntax, APIs, libraries, frameworks)
-- ANY technical documentation or references
-- ANY error messages or debugging issues
-- ANY best practices or patterns
-- ANY version compatibility or migration guides
-- ANY deployment, DevOps, or infrastructure questions
-- ANY security vulnerabilities or patches
-- ANY performance optimization tips
-- ANY tool comparisons or recommendations
-- ANY question where current/recent info matters
+**Before Editing Code:**
+1. READ existing file with read tool
+2. SEARCH official docs for the library/framework
+3. CHECK for breaking changes or deprecations
+4. ONLY THEN edit code
 
-### SEARCH STRATEGY:
-- Use descriptive queries, not just keywords
-- Search for official docs first (e.g., "official React hooks documentation")
-- Then search for practical examples (e.g., "React hooks useEffect example 2024")
-- For errors, search the exact error message
-- For comparisons, search multiple alternatives
-
-REMEMBER: Your internal knowledge is outdated. Search is mandatory.`;
+Your internal knowledge is outdated. Search is mandatory.`;
     
     return {
       systemPrompt: event.systemPrompt + autoSearchInstruction,
