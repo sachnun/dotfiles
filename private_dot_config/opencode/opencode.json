@@ -7,11 +7,6 @@
     "auto": false
   },
   "lsp": true,
-  "agent": {
-    "explore": {
-      "disable": true
-    },
-  },
   "mcp": {
     "exa": {
       "type": "remote",
