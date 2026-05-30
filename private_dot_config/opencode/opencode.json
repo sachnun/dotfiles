@@ -18,8 +18,16 @@
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
+      "blacklist": [
+        "deepseek-v4-flash-free"
+      ],
       "models": {
         "big-pickle": {
+          "name": "Deepseek V4 Flash",
+          "limit": {
+            "context": 1000000,
+            "output": 384000
+          },
           "options": {
             "reasoningEffort": "max",
           }
