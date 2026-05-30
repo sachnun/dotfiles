@@ -14,7 +14,7 @@ async function call(name: string, args: Record<string, any>) {
 }
 
 export const search = tool({
-  description: "Search the web for any query.",
+  description: "Search the web for any query. filter by time.)",
   args: {
     query: tool.schema.string().describe("Search query"),
   },
@@ -28,7 +28,6 @@ export const search = tool({
     if (!rows?.length) return "No results found."
     return rows.map((r: any) => {
       let out = `Title: ${r.title ?? "Untitled"}\nURL: ${r.url}`
-      if (r.publish_date) out += `\nPublished: ${r.publish_date}`
       if (r.excerpts?.length) out += `\n\n${r.excerpts.join("\n\n")}`
       return out
     }).join("\n\n---\n\n")
