@@ -24,7 +24,7 @@ export const start = tool({
     })
     jobs.set(id, { proc, status: "running" })
     proc.on("exit", (code) => { const j = jobs.get(id); if (j) j.status = code === 0 ? "completed" : "failed" })
-    return JSON.stringify({ process_id: id, command })
+    return JSON.stringify({ process_id: id, status: "running", command })
   },
 })
 
