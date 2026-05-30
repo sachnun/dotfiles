@@ -23,7 +23,6 @@
       ],
       "models": {
         "big-pickle": {
-          "name": "Deepseek V4 Flash",
           "limit": {
             "context": 1000000,
             "output": 384000
@@ -63,12 +62,10 @@
           },
           "options": {
             "reasoningEffort": "high",
-            "serviceTier": "priority"
           },
           "variants": {
             "thinking": {
               "reasoningEffort": "xhigh",
-              "serviceTier": "flex"
             }
           }
         },
@@ -81,17 +78,17 @@
       },
       "models": {
         "xiaomi/mimo-v2.5": {
-          "name": "Mimo V2.5",
-          "options": {
-            "reasoningEffort": "high"
-          }
+          "modalities": {
+            "input": [
+              "image",
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
         },
-        "xiaomi/mimo-v2.5-pro": {
-          "name": "Mimo V2.5 Pro",
-          "options": {
-            "reasoningEffort": "high"
-          }
-        },
+        "xiaomi/mimo-v2.5-pro": {},
       }
     },
     "gitlawb": {
@@ -100,12 +97,7 @@
         "baseURL": "https://opengateway.gitlawb.com/v1"
       },
       "models": {
-        "mimo-v2.5-pro": {
-          "name": "Mimo V2.5 Pro",
-          "options": {
-            "reasoningEffort": "high"
-          }
-        }
+        "mimo-v2.5-pro": {}
       }
     }
   },
