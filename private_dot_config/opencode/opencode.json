@@ -4,7 +4,8 @@
     "*": "allow"
   },
   "compaction": {
-    "auto": false
+    "auto": false,
+    "prune": false
   },
   "lsp": true,
   "mcp": {
@@ -29,24 +30,21 @@
           },
           "options": {
             "reasoningEffort": "max",
-          }
+          },
         }
       }
     },
     "opendum": {
-      "name": "Opendum",
       "options": {
         "baseURL": "https://proxy.opendum.tech/v1"
       },
       "models": {
         "claude-opus-4-6": {
-          "name": "Opus 4.6",
           "options": {
             "reasoningEffort": "high",
           },
         },
         "gpt-5.5": {
-          "name": "GPT 5.5",
           "modalities": {
             "input": [
               "image",
@@ -64,7 +62,7 @@
             "reasoningEffort": "high",
           },
           "variants": {
-            "thinking": {
+            "xhigh": {
               "reasoningEffort": "xhigh",
             }
           }
@@ -72,7 +70,6 @@
       }
     },
     "command": {
-      "name": "Command",
       "options": {
         "baseURL": "https://cmd-proxy.up.railway.app/v1",
       },
@@ -92,7 +89,6 @@
       }
     },
     "gitlawb": {
-      "name": "Gitlawb",
       "options": {
         "baseURL": "https://opengateway.gitlawb.com/v1"
       },
