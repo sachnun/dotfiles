@@ -60,6 +60,16 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+
+## 5. Commits and PR Titles
+
+Use conventional commit-style messages and PR titles: `type: general`.
+
+- Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`.
+- Keep it simple and general, without body commit.
+
+Examples: `fix: simplify thinking toggle styling`, `docs: update contributing guide`, `chore: regenerate types`.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
