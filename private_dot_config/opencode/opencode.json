@@ -5,7 +5,9 @@
     "websearch": "deny",
     "webfetch": "deny"
   },
-  "instructions": ["agents"],
+  "instructions": [
+    "agents/*",
+  ],
   "compaction": {
     "auto": false,
     "prune": false
