@@ -1,97 +1,66 @@
 import { tool } from "@opencode-ai/plugin"
-import { spawn, type ChildProcess } from "node:child_process"
+import { spawn } from "node:child_process"
+import { readFileSync, existsSync, mkdirSync } from "node:fs"
+import { join } from "node:path"
 
-interface ProcessInfo {
-  id: string
-  command: string
-  proc: ChildProcess
-  stdout: string[]
-  stderr: string[]
-  status: "running" | "stopped"
-  startedAt: Date
-}
-
-const processes = new Map<string, ProcessInfo>()
+const TMP = "/tmp/opencode/bg"
+const jobs = new Map()
 let nextId = 1
-const MAX_BUFFER = 1000
+
+function log(id, name) { return join(TMP, `${id}.${name}.log`) }
 
 export const start = tool({
-  description:
-    "Start a shell command in the background and return a process ID. " +
-    "IMPORTANT: call bg_list first to check if already running. " +
-    "Use bg_logs to see output, bg_send to send stdin input, bg_stop to kill.",
+  description: "Start a shell command in the background. Returns process_id for use with bg_logs/bg_stop/bg_list/bg_send.",
   args: {
-    command: tool.schema.string().describe("Shell command to run (e.g. 'npm run dev')"),
+    command: tool.schema.string().describe("Shell command to run"),
     cwd: tool.schema.string().optional().describe("Working directory"),
   },
   async execute({ command, cwd }, { directory }) {
+    if (!existsSync(TMP)) mkdirSync(TMP, { recursive: true })
     const id = `bg-${nextId++}`
-    const proc = spawn("bash", ["-c", command], {
+    const proc = spawn("bash", ["-c", `{ ${command}; } >${log(id, "out")} 2>${log(id, "err")}`], {
       cwd: cwd || directory,
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["pipe", "ignore", "ignore"],
     })
-
-    const info: ProcessInfo = {
-      id, command, proc,
-      stdout: [], stderr: [],
-      status: "running",
-      startedAt: new Date(),
-    }
-
-    proc.stdout?.on("data", (data: Uint8Array) => {
-      for (const l of new TextDecoder().decode(data).split("\n").filter(Boolean)) info.stdout.push(l)
-      if (info.stdout.length > MAX_BUFFER) info.stdout.splice(0, info.stdout.length - MAX_BUFFER)
-    })
-
-    proc.stderr?.on("data", (data: Uint8Array) => {
-      for (const l of new TextDecoder().decode(data).split("\n").filter(Boolean)) info.stderr.push(l)
-      if (info.stderr.length > MAX_BUFFER) info.stderr.splice(0, info.stderr.length - MAX_BUFFER)
-    })
-
-    proc.on("exit", () => { info.status = "stopped" })
-
-    processes.set(id, info)
-    return JSON.stringify({ process_id: id, status: "running", command })
+    jobs.set(id, { proc, status: "running" })
+    proc.on("exit", (code) => { const j = jobs.get(id); if (j) j.status = code === 0 ? "completed" : "failed" })
+    return JSON.stringify({ process_id: id, command })
   },
 })
 
 export const logs = tool({
   description: "Get stdout/stderr output from a background process.",
   args: {
-    process_id: tool.schema.string().describe("Process ID from bg_start"),
-    stream: tool.schema.enum(["stdout", "stderr", "both"]).optional().default("both"),
-    tail: tool.schema.number().optional().describe("Most recent N lines (default: all)"),
+    process_id: tool.schema.string(),
+    stream: tool.schema.enum(["stdout", "stderr", "both"]).optional(),
+    tail: tool.schema.number().optional(),
   },
-  async execute({ process_id, stream, tail }) {
-    const info = processes.get(process_id)
-    if (!info) return `Error: process "${process_id}" not found`
-
-    const out: string[] = []
-    if (stream === "stdout" || stream === "both") {
-      const lines = tail ? info.stdout.slice(-tail) : info.stdout
-      if (stream === "both") out.push("--- stdout ---")
-      out.push(...lines)
-    }
-    if (stream === "stderr" || stream === "both") {
-      const lines = tail ? info.stderr.slice(-tail) : info.stderr
-      if (stream === "both") out.push("--- stderr ---")
-      out.push(...lines)
+  async execute({ process_id, stream = "both", tail = 0 }) {
+    const job = jobs.get(process_id)
+    if (!job) return `Error: process "${process_id}" not found`
+    const out = []
+    for (const name of stream === "stdout" ? ["out"] : stream === "stderr" ? ["err"] : ["out", "err"]) {
+      const f = log(process_id, name)
+      if (existsSync(f)) {
+        const lines = readFileSync(f, "utf-8").replace(/\n$/, "").split("\n").filter(Boolean)
+        out.push(...(tail ? lines.slice(-tail) : lines))
+      }
     }
     return out.length ? out.join("\n") : `[process ${process_id}: no output yet]`
   },
 })
 
 export const send = tool({
-  description: "Send input (stdin) to a running background process. Appends newline.",
+  description: "Send input (stdin) to a running background process.",
   args: {
-    process_id: tool.schema.string().describe("Process ID from bg_start"),
-    input: tool.schema.string().describe("Text to send to stdin"),
+    process_id: tool.schema.string(),
+    input: tool.schema.string(),
   },
   async execute({ process_id, input }) {
-    const info = processes.get(process_id)
-    if (!info) return `Error: process "${process_id}" not found`
-    if (info.status !== "running") return `Error: process "${process_id}" is not running`
-    info.proc.stdin?.write(input + "\n")
+    const job = jobs.get(process_id)
+    if (!job) return `Error: process "${process_id}" not found`
+    if (job.status !== "running") return `Error: process "${process_id}" is not running`
+    job.proc.stdin.write(input + "\n")
     return `Sent input to process ${process_id}`
   },
 })
@@ -99,32 +68,24 @@ export const send = tool({
 export const stop = tool({
   description: "Stop/kill a background process.",
   args: {
-    process_id: tool.schema.string().describe("Process ID from bg_start"),
-    signal: tool.schema.string().optional().default("SIGTERM").describe("Signal (SIGTERM, SIGKILL, etc)"),
+    process_id: tool.schema.string(),
+    signal: tool.schema.string().optional(),
   },
-  async execute({ process_id, signal }) {
-    const info = processes.get(process_id)
-    if (!info) return `Error: process "${process_id}" not found`
-    if (info.status !== "running") return `Process ${process_id} is already stopped`
-    try { (info.proc.kill as (s: string) => boolean)(signal) } catch {}
+  async execute({ process_id, signal = "SIGTERM" }) {
+    const job = jobs.get(process_id)
+    if (!job) return `Error: process "${process_id}" not found`
+    if (job.status !== "running") return `Process ${process_id} is already stopped`
+    try { job.proc.kill(signal) } catch {}
+    job.status = "stopped"
     return `Sent ${signal} to process ${process_id}`
   },
 })
 
 export const list = tool({
-  description: "List all background processes. Call this before bg_start to avoid duplicates.",
+  description: "List all background processes.",
   args: {},
   async execute() {
-    if (!processes.size) return "No background processes."
-    return JSON.stringify(
-      Array.from(processes.values()).map(p => ({
-        process_id: p.id,
-        command: p.command,
-        status: p.status,
-        started_at: p.startedAt.toISOString(),
-        uptime_seconds: Math.floor((Date.now() - p.startedAt.getTime()) / 1000),
-      })),
-      null, 2
-    )
+    if (!jobs.size) return "No background processes."
+    return JSON.stringify(Array.from(jobs.entries()).map(([id, j]) => ({ process_id: id, status: j.status })))
   },
 })
