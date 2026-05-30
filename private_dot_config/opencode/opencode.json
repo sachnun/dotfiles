@@ -74,18 +74,11 @@
         "baseURL": "https://cmd-proxy.up.railway.app/v1",
       },
       "models": {
-        "xiaomi/mimo-v2.5": {
-          "modalities": {
-            "input": [
-              "image",
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
+        "deepseek/deepseek-v4-pro": {
+          "options": {
+            "reasoningEffort": "max",
           },
         },
-        "xiaomi/mimo-v2.5-pro": {},
       }
     },
     "gitlawb": {
