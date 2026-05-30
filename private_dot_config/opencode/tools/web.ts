@@ -14,7 +14,7 @@ async function call(name: string, args: Record<string, any>) {
 }
 
 export const search = tool({
-  description: "Search the web for any query. filter by time.)",
+  description: "Search the web for any query.",
   args: {
     query: tool.schema.string().describe("Search query"),
   },
