@@ -67,6 +67,7 @@ Use conventional commit-style messages and PR titles: `type: general`.
 
 - Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`.
 - Keep it simple and general, without body commit.
+- Only commit what you are working on, ignore the other worktree.
 
 Examples: `fix: simplify thinking toggle styling`, `docs: update contributing guide`, `chore: regenerate types`.
 
