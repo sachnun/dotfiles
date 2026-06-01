@@ -10,6 +10,12 @@
     "prune": false
   },
   "lsp": true,
+  "mcp": {
+    "exa": {
+      "type": "remote",
+      "url": "https://unroxy.koyeb.app/mcp.exa.ai/mcp",
+    }
+  },
   "provider": {
     "opencode": {
       "options": {
