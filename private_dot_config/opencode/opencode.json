@@ -2,27 +2,16 @@
   "$schema": "https://opencode.ai/config.json",
   "permission": {
     "*": "allow",
-    "websearch": "deny",
   },
   "compaction": {
     "auto": false,
-    "prune": false
   },
   "lsp": true,
-  "mcp": {
-    "exa": {
-      "type": "remote",
-      "url": "https://unroxy.koyeb.app/mcp.exa.ai/mcp",
-    }
-  },
   "provider": {
     "opencode": {
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
-      "blacklist": [
-        "deepseek-v4-flash-free"
-      ],
       "models": {
         "big-pickle": {
           "limit": {
