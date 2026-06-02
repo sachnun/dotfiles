@@ -49,11 +49,7 @@
           "modalities": {
             "input": [
               "image",
-              "text"
             ],
-            "output": [
-              "text"
-            ]
           },
           "limit": {
             "context": 272000,
@@ -80,15 +76,8 @@
             "reasoningEffort": "max",
           },
         },
-        "stepfun/Step-3.7-Flash": {}
-      }
-    },
-    "gitlawb": {
-      "options": {
-        "baseURL": "https://opengateway.gitlawb.com/v1"
-      },
-      "models": {
-        "mimo-v2.5-pro": {}
+        "Qwen/Qwen3.7-Max": {},
+        "Qwen/Qwen3.7-Max-Free": {},
       }
     },
   },
