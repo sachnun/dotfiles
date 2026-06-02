@@ -15,5 +15,7 @@ set -gx BUN_INSTALL $HOME/.bun
 # OpenCode experimental features
 set -gx OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT true
 set -gx OPENCODE_EXPERIMENTAL_WORKSPACES true
+set -gx OPENCODE_ENABLE_EXA true
+set -gx OPENCODE_ENABLE_PARALLEL true
 
 starship init fish | source
