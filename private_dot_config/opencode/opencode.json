@@ -21,7 +21,6 @@
           },
           "options": {
             "reasoningEffort": "max",
-            "temperature": 0.1,
           },
         }
       }
