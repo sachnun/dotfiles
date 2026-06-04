@@ -26,6 +26,7 @@
       }
     },
     "opendum": {
+      "name": "Opendum",
       "options": {
         "baseURL": "https://proxy.opendum.tech/v1"
       },
