@@ -61,13 +61,16 @@
         "baseURL": "https://cmd-proxy.up.railway.app/v1",
       },
       "models": {
+        "moonshotai/Kimi-K2.6": {},
+        "zai-org/GLM-5.1": {},
+        "MiniMaxAI/MiniMax-M3": {},
         "deepseek/deepseek-v4-pro": {
           "options": {
             "reasoningEffort": "max",
           },
         },
         "Qwen/Qwen3.7-Max": {},
-        "Qwen/Qwen3.7-Max-Free": {},
+        "xiaomi/mimo-v2.5-pro": {},
       }
     },
   },
