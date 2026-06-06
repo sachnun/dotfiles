@@ -1,6 +1,0 @@
-{{- if eq .chezmoi.os "linux" -}}
-#!/bin/bash
-set -euo pipefail
-
-bash <(curl -fsSL railway.com/install.sh) -y
-{{ end -}}
