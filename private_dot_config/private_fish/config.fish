@@ -23,3 +23,7 @@ starship init fish | source
 # >>> grok installer >>>
 fish_add_path $HOME/.grok/bin
 # <<< grok installer <<<
+
+# >>> railway initialize >>>
+source "$HOME/.railway/env.fish"
+# <<< railway initialize <<<

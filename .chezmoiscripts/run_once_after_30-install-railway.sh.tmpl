@@ -1,0 +1,10 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+command -v curl >/dev/null 2>&1 || { echo "Skipping: curl unavailable."; exit 0; }
+
+has() { command -v "$1" >/dev/null 2>&1; }
+
+has railway || bash <(curl -fsSL railway.com/install.sh) -y
+{{ end -}}
