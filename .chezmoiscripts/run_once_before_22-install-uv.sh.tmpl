@@ -1,0 +1,6 @@
+{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
+#!/bin/bash
+set -euo pipefail
+
+curl -fsSL https://astral.sh/uv/install.sh | sh
+{{ end -}}
