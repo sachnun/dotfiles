@@ -5,7 +5,7 @@
     "question": "deny"
   },
   "compaction": {
-    "auto": false,
+    "auto": false
   },
   "lsp": true,
   "provider": {
@@ -15,13 +15,19 @@
       },
       "models": {
         "big-pickle": {
+          "name": "DeepSeek V4 Flash",
           "limit": {
             "context": 1000000,
             "output": 384000
           },
-          "options": {
-            "reasoningEffort": "max",
-          },
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          }
         }
       }
     },
@@ -111,33 +117,33 @@
         "claude-opus-4-6": {
           "name": "Claude Opus 4.6",
           "options": {
-            "reasoningEffort": "high",
-          },
+            "reasoningEffort": "high"
+          }
         },
         "gpt-5.5": {
           "name": "GPT 5.5",
           "modalities": {
             "input": [
-              "image",
-            ],
+              "image"
+            ]
           },
           "limit": {
             "context": 272000,
             "output": 128000
           },
           "options": {
-            "reasoningEffort": "high",
+            "reasoningEffort": "high"
           },
           "variants": {
             "xhigh": {
-              "reasoningEffort": "xhigh",
+              "reasoningEffort": "xhigh"
             }
           }
-        },
+        }
       }
-    },
+    }
   },
   "plugin": [
     "@sachnun/command-opencode@latest"
-  ],
+  ]
 }
