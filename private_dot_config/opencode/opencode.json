@@ -1,8 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": {
-    "*": "allow",
-    "question": "deny"
+    "external_directory": "allow",
+    "question": "deny",
+    "todowrite": "deny",
+    "git commit": "ask"
   },
   "compaction": {
     "prune": true,
@@ -14,6 +16,12 @@
   "plugin": [
     "@sachnun/command-opencode@latest",
   ],
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+    }
+  },
   "provider": {
     "opencode": {
       "options": {
