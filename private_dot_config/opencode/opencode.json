@@ -4,7 +4,11 @@
     "external_directory": "allow",
     "question": "deny",
     "todowrite": "deny",
-    "git * commit *": "ask"
+    "task": "deny",
+    "bash": {
+      "git commit *": "ask",
+      "git push *": "ask",
+    },
   },
   "compaction": {
     "prune": true,
