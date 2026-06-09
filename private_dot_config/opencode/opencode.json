@@ -13,6 +13,9 @@
       "options": {
         // "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
+      "blacklist": [
+        "opencode/deepseek-v4-flash-free"
+      ],
       "models": {
         "big-pickle": {
           "name": "DeepSeek V4 Flash",
@@ -31,7 +34,7 @@
         }
       }
     },
-    "Freebux": {
+    "freebux": {
       "name": "Freebux",
       "options": {
         "baseURL": "https://freebux-production.up.railway.app/v1"
