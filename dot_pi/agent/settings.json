@@ -1,9 +1,0 @@
-{
-  "lastChangelogVersion": "0.76.0",
-  "defaultProvider": "xiaomi",
-  "defaultModel": "mimo-v2.5-pro",
-  "packages": [],
-  "hideThinkingBlock": false,
-  "treeFilterMode": "default",
-  "defaultThinkingLevel": "high"
-}
