@@ -20,7 +20,7 @@
         // "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
       "blacklist": [
-        "opencode/deepseek-v4-flash-free"
+        "deepseek-v4-flash-free"
       ],
       "models": {
         "big-pickle": {
@@ -28,11 +28,6 @@
           "limit": {
             "context": 1000000,
             "output": 384000
-          },
-          "cost": {
-            "input": 0.14,
-            "output": 0.28,
-            "cache_read": 0.0028
           },
           "variants": {
             "max": {
