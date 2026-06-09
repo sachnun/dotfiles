@@ -8,6 +8,7 @@
     "auto": false
   },
   "lsp": true,
+  "formatter": true,
   "provider": {
     "opencode": {
       "options": {
@@ -147,6 +148,6 @@
     }
   },
   "plugin": [
-    "@sachnun/command-opencode@latest"
+    "@sachnun/command-opencode@latest",
   ]
 }
