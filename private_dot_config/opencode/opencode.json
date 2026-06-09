@@ -5,10 +5,15 @@
     "question": "deny"
   },
   "compaction": {
-    "auto": false
+    "prune": true,
+    "reserved": 500
   },
   "lsp": true,
   "formatter": true,
+  "small_model": "opencode/big-pickle",
+  "plugin": [
+    "@sachnun/command-opencode@latest",
+  ],
   "provider": {
     "opencode": {
       "options": {
@@ -24,10 +29,12 @@
             "context": 1000000,
             "output": 384000
           },
+          "cost": {
+            "input": 0.14,
+            "output": 0.28,
+            "cache_read": 0.0028
+          },
           "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            },
             "max": {
               "reasoningEffort": "max"
             }
@@ -45,9 +52,6 @@
           "id": "deepseek/deepseek-v4-flash",
           "name": "DeepSeek V4 Flash",
           "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            },
             "max": {
               "reasoningEffort": "max"
             }
@@ -57,9 +61,6 @@
           "id": "deepseek/deepseek-v4-pro",
           "name": "DeepSeek V4 Pro",
           "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            },
             "max": {
               "reasoningEffort": "max"
             }
@@ -120,8 +121,10 @@
       "models": {
         "claude-opus-4-6": {
           "name": "Claude Opus 4.6",
-          "options": {
-            "reasoningEffort": "high"
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
           }
         },
         "gpt-5.5": {
@@ -135,10 +138,10 @@
             "context": 272000,
             "output": 128000
           },
-          "options": {
-            "reasoningEffort": "high"
-          },
           "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            },
             "xhigh": {
               "reasoningEffort": "xhigh"
             }
@@ -147,7 +150,4 @@
       }
     }
   },
-  "plugin": [
-    "@sachnun/command-opencode@latest",
-  ]
 }
