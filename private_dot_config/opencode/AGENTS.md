@@ -63,9 +63,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 5. Commits and PR Titles
 
-Use conventional commit-style messages and PR titles: `type: general`. Commit message is subject line only (no body), max 50 characters.
+Use conventional commit-style messages and PR titles: `type: general`. 
+Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`.
 
-- Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`.
+- Commit message is subject line only (no body).
+- Commit message limit max 50 characters.
 - One commit per logical change (atomic commits). Don't mix unrelated changes in a single commit.
 - Use imperative mood (present tense): "add" not "added", "fix" not "fixed".
 
