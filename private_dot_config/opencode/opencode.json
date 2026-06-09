@@ -33,31 +33,72 @@
       "models": {
         "deepseek-v4-flash": {
           "id": "deepseek/deepseek-v4-flash",
-          "name": "DeepSeek V4 Flash"
+          "name": "DeepSeek V4 Flash",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          }
         },
         "deepseek-v4-pro": {
           "id": "deepseek/deepseek-v4-pro",
-          "name": "DeepSeek V4 Pro"
+          "name": "DeepSeek V4 Pro",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          }
         },
         "mimo-v2.5": {
           "id": "mimo/mimo-v2.5",
-          "name": "MiMo V2.5"
+          "name": "MiMo V2.5",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
         },
         "mimo-v2.5-pro": {
           "id": "mimo/mimo-v2.5-pro",
-          "name": "MiMo V2.5 Pro"
+          "name": "MiMo V2.5 Pro",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
         },
         "minimax-m2.7": {
           "id": "minimax/minimax-m2.7",
-          "name": "MiniMax M2.7"
+          "name": "MiniMax M2.7",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
         },
         "minimax-m3": {
           "id": "minimax/minimax-m3",
-          "name": "MiniMax M3"
+          "name": "MiniMax M3",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
         },
         "kimi-k2.6": {
           "id": "moonshotai/kimi-k2.6",
-          "name": "Kimi K2.6"
+          "name": "Kimi K2.6",
+          "variants": {
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
         }
       }
     },
