@@ -29,7 +29,7 @@
   "provider": {
     "opencode": {
       "options": {
-        // "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+        "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
       "blacklist": [
         "deepseek-v4-flash-free"
