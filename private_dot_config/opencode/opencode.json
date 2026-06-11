@@ -11,8 +11,8 @@
     },
   },
   "compaction": {
+    "auto": false,
     "prune": true,
-    "reserved": 500
   },
   "lsp": true,
   "formatter": true,
