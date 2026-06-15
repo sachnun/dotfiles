@@ -12,7 +12,6 @@
   },
   "compaction": {
     "auto": false,
-    "prune": true,
   },
   "lsp": true,
   "formatter": true,
@@ -31,94 +30,6 @@
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
-      "blacklist": [
-        "deepseek-v4-flash-free"
-      ],
-      "models": {
-        "big-pickle": {
-          "name": "DeepSeek V4 Flash",
-          "limit": {
-            "context": 1000000,
-            "output": 384000
-          },
-          "variants": {
-            "max": {
-              "reasoningEffort": "max"
-            }
-          }
-        }
-      }
-    },
-    "freebux": {
-      "name": "Freebux",
-      "options": {
-        "baseURL": "https://freebux-production.up.railway.app/v1"
-      },
-      "models": {
-        "deepseek-v4-flash": {
-          "id": "deepseek/deepseek-v4-flash",
-          "name": "DeepSeek V4 Flash",
-          "variants": {
-            "max": {
-              "reasoningEffort": "max"
-            }
-          }
-        },
-        "deepseek-v4-pro": {
-          "id": "deepseek/deepseek-v4-pro",
-          "name": "DeepSeek V4 Pro",
-          "variants": {
-            "max": {
-              "reasoningEffort": "max"
-            }
-          }
-        },
-        "mimo-v2.5": {
-          "id": "mimo/mimo-v2.5",
-          "name": "MiMo V2.5",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        },
-        "mimo-v2.5-pro": {
-          "id": "mimo/mimo-v2.5-pro",
-          "name": "MiMo V2.5 Pro",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        },
-        "minimax-m2.7": {
-          "id": "minimax/minimax-m2.7",
-          "name": "MiniMax M2.7",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        },
-        "minimax-m3": {
-          "id": "minimax/minimax-m3",
-          "name": "MiniMax M3",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        },
-        "kimi-k2.6": {
-          "id": "moonshotai/kimi-k2.6",
-          "name": "Kimi K2.6",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        }
-      }
     },
     "opendum": {
       "name": "Opendum",
