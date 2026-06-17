@@ -19,53 +19,27 @@
   "plugin": [
     "@sachnun/command-opencode@latest",
   ],
-  "mcp": {
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-    }
-  },
   "provider": {
     "opencode": {
       "options": {
         "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
       },
     },
-    "opendum": {
-      "name": "Opendum",
+    "freebux": {
+      "name": "Freebux",
       "options": {
-        "baseURL": "https://proxy.opendum.tech/v1"
+        "baseURL": "https://freebux.up.railway.app/v1"
       },
       "models": {
-        "claude-opus-4-6": {
-          "name": "Claude Opus 4.6",
+        "mimo/mimo-v2.5-pro": {
+          "name": "MiMo V2.5 Pro",
           "variants": {
             "high": {
               "reasoningEffort": "high"
-            }
-          }
-        },
-        "gpt-5.5": {
-          "name": "GPT 5.5",
-          "modalities": {
-            "input": [
-              "image"
-            ]
-          },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
             }
           }
         }
       }
-    }
+    },
   },
 }
