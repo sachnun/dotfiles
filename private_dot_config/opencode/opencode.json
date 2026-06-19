@@ -31,13 +31,8 @@
         "baseURL": "https://freebux.up.railway.app/v1"
       },
       "models": {
-        "mimo/mimo-v2.5-pro": {
-          "name": "MiMo V2.5 Pro",
-          "variants": {
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
+        "minimax/minimax-m3": {
+          "name": "Minimax M3",
         }
       }
     },
