@@ -14,7 +14,7 @@
   "formatter": true,
   "small_model": "opencode/big-pickle",
   "plugin": [
-    "@sachnun/command-opencode@latest",
+    "@sachnun/command-opencode",
   ],
   "provider": {
     "opencode": {
@@ -33,6 +33,11 @@
           "limit": {
             "context": 1000000,
             "output": 512000
+          },
+          "modalities": {
+            "input": [
+              "image"
+            ]
           }
         }
       }
