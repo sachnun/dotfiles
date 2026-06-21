@@ -30,10 +30,6 @@
       "models": {
         "minimax/minimax-m3": {
           "name": "Minimax M3",
-          "limit": {
-            "context": 1000000,
-            "output": 512000
-          },
           "modalities": {
             "input": [
               "image"
@@ -51,6 +47,11 @@
       "models": {
         "claude-opus-4-8": {
           "name": "Claude Opus 4.8",
+          "modalities": {
+            "input": [
+              "image"
+            ]
+          }
         }
       }
     }
