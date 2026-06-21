@@ -10,9 +10,6 @@
       "git push *": "ask",
     },
   },
-  "compaction": {
-    "auto": false,
-  },
   "lsp": true,
   "formatter": true,
   "small_model": "opencode/big-pickle",
@@ -33,8 +30,24 @@
       "models": {
         "minimax/minimax-m3": {
           "name": "Minimax M3",
+          "limit": {
+            "context": 1000000,
+            "output": 512000
+          }
         }
       }
     },
+    "aerolink": {
+      "name": "Aerolink",
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "baseURL": "https://capi.aerolink.lat/v1",
+      },
+      "models": {
+        "claude-opus-4-8": {
+          "name": "Claude Opus 4.8",
+        }
+      }
+    }
   },
 }
