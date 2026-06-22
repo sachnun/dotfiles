@@ -1,59 +1,61 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "external_directory": "allow",
-    "question": "deny",
-    "todowrite": "deny",
-    "task": "deny",
-    "bash": {
-      "git commit *": "ask",
-      "git push *": "ask",
-    },
-  },
-  "lsp": true,
-  "formatter": true,
-  "small_model": "opencode/big-pickle",
-  "plugin": [
-    "@sachnun/command-opencode",
-  ],
-  "provider": {
-    "opencode": {
-      "options": {
-        "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
-      },
-    },
-    "freebux": {
-      "name": "Freebux",
-      "options": {
-        "baseURL": "https://freebux.up.railway.app/v1"
-      },
-      "models": {
-        "minimax/minimax-m3": {
-          "name": "Minimax M3",
-          "modalities": {
-            "input": [
-              "image"
-            ]
-          }
+    "$schema": "https://opencode.ai/config.json",
+    "permission": {
+        "external_directory": "allow",
+        "question": "deny",
+        "todowrite": "deny",
+        "task": "deny",
+        "bash": {
+            "git commit *": "ask",
+            "git push *": "ask"
         }
-      }
     },
-    "aerolink": {
-      "name": "Aerolink",
-      "npm": "@ai-sdk/anthropic",
-      "options": {
-        "baseURL": "https://capi.aerolink.lat/v1",
-      },
-      "models": {
-        "claude-opus-4-8": {
-          "name": "Claude Opus 4.8",
-          "modalities": {
-            "input": [
-              "image"
-            ]
-          }
+    "lsp": true,
+    "formatter": true,
+    "small_model": "opencode/big-pickle",
+    "plugin": ["@sachnun/command-opencode"],
+    "provider": {
+        "opencode": {
+            "options": {
+                "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+            }
+        },
+        "freebux": {
+            "name": "Freebux",
+            "options": {
+                "baseURL": "https://freebux.up.railway.app/v1"
+            },
+            "models": {
+                "minimax/minimax-m3": {
+                    "name": "Minimax M3",
+                    "modalities": {
+                        "input": ["image"]
+                    }
+                }
+            }
+        },
+        "surf": {
+            "name": "Surf",
+            "npm": "@ai-sdk/anthropic",
+            "options": {
+                "baseURL": "https://unlimited.surf/v1"
+            },
+            "models": {
+                "claude-opus-4-8": {
+                    "name": "Opus 4.8",
+                    "modalities": {
+                        "input": ["image"]
+                    },
+                    "variants": {
+                        "max": {
+                            "thinking": {
+                                "type": "enabled",
+                                "budgetTokens": 64000
+                            }
+                        }
+                    }
+                }
+            }
         }
-      }
     }
-  },
 }
