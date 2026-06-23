@@ -13,7 +13,9 @@
     "lsp": true,
     "formatter": true,
     "small_model": "opencode/big-pickle",
-    "plugin": ["@sachnun/command-opencode"],
+    "plugin": [
+        //"@sachnun/command-opencode"
+    ],
     "provider": {
         "opencode": {
             "options": {
