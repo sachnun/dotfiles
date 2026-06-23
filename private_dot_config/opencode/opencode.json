@@ -23,7 +23,7 @@
         "freebux": {
             "name": "Freebux",
             "options": {
-                "baseURL": "https://freebux.up.railway.app/v1"
+                "baseURL": "https://freebux-api.up.railway.app/v1"
             },
             "models": {
                 "minimax/minimax-m3": {
@@ -31,29 +31,23 @@
                     "modalities": {
                         "input": ["image"]
                     }
-                }
-            }
-        },
-        "surf": {
-            "name": "Surf",
-            "npm": "@ai-sdk/anthropic",
-            "options": {
-                "baseURL": "https://unlimited.surf/v1"
-            },
-            "models": {
-                "claude-opus-4-8": {
-                    "name": "Opus 4.8",
+                },
+                "moonshotai/kimi-k2.6": {
+                    "name": "Kimi K2.6",
                     "modalities": {
                         "input": ["image"]
-                    },
+                    }
+                },
+                "deepseek/deepseek-v4-pro": {
+                    "name": "DeepSeek V4 Pro",
                     "variants": {
                         "max": {
-                            "thinking": {
-                                "type": "enabled",
-                                "budgetTokens": 64000
-                            }
+                            "reasoningEffort": "max"
                         }
                     }
+                },
+                "mimo/mimo-v2.5-pro": {
+                    "name": "Mimo V2.5 Pro"
                 }
             }
         }
