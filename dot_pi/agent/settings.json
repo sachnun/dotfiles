@@ -1,0 +1,11 @@
+{
+  "lastChangelogVersion": "0.80.2",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-pro",
+  "packages": [],
+  "hideThinkingBlock": false,
+  "treeFilterMode": "default",
+  "defaultThinkingLevel": "xhigh",
+  "theme": "dark",
+  "collapseChangelog": false
+}
