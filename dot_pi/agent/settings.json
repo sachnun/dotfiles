@@ -2,7 +2,10 @@
   "lastChangelogVersion": "0.80.2",
   "defaultProvider": "freebux",
   "defaultModel": "deepseek/deepseek-v4-pro",
-  "packages": [],
+  "packages": [
+    "npm:pi-commandcode-provider",
+    "npm:@ff-labs/pi-fff"
+  ],
   "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "xhigh",
