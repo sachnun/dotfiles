@@ -28,6 +28,14 @@
                 "baseURL": "https://freebuxx.up.railway.app/v1"
             },
             "models": {
+                "deepseek/deepseek-v4-pro": {
+                    "name": "DeepSeek V4 Pro",
+                    "variants": {
+                        "max": {
+                            "reasoningEffort": "max"
+                        }
+                    }
+                },
                 "minimax/minimax-m3": {
                     "name": "Minimax M3",
                     "modalities": {
@@ -38,14 +46,6 @@
                     "name": "Kimi K2.6",
                     "modalities": {
                         "input": ["image"]
-                    }
-                },
-                "deepseek/deepseek-v4-pro": {
-                    "name": "DeepSeek V4 Pro",
-                    "variants": {
-                        "max": {
-                            "reasoningEffort": "max"
-                        }
                     }
                 },
                 "mimo/mimo-v2.5-pro": {
