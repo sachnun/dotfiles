@@ -25,7 +25,7 @@
         "freebux": {
             "name": "Freebux",
             "options": {
-                "baseURL": "https://freebux-api.up.railway.app/v1"
+                "baseURL": "https://freebuxx.up.railway.app/v1"
             },
             "models": {
                 "minimax/minimax-m3": {
