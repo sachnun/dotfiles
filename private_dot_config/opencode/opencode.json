@@ -52,6 +52,22 @@
                     "name": "Mimo V2.5 Pro"
                 }
             }
+        },
+        "kimchi": {
+            "name": "Kimchi",
+            "options": {
+                "baseURL": "https://kimchi-proxy-production.up.railway.app/v1"
+            },
+            "models": {
+                "glm-5.2-fp8": {
+                    "name": "GLM-5.2",
+                    "variants": {
+                        "max": {
+                            "reasoningEffort": "max"
+                        }
+                    }
+                }
+            }
         }
     }
 }
