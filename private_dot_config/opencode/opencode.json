@@ -4,7 +4,7 @@
         "external_directory": "allow",
         "question": "deny",
         "todowrite": "deny",
-        "task": "deny",
+        //"task": "deny",
         "bash": {
             "git commit *": "ask",
             "git push *": "ask"
@@ -50,22 +50,6 @@
                 },
                 "mimo/mimo-v2.5-pro": {
                     "name": "Mimo V2.5 Pro"
-                }
-            }
-        },
-        "kimchi": {
-            "name": "Kimchi",
-            "options": {
-                "baseURL": "https://kimchi-proxy-production.up.railway.app/v1"
-            },
-            "models": {
-                "glm-5.2-fp8": {
-                    "name": "GLM-5.2",
-                    "variants": {
-                        "max": {
-                            "reasoningEffort": "max"
-                        }
-                    }
                 }
             }
         }
