@@ -4,10 +4,14 @@
         "external_directory": "allow",
         "question": "deny",
         "todowrite": "deny",
-        //"task": "deny",
         "bash": {
             "git commit *": "ask",
             "git push *": "ask"
+        }
+    },
+    "agent": {
+        "explore": {
+            "model": "opencode/big-pickle"
         }
     },
     "lsp": true,
@@ -17,6 +21,20 @@
         //"@sachnun/command-opencode"
     ],
     "provider": {
+        "nvidia": {
+            "whitelist": ["z-ai/glm-5.2"],
+            "models": {
+                "z-ai/glm-5.2": {
+                    "name": "GLM-5.2",
+                    "reasoning": true,
+                    "variants": {
+                        "max": {
+                            "reasoningEffort": "max"
+                        }
+                    }
+                }
+            }
+        },
         "opencode": {
             "options": {
                 "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
