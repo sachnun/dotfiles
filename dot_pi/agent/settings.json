@@ -2,10 +2,6 @@
   "lastChangelogVersion": "0.80.3",
   "defaultProvider": "opendum",
   "defaultModel": "big-pickle",
-  "packages": [
-    "npm:pi-commandcode-provider",
-    "npm:@ff-labs/pi-fff"
-  ],
   "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "xhigh",

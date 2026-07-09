@@ -1,8 +1,9 @@
 {
+  "providers": {
     "freebux": {
       "baseUrl": "https://freebuxx.up.railway.app/v1",
       "api": "openai-completions",
-      "apiKey": "",
+      "apiKey": "freebux",
       "models": [
         {
           "id": "deepseek/deepseek-v4-pro",
