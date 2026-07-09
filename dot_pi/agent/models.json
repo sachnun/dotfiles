@@ -1,22 +1,8 @@
 {
-  "providers": {
-    "opendum": {
-      "baseUrl": "https://proxy.opendum.tech/v1",
-      "api": "openai-completions",
-      "apiKey": "!jq -r '.opendum.key' ~/.pi/agent/auth.json",
-      "models": [
-        {
-          "id": "big-pickle",
-          "name": "big-pickle",
-          "contextWindow": 200000,
-          "maxTokens": 128000
-        }
-      ]
-    },
     "freebux": {
-      "baseUrl": "https://freebux-api.up.railway.app/v1",
+      "baseUrl": "https://freebuxx.up.railway.app/v1",
       "api": "openai-completions",
-      "apiKey": "sk-freebux-noauth",
+      "apiKey": "",
       "models": [
         {
           "id": "deepseek/deepseek-v4-pro",
@@ -28,39 +14,8 @@
           "maxTokens": 384000,
           "compat": { "thinkingFormat": "deepseek" },
           "thinkingLevelMap": {
-            "minimal": null,
-            "low": null,
-            "medium": null,
-            "high": "high",
             "xhigh": "max"
           }
-        },
-        {
-          "id": "mimo/mimo-v2.5-pro",
-          "name": "Mimo V2.5 Pro",
-          "reasoning": false,
-          "input": ["text"],
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "contextWindow": 128000,
-          "maxTokens": 4096
-        },
-        {
-          "id": "minimax/minimax-m3",
-          "name": "MiniMax M3",
-          "reasoning": false,
-          "input": ["text"],
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "contextWindow": 128000,
-          "maxTokens": 4096
-        },
-        {
-          "id": "moonshotai/kimi-k2.6",
-          "name": "Kimi K2.6",
-          "reasoning": false,
-          "input": ["text"],
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "contextWindow": 128000,
-          "maxTokens": 4096
         }
       ]
     }

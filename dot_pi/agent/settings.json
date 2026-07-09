@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.80.2",
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-pro",
+  "lastChangelogVersion": "0.80.3",
+  "defaultProvider": "opendum",
+  "defaultModel": "big-pickle",
   "packages": [
     "npm:pi-commandcode-provider",
     "npm:@ff-labs/pi-fff"
