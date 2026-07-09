@@ -1,10 +1,7 @@
 {
   "lastChangelogVersion": "0.80.3",
-  "defaultProvider": "opendum",
-  "defaultModel": "big-pickle",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-pro",
   "hideThinkingBlock": false,
-  "treeFilterMode": "default",
-  "defaultThinkingLevel": "xhigh",
-  "theme": "dark",
-  "collapseChangelog": false
+  "defaultThinkingLevel": "xhigh"
 }
