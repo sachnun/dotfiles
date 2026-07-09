@@ -9,11 +9,6 @@
             "git push *": "ask"
         }
     },
-    "agent": {
-        "explore": {
-            "model": "opencode/big-pickle"
-        }
-    },
     "lsp": true,
     "formatter": true,
     "small_model": "opencode/big-pickle",
