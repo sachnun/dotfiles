@@ -14,7 +14,9 @@
     "small_model": "opencode/big-pickle",
     "provider": {
         "opencode": {
-            "api": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+            "options": {
+                "baseURL": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
+            }
         },
         "freebux": {
             "name": "Freebux",
