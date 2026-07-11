@@ -21,10 +21,11 @@ set -gx OPENCODE_EXPERIMENTAL_WORKSPACES true
 
 starship init fish | source
 
-# >>> grok installer >>>
-fish_add_path $HOME/.grok/bin
-# <<< grok installer <<<
 
 
 # Pi
 fish_add_path "/usr/bin"
+
+# >>> grok installer >>>
+fish_add_path $HOME/.grok/bin
+# <<< grok installer <<<

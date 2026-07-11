@@ -21,7 +21,7 @@
         "freebux": {
             "name": "Freebux",
             "options": {
-                "baseURL": "https://freebuxx.up.railway.app/v1"
+                "baseURL": "https://freebux.up.railway.app/v1"
             },
             "models": {
                 "deepseek/deepseek-v4-pro": {
