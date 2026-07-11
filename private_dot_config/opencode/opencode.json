@@ -12,9 +12,6 @@
     "lsp": true,
     "formatter": true,
     "small_model": "opencode/big-pickle",
-    "plugin": [
-        //"@sachnun/command-opencode"
-    ],
     "provider": {
         "opencode": {
             "api": "https://unroxy.koyeb.app/opencode.ai/zen/v1"
@@ -33,20 +30,17 @@
                         }
                     }
                 },
+                "moonshotai/kimi-k2.7-code": {
+                    "name": "Kimi K2.7 Code",
+                    "modalities": {
+                        "input": ["image"]
+                    }
+                },
                 "minimax/minimax-m3": {
                     "name": "Minimax M3",
                     "modalities": {
                         "input": ["image"]
                     }
-                },
-                "moonshotai/kimi-k2.6": {
-                    "name": "Kimi K2.6",
-                    "modalities": {
-                        "input": ["image"]
-                    }
-                },
-                "mimo/mimo-v2.5-pro": {
-                    "name": "Mimo V2.5 Pro"
                 }
             }
         }
