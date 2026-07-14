@@ -1,0 +1,18 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+set -euo pipefail
+
+if [ ! -f "$HOME/.turso/turso" ]; then
+  echo "📦 Installing Turso CLI..."
+  curl -sSfL https://get.tur.so/install.sh | bash
+fi
+
+if [ ! -f "$HOME/.turso/turso" ] && [ ! -d "$HOME/.turso" ]; then
+  mkdir -p "$HOME/.turso"
+fi
+
+FISH_CONF="$HOME/.config/fish/conf.d/turso.fish"
+if [ ! -f "$FISH_CONF" ]; then
+  echo 'set -gx PATH $HOME/.turso $PATH' > "$FISH_CONF"
+fi
+{{ end -}}
