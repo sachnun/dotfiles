@@ -20,7 +20,11 @@
         },
         "freebux": {
             "name": "Freebux",
+            "npm": "@ai-sdk/openai-compatible",
+            "api": "https://freebux.up.railway.app/v1",
+            "env": [],
             "options": {
+                "apiKey": "sk-xxx",
                 "baseURL": "https://freebux.up.railway.app/v1"
             },
             "models": {
