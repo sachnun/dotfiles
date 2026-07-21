@@ -1,7 +1,6 @@
 setupVersion: 1
 modelRoles: 
-  default: freebux/moonshotai/kimi-k2.7-code
-  advisor: freebux/crof/glm-5.2
+  {}
 defaultThinkingLevel: auto
 followUpMode: one-at-a-time
 startup: 
@@ -54,7 +53,7 @@ task:
 browser: 
   cmux: true
 hideThinkingBlock: true
-omitThinking: false
+omitThinking: true
 tui: 
   textSizing: false
 images: 
@@ -79,3 +78,4 @@ providers:
   tinyModelDevice: default
 secrets: 
   enabled: true
+interruptMode: wait

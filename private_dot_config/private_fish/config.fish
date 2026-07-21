@@ -8,6 +8,7 @@ end
 fish_add_path $HOME/.bun/bin
 fish_add_path /root/.opencode/bin
 fish_add_path /root/.config/herd-lite/bin
+fish_add_path $HOME/go/bin
 
 # Environment variables
 set -gx BUN_INSTALL $HOME/.bun
