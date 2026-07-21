@@ -1,0 +1,8 @@
+providers:
+  freebux:
+    name: Freebux
+    baseUrl: https://freebux.up.railway.app/v1
+    api: openai-completions
+    auth: none
+    discovery:
+      type: openai-models-list
