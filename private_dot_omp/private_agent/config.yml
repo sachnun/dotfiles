@@ -1,0 +1,18 @@
+setupVersion: 1
+modelRoles: 
+  default: freebux/moonshotai/kimi-k2.7-code
+  advisor: freebux/crof/glm-5.2
+defaultThinkingLevel: auto
+followUpMode: one-at-a-time
+startup: 
+  quiet: false
+autolearn: 
+  enabled: false
+  autoContinue: false
+memory: 
+  backend: "off"
+edit: 
+  mode: hashline
+symbolPreset: nerd
+statusLine: 
+  transparent: true
