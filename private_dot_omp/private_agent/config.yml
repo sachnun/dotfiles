@@ -6,8 +6,9 @@ defaultThinkingLevel: auto
 followUpMode: one-at-a-time
 startup: 
   quiet: false
+  showSplash: false
 autolearn: 
-  enabled: false
+  enabled: true
   autoContinue: false
 memory: 
   backend: "off"
@@ -16,3 +17,65 @@ edit:
 symbolPreset: nerd
 statusLine: 
   transparent: true
+  compactThinkingLevel: true
+  showHookStatus: true
+  preset: default
+  separator: powerline-thin
+  sessionAccent: true
+lsp: 
+  lazy: false
+  formatOnWrite: true
+bash: 
+  autoBackground: 
+    enabled: true
+github: 
+  enabled: true
+goal: 
+  enabled: true
+terminal: 
+  showProgress: false
+display: 
+  showTokenUsage: true
+  cacheMissMarker: true
+  shimmer: classic
+advisor: 
+  enabled: true
+  syncBacklog: "off"
+prewalk: 
+  enabled: false
+contextPromotion: 
+  enabled: true
+compaction: 
+  enabled: true
+  remoteEnabled: true
+task: 
+  isolation: 
+    mode: auto
+browser: 
+  cmux: true
+hideThinkingBlock: true
+omitThinking: false
+tui: 
+  textSizing: false
+images: 
+  blockImages: false
+proseOnlyThinking: true
+doubleEscapeAction: tree
+treeFilterMode: default
+completion: 
+  notify: "on"
+stt: 
+  enabled: false
+  modelName: parakeet
+skills: 
+  enableSkillCommands: false
+commands: 
+  enableClaudeUser: false
+  enableClaudeProject: false
+  enableOpencodeUser: false
+  enableOpencodeProject: false
+providers: 
+  tinyModel: online
+  tinyModelDevice: default
+secrets: 
+  enabled: true

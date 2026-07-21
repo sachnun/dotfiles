@@ -87,6 +87,7 @@ symbol = "󱇶 "
 symbol = " "
 
 [git_branch]
+style = "cyan"
 symbol = " "
 
 [git_commit]
