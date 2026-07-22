@@ -1,6 +1,9 @@
 setupVersion: 1
 modelRoles: 
-  {}
+  default: freebux/moonshotai/kimi-k2.7-code
+  tiny: opencode-zen/big-pickle
+  advisor: opencode-zen/deepseek-v4-flash-free:max
+  smol: opencode-zen/deepseek-v4-flash-free
 defaultThinkingLevel: auto
 followUpMode: one-at-a-time
 startup: 
@@ -50,6 +53,7 @@ compaction:
 task: 
   isolation: 
     mode: auto
+  showResolvedModelBadge: true
 browser: 
   cmux: true
 hideThinkingBlock: true
