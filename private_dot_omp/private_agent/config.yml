@@ -1,9 +1,9 @@
 setupVersion: 1
 modelRoles: 
-  default: freebux/moonshotai/kimi-k2.7-code
-  tiny: opencode-zen/big-pickle
-  advisor: opencode-zen/deepseek-v4-flash-free:max
-  smol: opencode-zen/deepseek-v4-flash-free
+  default: freebux/deepseek/deepseek-v4-flash
+  slow: freebux/deepseek/deepseek-v4-pro
+  advisor: freebux/deepseek/deepseek-v4-pro
+  designer: freebux/google/gemini-3.1-pro-preview
 defaultThinkingLevel: auto
 followUpMode: one-at-a-time
 startup: 
@@ -25,7 +25,7 @@ statusLine:
   separator: powerline-thin
   sessionAccent: true
 lsp: 
-  lazy: false
+  lazy: true
   formatOnWrite: true
 bash: 
   autoBackground: 
@@ -41,7 +41,7 @@ display:
   cacheMissMarker: true
   shimmer: classic
 advisor: 
-  enabled: true
+  enabled: false
   syncBacklog: "off"
 prewalk: 
   enabled: false
@@ -54,6 +54,7 @@ task:
   isolation: 
     mode: auto
   showResolvedModelBadge: true
+  prewalk: false
 browser: 
   cmux: true
 hideThinkingBlock: true
