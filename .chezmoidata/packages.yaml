@@ -3,6 +3,7 @@ packages:
     - base
     - base-devel
     - btop
+    - bun
     - chezmoi
     - curl
     - fastfetch
@@ -16,11 +17,14 @@ packages:
     - jq
     - nano
     - openssh
+    - opencode
     - python
     - ripgrep
     - rclone
+    - starship
     - sudo
     - tmux
     - unzip
+    - uv
     - vim
     - wget

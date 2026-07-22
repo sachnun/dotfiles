@@ -1,6 +1,0 @@
-{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
-#!/bin/bash
-set -euo pipefail
-
-curl -fsSL https://bun.sh/install | bash
-{{ end -}}
