@@ -11,6 +11,11 @@
     },
     "lsp": true,
     "formatter": true,
+    "agent": {
+      "explore": {
+        "model": "opencode/big-pickle"
+      }
+    },
     "small_model": "opencode/big-pickle",
     "provider": {
         "opencode": {
@@ -24,7 +29,7 @@
             "api": "https://freebux.up.railway.app/v1",
             "env": [],
             "options": {
-                "apiKey": "sk-xxx",
+                "apiKey": "xxx",
                 "baseURL": "https://freebux.up.railway.app/v1"
             },
             "models": {
@@ -42,12 +47,6 @@
                         "input": ["image"]
                     }
                 },
-                "minimax/minimax-m3": {
-                    "name": "Minimax M3",
-                    "modalities": {
-                        "input": ["image"]
-                    }
-                }
             }
         }
     }
