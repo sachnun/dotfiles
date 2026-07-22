@@ -11,11 +11,6 @@
     },
     "lsp": true,
     "formatter": true,
-    "agent": {
-      "explore": {
-        "model": "opencode/big-pickle"
-      }
-    },
     "small_model": "opencode/big-pickle",
     "provider": {
         "opencode": {
