@@ -1,9 +1,6 @@
 setupVersion: 1
 modelRoles: 
-  default: freebux/deepseek/deepseek-v4-flash
-  slow: freebux/deepseek/deepseek-v4-pro
-  advisor: freebux/deepseek/deepseek-v4-pro
-  designer: freebux/google/gemini-3.1-pro-preview
+  default: freebux/deepseek/deepseek-v4-pro
 defaultThinkingLevel: auto
 followUpMode: one-at-a-time
 startup: 
@@ -41,8 +38,9 @@ display:
   cacheMissMarker: true
   shimmer: classic
 advisor: 
-  enabled: false
+  enabled: true
   syncBacklog: "off"
+  subagents: true
 prewalk: 
   enabled: false
 contextPromotion: 
