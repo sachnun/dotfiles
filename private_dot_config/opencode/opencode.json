@@ -41,7 +41,7 @@
                     "modalities": {
                         "input": ["image"]
                     }
-                },
+                }
             }
         }
     }
