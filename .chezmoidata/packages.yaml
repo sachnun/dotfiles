@@ -16,6 +16,8 @@ packages:
     - grep
     - jq
     - nano
+    - nodejs
+    - npm
     - openssh
     - opencode
     - python
