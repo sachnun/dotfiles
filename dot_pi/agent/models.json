@@ -1,23 +1,11 @@
 {
   "providers": {
-    "freebux": {
-      "baseUrl": "https://freebux.up.railway.app/v1",
-      "api": "openai-completions",
-      "apiKey": "sk-xxx",
-      "models": [
-        {
-          "id": "deepseek/deepseek-v4-pro",
-          "name": "DeepSeek V4 Pro",
-          "reasoning": true,
-          "input": ["text"],
-          "contextWindow": 1000000,
-          "maxTokens": 384000,
-          "compat": { "thinkingFormat": "deepseek" },
-          "thinkingLevelMap": {
-            "xhigh": "max"
-          }
+    "opencode": {
+      "modelOverrides": {
+        "deepseek-v4-flash-free": {
+          "contextWindow": 1000000
         }
-      ]
+      }
     }
   }
 }
