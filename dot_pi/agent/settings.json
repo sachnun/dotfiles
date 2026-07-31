@@ -8,6 +8,7 @@
   "theme": "dark",
   "collapseChangelog": false,
   "packages": [
-    "npm:pi-restrict-bash"
+    "npm:pi-restrict-bash",
+    "npm:pi-rewind"
   ]
 }
