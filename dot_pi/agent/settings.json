@@ -6,5 +6,8 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "collapseChangelog": false
+  "collapseChangelog": false,
+  "packages": [
+    "npm:pi-restrict-bash"
+  ]
 }
