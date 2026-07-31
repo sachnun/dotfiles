@@ -9,6 +9,10 @@
   "collapseChangelog": false,
   "packages": [
     "npm:pi-restrict-bash",
-    "npm:pi-rewind"
+    "npm:pi-undo-redo"
+  ],
+  "enabledModels": [
+    "opencode/deepseek-v4-flash-free",
+    "opencode/mimo-v2.5-free"
   ]
 }
