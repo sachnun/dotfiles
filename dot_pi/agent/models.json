@@ -1,7 +1,7 @@
 {
   "providers": {
     "opencode": {
-      "baseUrl": "http://unroxy.koyeb.app/opencode.ai/v1/zen",
+      "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
       "modelOverrides": {
         "deepseek-v4-flash-free": {
           "contextWindow": 1000000
