@@ -75,7 +75,6 @@ const gitWriteCommands = [
   'cherry-pick',
   'clean',
   'clone',
-  'commit',
   'commit-tree',
   'config',
   'fetch',
@@ -89,7 +88,6 @@ const gitWriteCommands = [
   'notes',
   'prune',
   'pull',
-  'push',
   'read-tree',
   'rebase',
   'remote',
@@ -109,6 +107,12 @@ const gitWriteCommands = [
   'update-ref',
   'worktree',
   'write-tree',
+]
+// Commands (as token patterns) that require user confirmation before running.
+// Add more as needed, e.g. ['rm'], ['del'], ['git', 'rebase']
+const commandsRequiringConfirmation: Pattern[] = [
+  ['git', 'commit'],
+  ['git', 'push'],
 ]
 const forbiddenRules: ForbiddenRule[] = [
   {
@@ -525,7 +529,7 @@ function getForbiddenReason(tokens: string[]): string | undefined {
 }
 
 export default function shellExtension(pi: ExtensionAPI) {
-  pi.on('tool_call', async (event) => {
+  pi.on('tool_call', async (event, ctx) => {
     for (const blockedTool of blockedTools) {
       if (event.toolName !== blockedTool.toolName) continue
       return { block: true, reason: blockedTool.reason }
@@ -551,6 +555,24 @@ export default function shellExtension(pi: ExtensionAPI) {
           block: true,
           reason: 'Unterminated quotes are blocked in the `bash` tool.',
         }
+      const commandTokens = getCommandTokens(tokens)
+      const matchTokens = getGitCommandTokens(commandTokens)
+      for (const pattern of commandsRequiringConfirmation) {
+        if (matchTokens.length < pattern.length) continue
+        let matched = true
+        for (let index = 0; index < pattern.length; index += 1) {
+          if (matchesPatternPart(matchTokens[index], pattern[index])) continue
+          matched = false
+          break
+        }
+        if (!matched) continue
+        const title = matchTokens.slice(0, pattern.length).join(' ')
+        const confirmed = await ctx.ui.confirm(title, '')
+        if (!confirmed) {
+          return { block: true, reason: `\`${title}\` blocked by user` }
+        }
+        break
+      }
       const reason = getForbiddenReason(tokens)
       if (!reason) continue
       return { block: true, reason }
