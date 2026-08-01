@@ -17,6 +17,6 @@ if [ -f "$key_path" ]; then
 fi
 
 mkdir -p "$HOME/.config/chezmoi"
-chezmoi age decrypt --output "$key_path" --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
+chezmoi age decrypt --output "$key_path" "{{ .chezmoi.sourceDir }}/key.txt.age"
 chmod 600 "$key_path"
 {{ end -}}
