@@ -1,17 +1,14 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "opencode",
-  "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": true,
+  "defaultProvider": "freebux",
+  "defaultModel": "openai/gpt-5.6-luna",
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "theme": "dark",
   "collapseChangelog": false,
   "packages": [],
-  "enabledModels": [
-    "opencode/deepseek-v4-flash-free",
-    "opencode/mimo-v2.5-free"
-  ],
+  "enabledModels": [],
   "terminal": {
     "showTerminalProgress": true
   }
