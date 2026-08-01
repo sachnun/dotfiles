@@ -3,7 +3,7 @@
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
 
-{{- if or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux") }}
+{{- if and (hasKey .chezmoi.osRelease "id") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) }}
 packages=(
 {{- range .packages.pacman }}
     {{ . }}
