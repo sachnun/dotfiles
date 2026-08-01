@@ -2,14 +2,12 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode",
   "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "theme": "dark",
   "collapseChangelog": false,
-  "packages": [
-    "npm:pi-restrict-bash"
-  ],
+  "packages": [],
   "enabledModels": [
     "opencode/deepseek-v4-flash-free",
     "opencode/mimo-v2.5-free"
