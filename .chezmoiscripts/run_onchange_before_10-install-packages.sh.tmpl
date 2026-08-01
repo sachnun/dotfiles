@@ -3,14 +3,14 @@
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
 
-{{- if or (eq .osid "linux-arch") (eq .osid "linux-archlinux") }}
+{{- if or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux") }}
 packages=(
 {{- range .packages.pacman }}
     {{ . }}
 {{- end }}
 )
 pacman -Sy --needed --noconfirm "${packages[@]}"
-{{- else if eq .osid "linux" }}
+{{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(
     age
