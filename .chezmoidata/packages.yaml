@@ -8,7 +8,6 @@ packages:
     - curl
     - fastfetch
     - fd
-    - file
     - fish
     - fzf
     - git
@@ -18,7 +17,6 @@ packages:
     - go
     - grep
     - jq
-    - man-db
     - nano
     - nodejs
     - npm
@@ -27,7 +25,6 @@ packages:
     - python
     - ripgrep
     - rclone
-    - rsync
     - sqlite
     - starship
     - sudo
@@ -37,7 +34,6 @@ packages:
     - uv
     - vim
     - wget
-    - which
     - zip
   pkg:
     - age
