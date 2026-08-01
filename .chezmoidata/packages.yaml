@@ -38,7 +38,6 @@ packages:
   pkg:
     - age
     - chezmoi
-    - curl
     - fastfetch
     - fd
     - file
@@ -49,10 +48,8 @@ packages:
     - git-lfs
     - gnupg
     - golang
-    - grep
     - jq
     - man
-    - nano
     - nodejs
     - openssh
     - python
@@ -65,7 +62,6 @@ packages:
     - termux-services
     - tmux
     - tree
-    - unzip
     - uv
     - vim
     - wget
