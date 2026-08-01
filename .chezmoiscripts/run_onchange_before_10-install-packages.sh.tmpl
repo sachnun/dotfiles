@@ -13,7 +13,7 @@ pacman -Sy --needed --noconfirm "${packages[@]}"
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(
-{{- range .packages.termux }}
+{{- range .packages.pkg }}
     {{ . }}
 {{- end }}
 )

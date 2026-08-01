@@ -30,7 +30,7 @@ packages:
     - uv
     - vim
     - wget
-  termux:
+  pkg:
     - age
     - chezmoi
     - curl
