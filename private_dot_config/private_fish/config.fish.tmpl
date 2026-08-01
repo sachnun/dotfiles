@@ -5,9 +5,11 @@ if status is-interactive
 end
 
 # PATH
-fish_add_path $HOME/.bun/bin
+{{- if hasKey .chezmoi.osRelease "id" }}
 fish_add_path /root/.opencode/bin
 fish_add_path /root/.config/herd-lite/bin
+{{- end }}
+fish_add_path $HOME/.bun/bin
 fish_add_path $HOME/go/bin
 
 # Environment variables
