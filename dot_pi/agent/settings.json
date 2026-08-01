@@ -7,8 +7,13 @@
   "defaultThinkingLevel": "max",
   "theme": "dark",
   "collapseChangelog": false,
-  "packages": [],
-  "enabledModels": [],
+  "packages": [
+    "npm:pi-restrict-bash"
+  ],
+  "enabledModels": [
+    "freebux/deepseek/deepseek-v4-pro",
+    "opencode/deepseek-v4-flash-free"
+  ],
   "terminal": {
     "showTerminalProgress": true
   }
