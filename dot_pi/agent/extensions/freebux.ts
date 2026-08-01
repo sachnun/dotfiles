@@ -1,4 +1,13 @@
-import type { ExtensionAPI, ExtensionUIContext, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import { homedir } from "node:os";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	ExtensionUIContext,
+	ProviderModelConfig,
+	ReadonlyFooterDataProvider,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 
 const BASE_URL = "https://freebux.up.railway.app/v1";
 const TIMEOUT_MS = 15_000;
@@ -26,6 +35,14 @@ interface TokenState {
 interface StatusResponse {
 	available_models?: string[];
 	token_state?: TokenState[];
+}
+
+interface Usage {
+	input?: number;
+	output?: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+	cost?: { total?: number };
 }
 
 function asPositiveNumber(value: unknown, fallback: number): number {
@@ -97,19 +114,106 @@ function formatStatus(data: StatusResponse, modelId: string): string | undefined
 	);
 	if (!token) return "inactive";
 
-	const parts: string[] = [];
 	const expires = token.session_expires_at ? Date.parse(token.session_expires_at) : Number.NaN;
-	if (Number.isFinite(expires)) {
-		const secs = Math.round((expires - Date.now()) / 1000);
-		parts.push(secs <= 0 ? "expired" : formatDuration(secs));
-	}
+	const secs = Number.isFinite(expires) ? Math.round((expires - Date.now()) / 1000) : undefined;
 
 	const { limit, remaining } = token.session_quota ?? {};
-	if (typeof limit === "number" && limit > 0) {
-		parts.push(`${typeof remaining === "number" ? remaining : 0}/${limit}`);
+	const quotaRemaining = typeof remaining === "number" ? remaining : 0;
+	const quotaLimit = typeof limit === "number" && limit > 0 ? limit : 0;
+
+	// 1 quota unit = 1 hour. Combine with remaining session time into one value.
+	if (quotaLimit > 0 && quotaRemaining > 0) {
+		const totalMinutes = quotaRemaining * 60 + Math.max(0, Math.round((secs ?? 0) / 60));
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+		return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 	}
 
-	return parts.length > 0 ? parts.join(" · ") : undefined;
+	if (secs !== undefined) return secs <= 0 ? "expired" : formatDuration(secs);
+	if (quotaLimit > 0) return `${quotaRemaining}/${quotaLimit}h`;
+	return undefined;
+}
+
+function renderFooter(
+	ctx: ExtensionContext | undefined,
+	theme: Theme,
+	footerData: ReadonlyFooterDataProvider,
+	width: number,
+): string[] {
+	if (!ctx) return [];
+
+	// Line 1: pwd + branch + session name.
+	const home = homedir();
+	let pwd = ctx.sessionManager.getCwd();
+	if (home && pwd.startsWith(home)) pwd = `~${pwd.slice(home.length)}`;
+	const branch = footerData.getGitBranch();
+	if (branch) pwd = `${pwd} (${branch})`;
+	const sessionName = ctx.sessionManager.getSessionName();
+	if (sessionName) pwd = `${pwd} • ${sessionName}`;
+	const lines = [truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."))];
+
+	// Line 2: token stats + model on the right.
+	let input = 0,
+		output = 0,
+		cacheRead = 0,
+		cacheWrite = 0,
+		cost = 0;
+	let hitRate: number | undefined;
+	for (const entry of ctx.sessionManager.getBranch()) {
+		const msg = (entry as { message?: { role?: string; usage?: Usage } }).message;
+		if (!msg || !msg.usage || (msg.role !== "assistant" && msg.role !== "toolResult")) continue;
+		input += msg.usage.input ?? 0;
+		output += msg.usage.output ?? 0;
+		cacheRead += msg.usage.cacheRead ?? 0;
+		cacheWrite += msg.usage.cacheWrite ?? 0;
+		cost += msg.usage.cost?.total ?? 0;
+		if (msg.role === "assistant") {
+			const prompt = (msg.usage.input ?? 0) + (msg.usage.cacheRead ?? 0) + (msg.usage.cacheWrite ?? 0);
+			if (prompt > 0) hitRate = ((msg.usage.cacheRead ?? 0) / prompt) * 100;
+		}
+	}
+	const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`);
+	const parts: string[] = [];
+	if (input) parts.push(`↑${fmt(input)}`);
+	if (output) parts.push(`↓${fmt(output)}`);
+	if (cacheRead) parts.push(`R${fmt(cacheRead)}`);
+	if (cacheWrite) parts.push(`W${fmt(cacheWrite)}`);
+	if ((cacheRead > 0 || cacheWrite > 0) && hitRate !== undefined) parts.push(`CH${hitRate.toFixed(1)}%`);
+	if (cost > 0) parts.push(`$${cost.toFixed(3)}`);
+	const usage = ctx.getContextUsage();
+	const windowTokens = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
+	if (usage?.percent !== null && usage?.percent !== undefined) {
+		const pct = usage.percent;
+		const text = `${pct.toFixed(1)}%/${fmt(windowTokens)}`;
+		parts.push(pct > 90 ? theme.fg("error", text) : pct > 70 ? theme.fg("warning", text) : text);
+	} else {
+		parts.push(`?/${fmt(windowTokens)}`);
+	}
+	const statsLeft = parts.join(" ");
+
+	const model = ctx.model;
+	let right = model?.id || "no-model";
+	if (model?.reasoning) right += ` • ${ctx.thinkingLevel || "off"}`;
+	if (footerData.getAvailableProviderCount() > 1 && model) right = `(${model.provider}) ${right}`;
+
+	const leftW = visibleWidth(statsLeft);
+	const rightW = visibleWidth(right);
+	if (leftW + 2 + rightW <= width) {
+		lines.push(theme.fg("dim", statsLeft) + " ".repeat(width - leftW - rightW) + theme.fg("dim", right));
+	} else {
+		lines.push(truncateToWidth(theme.fg("dim", `${statsLeft}  ${right}`), width, theme.fg("dim", "...")));
+	}
+
+	// Line 3: extension statuses right-aligned.
+	const statuses = Array.from(footerData.getExtensionStatuses().entries())
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([, text]) => text.replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim());
+	if (statuses.length > 0) {
+		const truncated = truncateToWidth(statuses.join(" "), width);
+		lines.push(" ".repeat(Math.max(1, width - visibleWidth(truncated))) + truncated);
+	}
+
+	return lines;
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -129,11 +233,31 @@ export default async function (pi: ExtensionAPI) {
 		refreshModels: async ({ signal }) => fetchModels(signal),
 	});
 
-	// Footer status: waktu & quota model freebux yang sedang dipakai.
+	// Footer status: time & quota for the freebux model in use.
 	let statusUi: ExtensionUIContext | undefined;
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 	let statusInFlight = false;
 	let modelId: string | undefined;
+
+	// Custom footer: right-aligned status (setStatus cannot control position).
+	let footerCtx: ExtensionContext | undefined;
+	let footerInstalled = false;
+
+	const installFooter = (ctx: ExtensionContext) => {
+		footerCtx = ctx;
+		if (footerInstalled) return;
+		footerInstalled = true;
+		ctx.ui.setFooter((tui, theme, footerData) => {
+			const unsub = footerData.onBranchChange(() => tui.requestRender());
+			return {
+				dispose: unsub,
+				invalidate() {},
+				render(width: number): string[] {
+					return renderFooter(footerCtx, theme, footerData, width);
+				},
+			};
+		});
+	};
 
 	const refreshStatus = async () => {
 		if (!statusUi || statusInFlight) return;
@@ -158,31 +282,31 @@ export default async function (pi: ExtensionAPI) {
 		void refreshStatus();
 	};
 
-	pi.on("session_start", (_event, ctx) => {
+	const bind = (ctx: ExtensionContext) => {
 		statusUi = ctx.ui;
+		installFooter(ctx);
 		trackModel(ctx.model?.provider, ctx.model?.id);
+	};
+
+	pi.on("session_start", (_event, ctx) => {
+		bind(ctx);
 		statusTimer ??= setInterval(refreshStatus, POLL_MS);
 	});
 
 	pi.on("model_select", (event, ctx) => {
 		statusUi = ctx.ui;
+		installFooter(ctx);
 		trackModel(event.model.provider, event.model.id);
 	});
 
-	pi.on("turn_start", (_event, ctx) => {
-		statusUi = ctx.ui;
-		trackModel(ctx.model?.provider, ctx.model?.id);
-	});
-
-	pi.on("turn_end", (_event, ctx) => {
-		statusUi = ctx.ui;
-		trackModel(ctx.model?.provider, ctx.model?.id);
-	});
+	pi.on("turn_start", (_event, ctx) => bind(ctx));
+	pi.on("turn_end", (_event, ctx) => bind(ctx));
 
 	pi.on("session_shutdown", () => {
 		clearInterval(statusTimer);
 		statusTimer = undefined;
 		statusUi = undefined;
 		modelId = undefined;
+		footerCtx = undefined;
 	});
 }
