@@ -7,14 +7,18 @@ packages:
     - chezmoi
     - curl
     - fastfetch
+    - fd
+    - file
     - fish
     - fzf
     - git
     - git-lfs
     - github-cli
+    - gnupg
     - go
     - grep
     - jq
+    - man-db
     - nano
     - nodejs
     - npm
@@ -23,36 +27,51 @@ packages:
     - python
     - ripgrep
     - rclone
+    - rsync
+    - sqlite
     - starship
     - sudo
     - tmux
+    - tree
     - unzip
     - uv
     - vim
     - wget
+    - which
+    - zip
   pkg:
     - age
     - chezmoi
     - curl
-    - fd
     - fastfetch
+    - fd
+    - file
     - fish
     - fzf
     - gh
     - git
     - git-lfs
+    - gnupg
     - golang
     - grep
     - jq
+    - man
     - nano
     - nodejs
     - openssh
     - python
     - rclone
     - ripgrep
+    - rsync
+    - sqlite
     - starship
+    - termux-api
+    - termux-services
     - tmux
+    - tree
     - unzip
     - uv
     - vim
     - wget
+    - which
+    - zip
