@@ -1,15 +1,13 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-pro",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash-free",
   "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
   "collapseChangelog": false,
-  "packages": [
-    "npm:pi-restrict-bash"
-  ],
+  "packages": [],
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-pro",
     "opencode/deepseek-v4-flash-free"
