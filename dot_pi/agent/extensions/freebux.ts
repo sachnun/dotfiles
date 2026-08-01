@@ -142,7 +142,7 @@ function renderFooter(
 ): string[] {
 	if (!ctx) return [];
 
-	// Line 1: pwd + branch + session name.
+	// Line 1: pwd + branch + session name (left) with status right-aligned.
 	const home = homedir();
 	let pwd = ctx.sessionManager.getCwd();
 	if (home && pwd.startsWith(home)) pwd = `~${pwd.slice(home.length)}`;
@@ -150,7 +150,25 @@ function renderFooter(
 	if (branch) pwd = `${pwd} (${branch})`;
 	const sessionName = ctx.sessionManager.getSessionName();
 	if (sessionName) pwd = `${pwd} • ${sessionName}`;
-	const lines = [truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."))];
+	const pwdText = theme.fg("dim", pwd);
+
+	const statuses = Array.from(footerData.getExtensionStatuses().entries())
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([, text]) => text.replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim())
+		.join(" ");
+
+	const lines: string[] = [];
+	if (statuses) {
+		const pwdW = visibleWidth(pwdText);
+		const statusW = visibleWidth(statuses);
+		if (pwdW + 2 + statusW <= width) {
+			lines.push(pwdText + " ".repeat(width - pwdW - statusW) + statuses);
+		} else {
+			lines.push(truncateToWidth(pwdText, width - statusW - 1, theme.fg("dim", "...")) + " " + statuses);
+		}
+	} else {
+		lines.push(truncateToWidth(pwdText, width, theme.fg("dim", "...")));
+	}
 
 	// Line 2: token stats + model on the right.
 	let input = 0,
@@ -202,15 +220,6 @@ function renderFooter(
 		lines.push(theme.fg("dim", statsLeft) + " ".repeat(width - leftW - rightW) + theme.fg("dim", right));
 	} else {
 		lines.push(truncateToWidth(theme.fg("dim", `${statsLeft}  ${right}`), width, theme.fg("dim", "...")));
-	}
-
-	// Line 3: extension statuses right-aligned.
-	const statuses = Array.from(footerData.getExtensionStatuses().entries())
-		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([, text]) => text.replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim());
-	if (statuses.length > 0) {
-		const truncated = truncateToWidth(statuses.join(" "), width);
-		lines.push(" ".repeat(Math.max(1, width - visibleWidth(truncated))) + truncated);
 	}
 
 	return lines;

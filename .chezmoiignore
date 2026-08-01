@@ -1,3 +1,13 @@
 README.md
 key.txt.age
 .github/workflows/**
+{{- if and (eq .chezmoi.os "linux") (not (hasKey .chezmoi.osRelease "id")) }}
+# Termux / Android — skip desktop-only files
+dot_tmux.conf
+private_dot_config/fastfetch/config.jsonc
+private_dot_config/rclone/encrypted_private_rclone.conf.age
+private_dot_config/dot_wrangler/config/encrypted_default.toml.age
+private_dot_config/neonctl/encrypted_private_executable_credentials.json.age
+dot_local/share/com.vercel.cli/encrypted_private_auth.json.age
+dot_local/share/com.vercel.cli/encrypted_private_config.json.age
+{{- end }}

@@ -1,14 +1,44 @@
-{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
+{{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
 
+{{- if or (eq .osid "linux-arch") (eq .osid "linux-archlinux") }}
 packages=(
 {{- range .packages.pacman }}
     {{ . }}
 {{- end }}
 )
-
 pacman -Sy --needed --noconfirm "${packages[@]}"
-
+{{- else if eq .osid "linux" }}
+# Termux / Android — use pkg
+termux_packages=(
+    age
+    chezmoi
+    curl
+    fastfetch
+    fish
+    fzf
+    gh
+    git
+    git-lfs
+    golang
+    grep
+    jq
+    nano
+    nodejs
+    openssh
+    python
+    rclone
+    ripgrep
+    starship
+    tmux
+    unzip
+    uv
+    vim
+    wget
+)
+pkg update
+pkg install -y "${termux_packages[@]}"
+{{- end }}
 {{ end -}}

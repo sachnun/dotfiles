@@ -1,8 +1,14 @@
-{{- if and (eq .chezmoi.os "linux") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) -}}
+{{- if eq .chezmoi.os "linux" -}}
 #!/bin/sh
 set -eu
 
-export PATH="$HOME/.local/bin:$PATH"
+# Ensure chezmoi is available
+if ! command -v chezmoi >/dev/null 2>&1; then
+  echo "chezmoi not found, skipping age key decryption."
+  exit 0
+fi
+
+export PATH="$HOME/.local/bin:$HOME/bin:${PREFIX:-/usr}/bin:$PATH"
 
 key_path="$HOME/.config/chezmoi/key.txt"
 
