@@ -34,6 +34,7 @@ packages:
     - age
     - chezmoi
     - curl
+    - fd
     - fastfetch
     - fish
     - fzf
