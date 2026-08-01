@@ -9,7 +9,7 @@ packages=(
     {{ . }}
 {{- end }}
 )
-pacman -Sy --needed --noconfirm "${packages[@]}"
+pacman -Syu --needed --noconfirm "${packages[@]}"
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(
@@ -18,6 +18,7 @@ termux_packages=(
 {{- end }}
 )
 pkg update
+pkg upgrade -y
 pkg install -y "${termux_packages[@]}"
 {{- end }}
 {{ end -}}
