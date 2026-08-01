@@ -8,11 +8,13 @@
   "theme": "dark",
   "collapseChangelog": false,
   "packages": [
-    "npm:pi-restrict-bash",
-    "npm:pi-undo-redo"
+    "npm:pi-restrict-bash"
   ],
   "enabledModels": [
     "opencode/deepseek-v4-flash-free",
     "opencode/mimo-v2.5-free"
-  ]
+  ],
+  "terminal": {
+    "showTerminalProgress": true
+  }
 }
