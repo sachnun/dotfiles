@@ -87,7 +87,6 @@ const gitWriteCommands = [
   'mv',
   'notes',
   'prune',
-  'pull',
   'read-tree',
   'rebase',
   'remote',
@@ -569,7 +568,7 @@ export default function shellExtension(pi: ExtensionAPI) {
         const title = matchTokens.slice(0, pattern.length).join(' ')
         const confirmed = await ctx.ui.confirm(title, '')
         if (!confirmed) {
-          return { block: true, reason: `\`${title}\` blocked by user` }
+          return { block: true, reason: `The \`${title}\` command is blocked by the user.` }
         }
         break
       }
