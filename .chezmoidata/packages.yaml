@@ -30,3 +30,28 @@ packages:
     - uv
     - vim
     - wget
+  termux:
+    - age
+    - chezmoi
+    - curl
+    - fastfetch
+    - fish
+    - fzf
+    - gh
+    - git
+    - git-lfs
+    - golang
+    - grep
+    - jq
+    - nano
+    - nodejs
+    - openssh
+    - python
+    - rclone
+    - ripgrep
+    - starship
+    - tmux
+    - unzip
+    - uv
+    - vim
+    - wget
