@@ -1,8 +1,8 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "llama.cpp",
-  "defaultModel": "Qwen3.5-4B-Q4_K_M",
-  "hideThinkingBlock": false,
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash-free",
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
