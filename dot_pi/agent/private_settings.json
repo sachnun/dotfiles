@@ -2,18 +2,11 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode",
   "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "theme": "dark",
-  "packages": [
-    {
-      "source": "npm:pi-mcporter",
-      "extensions": [
-        "+dist/index.js"
-      ]
-    }
-  ],
+  "packages": [],
   "enabledModels": [],
   "terminal": {
     "showTerminalProgress": true
