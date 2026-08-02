@@ -7,6 +7,8 @@ let busy = false;
 let lastPrompt = "";
 
 class Editor extends CustomEditor {
+	private onEmptyEnter: () => void;
+
 	constructor(
 		tui: ConstructorParameters<typeof CustomEditor>[0],
 		theme: Parameters<CustomEditor["constructor"]>[1],
@@ -14,6 +16,7 @@ class Editor extends CustomEditor {
 		onEmptyEnter: () => void,
 	) {
 		super(tui, theme, keybindings);
+		this.onEmptyEnter = onEmptyEnter;
 	}
 	handleInput(data: AgentId) {
 		if (
