@@ -1,17 +1,16 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "opencode",
-  "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": false,
+  "defaultProvider": "aihubmix",
+  "defaultModel": "deepseek-v4-flash-0731",
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "theme": "dark",
   "collapseChangelog": false,
-  "packages": [],
-  "enabledModels": [
-    "freebux/deepseek/deepseek-v4-pro",
-    "opencode/deepseek-v4-flash-free"
+  "packages": [
+    "npm:pi-mcporter"
   ],
+  "enabledModels": [],
   "terminal": {
     "showTerminalProgress": true
   },

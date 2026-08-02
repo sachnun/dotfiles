@@ -4,6 +4,7 @@ import type {
 	ExtensionUIContext,
 	ProviderModelConfig,
 } from "@earendil-works/pi-coding-agent";
+import type { Model, Api, RefreshModelsContext } from "@earendil-works/pi-ai";
 
 const BASE_URL = "https://freebux.up.railway.app/v1";
 const TIMEOUT_MS = 15_000;
@@ -33,8 +34,26 @@ interface StatusResponse {
 	token_state?: TokenState[];
 }
 
+/** pi's runtime UI context exposes `theme` (missing from the d.ts type). */
+interface StyledStatusUi extends ExtensionUIContext {
+	theme: { fg(color: string, text: string): string };
+}
+
 function asPositiveNumber(value: unknown, fallback: number): number {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/** Restore catalog persisted by pi's built-in model store (models-store.json). */
+async function readStoreModels(
+	store: RefreshModelsContext["store"],
+): Promise<ProviderModelConfig[] | undefined> {
+	try {
+		const entry = await store.read();
+		if (entry?.models?.length) return entry.models as ProviderModelConfig[];
+	} catch {
+		// store read failure is non-fatal
+	}
+	return undefined;
 }
 
 function asString(value: unknown): string | undefined {
@@ -135,13 +154,37 @@ export default async function (pi: ExtensionAPI) {
 		api: "openai-completions",
 		apiKey: "freebux",
 		models,
-		refreshModels: async ({ signal }) => fetchModels(signal),
+		refreshModels: async ({ signal, store }) => {
+			// Abort/offline → serve pi's built-in store catalog.
+			if (signal?.aborted) {
+				const cached = await readStoreModels(store);
+				return cached ?? [];
+			}
+			try {
+				const fresh = await fetchModels(signal);
+				try {
+					await store.write({ models: fresh as Model<Api>[], checkedAt: Date.now() });
+				} catch {
+					// non-fatal
+				}
+				return fresh;
+			} catch (error) {
+				const cached = await readStoreModels(store);
+				if (cached?.length) return cached;
+				throw error;
+			}
+		},
 	});
 
 	let statusUi: ExtensionUIContext | undefined;
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 	let statusInFlight = false;
 	let modelId: string | undefined;
+
+/** pi's runtime UI context exposes `theme` (missing from the d.ts type). */
+interface StyledStatusUi extends ExtensionUIContext {
+	theme: { fg(color: string, text: string): string };
+}
 
 	const refreshStatus = async () => {
 		if (!statusUi || statusInFlight) return;
@@ -150,12 +193,15 @@ export default async function (pi: ExtensionAPI) {
 			return;
 		}
 		statusInFlight = true;
+		// pi's ExtensionUIContext type omits `theme`, but the runtime exposes it
+		// (get theme() on the UI context); cast to keep the dim styling type-safe.
+		const theme = (statusUi as unknown as StyledStatusUi).theme;
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
-			if (statusUi) statusUi.setStatus(STATUS_KEY, text ? statusUi.theme.fg("dim", text) : undefined);
+			statusUi.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
 		} catch {
-			if (statusUi) statusUi.setStatus(STATUS_KEY, statusUi.theme.fg("dim", "offline"));
+			statusUi.setStatus(STATUS_KEY, theme.fg("dim", "offline"));
 		} finally {
 			statusInFlight = false;
 		}
