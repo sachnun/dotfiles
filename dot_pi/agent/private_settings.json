@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode",
   "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
@@ -14,5 +14,8 @@
   ],
   "terminal": {
     "showTerminalProgress": true
-  }
+  },
+  "extensions": [
+    "-extensions/bash.ts"
+  ]
 }
