@@ -1,20 +1,26 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "aihubmix",
-  "defaultModel": "deepseek-v4-flash-0731",
-  "hideThinkingBlock": true,
+  "defaultProvider": "llama.cpp",
+  "defaultModel": "Qwen3.5-4B-Q4_K_M",
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "collapseChangelog": false,
   "packages": [
-    "npm:pi-mcporter"
+    {
+      "source": "npm:pi-mcporter",
+      "extensions": [
+        "+dist/index.js"
+      ]
+    }
   ],
   "enabledModels": [],
   "terminal": {
     "showTerminalProgress": true
   },
   "extensions": [
+    "+extensions/aihubmix.ts",
     "-extensions/bash.ts"
-  ]
+  ],
+  "quietStartup": false
 }
