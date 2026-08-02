@@ -1,10 +1,9 @@
-// Enter kosong → re-run prompt terakhir (perilaku retry).
+// Enter kosong → lanjut agent dengan custom message (kosong, hidden).
 import { CustomEditor } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 type AgentId = Parameters<CustomEditor["handleInput"]>[0];
 let busy = false;
-let lastPrompt = "";
 
 class Editor extends CustomEditor {
 	private onEmptyEnter: () => void;
@@ -34,17 +33,17 @@ class Editor extends CustomEditor {
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.on("input", (e) => {
-		if (e.source === "interactive" && !e.text.trim().startsWith("/")) lastPrompt = e.text.trim();
-	});
 	pi.on("agent_start", () => (busy = true));
 	pi.on("agent_settled", () => (busy = false));
 	pi.on("session_start", (_e, ctx) => {
 		if (ctx.mode !== "tui") return;
 		ctx.ui.setEditorComponent((tui, theme, kb) =>
 			new Editor(tui, theme, kb, () => {
-				if (busy || !lastPrompt) return;
-				pi.sendUserMessage(lastPrompt);
+				if (busy) return;
+				pi.sendMessage(
+					{ customType: "continue", content: "", display: false },
+					{ deliverAs: "followUp", triggerTurn: true },
+				);
 			}),
 		);
 	});
