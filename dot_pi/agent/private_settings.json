@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode",
   "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
