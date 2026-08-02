@@ -1,4 +1,3 @@
-// Enter kosong → lanjut agent dengan custom message (kosong, hidden).
 import { CustomEditor } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
