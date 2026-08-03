@@ -1,5 +1,3 @@
-# APPEND_SYSTEM.md
-
 ## Style
 
 - Answer questions before editing.
