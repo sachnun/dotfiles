@@ -8,9 +8,6 @@
 
 - Ask before removing intentional code. No backward compat unless asked.
 - Check dependency files before guessing APIs.
-- Follow the language's standard tooling.
-- Inline helpers used once.
-- Keep imports at top level.
 - Prefer strong typing over `any`.
 - Read files fully before large changes or audits.
 - Upgrade outdated deps instead of downgrading code.
