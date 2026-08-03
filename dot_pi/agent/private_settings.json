@@ -15,5 +15,6 @@
     "-extensions/restore.ts",
     "-extensions/bash.ts"
   ],
-  "quietStartup": false
+  "quietStartup": false,
+  "httpIdleTimeoutMs": 30000
 }
