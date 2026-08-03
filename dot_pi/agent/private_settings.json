@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "aihubmix",
-  "defaultModel": "deepseek-v4-flash-0731",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash-free",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -15,8 +15,8 @@
     "showTerminalProgress": true
   },
   "extensions": [
-    "+extensions/aihubmix.ts",
-    "+extensions/bash.ts"
+    "+extensions/bash.ts",
+    "-extensions/aihubmix.ts"
   ],
   "quietStartup": false
 }
