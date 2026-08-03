@@ -219,16 +219,19 @@ interface StyledStatusUi extends ExtensionUIContext {
 			statusUi.setStatus(STATUS_KEY, undefined);
 			return;
 		}
+		// Snapshot the UI context: the session may shut down (and null it)
+		// while the status fetch is in flight.
+		const ui = statusUi;
 		statusInFlight = true;
 		// pi's ExtensionUIContext type omits `theme`, but the runtime exposes it
 		// (get theme() on the UI context); cast to keep the dim styling type-safe.
-		const theme = (statusUi as unknown as StyledStatusUi).theme;
+		const theme = (ui as unknown as StyledStatusUi).theme;
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
-			statusUi.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
+			ui.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
 		} catch {
-			statusUi.setStatus(STATUS_KEY, theme.fg("dim", "offline"));
+			ui.setStatus(STATUS_KEY, theme.fg("dim", "offline"));
 		} finally {
 			statusInFlight = false;
 		}

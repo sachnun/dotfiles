@@ -1,570 +1,408 @@
+/**
+ * bash tool guard.
+ *
+ * Policy, from most to least strict:
+ *
+ *  1. Syntax gate   - reject redirection/heredocs, command substitution,
+ *                     subshells, backgrounding and unterminated quotes.
+ *  2. Hard blocks   - things that must never run: sudo, eval/exec wrappers,
+ *                     nested shells, xargs, tee, sed -i, remote command
+ *                     runners (npx/bunx/npm exec/...) and shell control flow.
+ *  3. Fast tools    - steer grep/find/fd/tree to `rg` and solo `cat` to the
+ *                     read tool. `ls` stays allowed (needed for metadata).
+ *  4. Confirmation  - any command that writes or destroys state (rm, dd,
+ *                     chmod, mount, git write subcommands, ...) asks first.
+ *
+ * Everything else is free to run.
+ */
 import { posix } from 'node:path'
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent'
 
-type PatternPart = string | string[]
-type Pattern = PatternPart[]
-type ForbiddenRule = {
-  pattern: Pattern
-  reason: string | ((matchTokens: string[]) => string)
-}
-type SegmentResult = {
-  segments?: string[]
-  sawPipe?: boolean
-  reason?: string
+// ------------------------------------------------------------------ types ---
+type Tokens = string[]
+
+type RuleContext = {
+  /** Whether the whole command contains a pipe (`|`). */
+  sawPipe: boolean
 }
 
-const searchCommands = ['fd', 'find', 'grep', 'tree']
-const shellCommands = ['bash', 'sh', 'zsh']
-const wrapperCommands = ['eval', 'exec']
-const commandRunnerCommands = ['bunx', 'npx', 'pnpx', 'uvx']
-const commandRunnerSubcommands: string[][] = [
-  ['pnpm', 'dlx'],
-  ['yarn', 'dlx'],
-  ['npm', 'exec'],
-  ['bun', 'x'],
-  ['uv', 'tool', 'run'],
-  ['npm', 'create'],
-  ['npm', 'init'],
-  ['yarn', 'create'],
-  ['pnpm', 'create'],
-  ['bun', 'create'],
-]
-const commandRunnerPositionalSkipRules: Record<string, { token: string; consumesNextToken: boolean }[]> = {
-  npm: [
-    { token: 'workspace', consumesNextToken: true },
-    { token: 'workspaces', consumesNextToken: false },
-  ],
-  yarn: [
-    { token: 'workspace', consumesNextToken: true },
-    { token: 'workspaces', consumesNextToken: false },
-    { token: 'foreach', consumesNextToken: false },
-  ],
+type Rule = {
+  /**
+   * Prefix to match against the normalized command tokens, e.g. `'rm'` or
+   * `['git', 'commit']`. When omitted, the rule only uses `when`.
+   */
+  match?: string | readonly string[]
+  /** Block/confirmation message; may be a function of the matched tokens. */
+  reason: string | ((matched: Tokens) => string)
+  /** Optional extra condition on top of `match`. */
+  when?: (tokens: Tokens, ctx: RuleContext) => boolean
 }
-const commandRunnerFlagRules: Record<string, { booleanFlags: string[]; valueFlags: string[] }> = {
-  npm: {
-    booleanFlags: ['--silent', '--quiet', '-s'],
-    valueFlags: ['--prefix', '--cache', '--registry', '--userconfig', '--workspace'],
-  },
-  yarn: {
-    booleanFlags: ['--silent'],
-    valueFlags: ['--cwd'],
-  },
-  pnpm: {
-    booleanFlags: ['--silent'],
-    valueFlags: ['--filter'],
-  },
-  uv: {
-    booleanFlags: ['--verbose', '-v'],
-    valueFlags: ['--index-url'],
-  },
+
+// --------------------------------------------------- fast tool suggestions ---
+/** Search tools callers should use `rg` instead of. `ls` is intentionally left out. */
+const FAST_TOOL_HINTS: Record<string, string> = {
+  grep: 'Use `rg "<pattern>" ["<path>"]` (or `rg --glob "<glob>" "<pattern>"`) instead.',
+  find: 'Use `rg --files ["<path>"]` or `rg --glob "<glob>" "<pattern>"` instead.',
+  fd: 'Use `rg --files ["<path>"]` instead.',
+  tree: 'Use `rg --files` to list files instead.',
 }
-const writeCommands = ['tee']
-const shellControlKeywords = ['if', 'then', 'fi', 'for', 'while', 'until', 'do', 'done', 'case', 'esac', 'function', 'select']
-const gitFlagsWithValues = ['-c', '-C']
-const gitLongFlagsWithValues = ['--config-env', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix']
-// git subcommands that change git / filesystem state and require user confirmation.
-const gitConfirmSubcommands = [
-  'add',
-  'commit',
-  'push',
-  'pull',
-  'am',
-  'apply',
-  'archive',
-  'bisect',
-  'bundle',
-  'checkout',
-  'checkout-index',
-  'cherry-pick',
-  'clean',
-  'clone',
-  'commit-tree',
-  'config',
-  'gc',
-  'hash-object',
-  'init',
-  'maintenance',
-  'merge',
-  'mv',
-  'notes',
-  'prune',
-  'read-tree',
-  'rebase',
-  'replace',
-  'rerere',
-  'reset',
-  'restore',
-  'revert',
-  'rm',
-  'sparse-checkout',
-  'stash',
-  'submodule',
-  'switch',
-  'symbolic-ref',
-  'update-index',
-  'update-ref',
-  'worktree',
-  'write-tree',
+
+// --------------------------------------------------------- hard blocks ---
+const SHELL_KEYWORDS = ['if', 'then', 'fi', 'for', 'while', 'until', 'do', 'done', 'case', 'esac', 'function', 'select']
+const RUNNER_BINARIES = ['npx', 'bunx', 'pnpx', 'uvx']
+const RUNNER_SUBCOMMANDS: Record<string, readonly string[]> = {
+  npm: ['exec', 'create', 'init'],
+  yarn: ['dlx', 'create'],
+  pnpm: ['dlx', 'create'],
+  bun: ['x', 'create'],
+  uv: ['tool'],
+}
+const RUNNER_REASON = 'Command runners can execute untrusted remote code and are blocked.'
+const GIT_VALUE_FLAGS = ['--config-env', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix']
+
+// ------------------------- general write signals (flag-based) ----------------
+// Instead of per-language rules, detect the *general* flag shapes that write
+// files or run inline code. Adding a tool = adding one name to a list below.
+//
+//   in-place  - -i / -iEXT / --in-place[=EXT] on tools that edit files in place
+//   output    - -o / --output[=FILE] writing a file (search tools' -o is read-only)
+//   code-exec - -e / -c / -r running an inline program on interpreters
+const INPLACE_TOOLS = ['sed', 'perl', 'ruby', 'awk', 'gawk']
+const CODE_EXEC_TOOLS = ['node', 'python3', 'python', 'perl', 'ruby', 'php', 'bun', 'deno']
+const SEARCH_READ_TOOLS = ['rg', 'ack', 'ag']
+const WRITE_SIGNAL_REASONS = {
+  'in-place': 'This edits files in place (-i / --in-place). Use the edit tool, or confirm to run it.',
+  output: 'This writes to a file via -o / --output. Confirm to allow it.',
+  'code-exec': 'This runs an inline program via -e / -c / -r. Confirm to allow it.',
+} as const
+
+function writeSignal(tokens: Tokens): keyof typeof WRITE_SIGNAL_REASONS | undefined {
+  const tool = tokens[0]
+  for (let i = 1; i < tokens.length; i += 1) {
+    const a = tokens[i]
+    // in-place edits
+    if (a === '--in-place' || a.startsWith('--in-place=')) return 'in-place'
+    if (INPLACE_TOOLS.includes(tool)) {
+      if (tool === 'awk' || tool === 'gawk') {
+        // gawk: -i <file> is "include"; only -i inplace is the in-place extension
+        if (a === '-i') {
+          if (tokens[i + 1]?.startsWith('inplace')) return 'in-place'
+        } else if (a.startsWith('-i') && a.slice(2).startsWith('inplace')) {
+          return 'in-place'
+        }
+      } else if (a === '-i' || (/^-[A-Za-z]*i/.test(a) && a.length > 2)) {
+        return 'in-place'
+      }
+    }
+    // output-file flags
+    if (!SEARCH_READ_TOOLS.includes(tool)) {
+      if (a === '-o' || a === '--output' || a.startsWith('--output=')) return 'output'
+      if (a === '-O' && tool === 'wget') return 'output'
+    }
+    // inline code execution
+    if (CODE_EXEC_TOOLS.includes(tool) && (a === '-e' || a === '-c' || a === '-r')) return 'code-exec'
+    if (tool === 'deno' && a === 'eval') return 'code-exec'
+  }
+  return undefined
+}
+
+const isSoloCat = (_tokens: Tokens, ctx: RuleContext): boolean => !ctx.sawPipe
+const isRunner = (tokens: Tokens): boolean => {
+  if (RUNNER_BINARIES.includes(tokens[0])) return true
+  const subcommands = RUNNER_SUBCOMMANDS[tokens[0]]
+  if (!subcommands) return false
+  for (let i = 1; i < tokens.length; i += 1) {
+    const t = tokens[i]
+    if (t === '--') return false
+    if (!t.startsWith('-')) return subcommands.includes(t)
+  }
+  return false
+}
+const isKeyword = (tokens: Tokens): boolean => SHELL_KEYWORDS.includes(tokens[0])
+
+const HARD_BLOCKED: Rule[] = [
+  { match: 'sudo', reason: 'The `sudo` command is blocked.' },
+  { match: 'eval', reason: 'The `eval` wrapper is blocked.' },
+  { match: 'exec', reason: 'The `exec` wrapper is blocked.' },
+  { match: ['bash'], reason: 'Nested shells are blocked; run a single command directly.' },
+  { match: ['sh'], reason: 'Nested shells are blocked; run a single command directly.' },
+  { match: ['zsh'], reason: 'Nested shells are blocked; run a single command directly.' },
+  { match: 'xargs', reason: 'The `xargs` command is blocked.' },
+  { match: 'tee', reason: 'Use the write tool instead of `tee`.' },
+  { match: 'cat', when: isSoloCat, reason: 'Reading a file with `cat` is blocked. Use the read tool, or pipe it (e.g. `cat file | jq`).' },
+  { when: isKeyword, reason: (m) => `Shell control-flow \`${m[0]}\` is blocked.` },
+  { when: isRunner, reason: RUNNER_REASON },
+  ...Object.entries(FAST_TOOL_HINTS).map(
+    ([tool, hint]): Rule => ({ match: tool, reason: `The \`${tool}\` command is blocked. ${hint}` }),
+  ),
 ]
-// Commands (as token patterns) that require user confirmation before running.
-// Write / destructive commands are confirmation-gated; only truly dangerous
-// commands are hard-blocked in `forbiddenRules`.
-const commandsRequiringConfirmation: Pattern[] = [
-  ['rm'],
-  ['mv'],
-  ['dd'],
-  ['chmod'],
-  ['chown'],
-  ['mkfs'],
-  ['mkswap'],
-  ['fdisk'],
-  ['mount'],
-  ['umount'],
-  ['shutdown'],
-  ['reboot'],
-  ['poweroff'],
-  ...gitConfirmSubcommands.map((name): Pattern => ['git', name]),
+
+// ------------------------------------------------- confirmation rules ------
+const isGitConfigWrite = (tokens: Tokens): boolean => {
+  const args = tokens.slice(2)
+  if (args.some((t) => ['--add', '--unset', '--unset-all', '--remove-section', '--rename-section', '--replace-all'].includes(t))) return true
+  return args.filter((t) => !t.startsWith('-')).length >= 2
+}
+
+const GIT_WRITE_SUBCOMMANDS = [
+  'add', 'am', 'apply', 'archive', 'bisect', 'bundle', 'checkout', 'checkout-index',
+  'cherry-pick', 'clean', 'clone', 'commit', 'commit-tree', 'gc',
+  'hash-object', 'init', 'maintenance', 'merge', 'mv', 'notes', 'prune', 'pull',
+  'push', 'read-tree', 'rebase', 'replace', 'rerere', 'reset', 'restore', 'revert',
+  'rm', 'sparse-checkout', 'stash', 'submodule', 'switch', 'symbolic-ref',
+  'update-index', 'update-ref', 'worktree', 'write-tree',
 ]
-const forbiddenRules: ForbiddenRule[] = [
-  {
-    pattern: ['sudo'],
-    reason: 'The `sudo` command is blocked in the `bash` tool.',
-  },
-  {
-    pattern: [wrapperCommands],
-    reason: (matchTokens) => `The \`${matchTokens[0]}\` wrapper command is blocked in the \`bash\` tool.`,
-  },
-  {
-    pattern: [commandRunnerCommands],
-    reason: (matchTokens) => `The command runner \`${matchTokens[0]}\` is blocked in the \`bash\` tool because it can execute untrusted remote tools.`,
-  },
-  {
-    pattern: ['xargs'],
-    reason: 'The `xargs` command is blocked in the `bash` tool.',
-  },
-  {
-    pattern: [writeCommands],
-    reason: (matchTokens) => `The \`${matchTokens[0]}\` file-writing command is blocked in the \`bash\` tool.`,
-  },
-  {
-    pattern: [searchCommands],
-    reason: (matchTokens) =>
-      `The \`${matchTokens[0]}\` search/listing command is blocked in the \`bash\` tool. Use \`rg '<text-pattern>'\` (or \`rg --glob '<path-glob>' '<text-pattern>'\`) for search, and \`rg --files\` (or \`rg --files --glob '<path-glob>'\`) for listing.`,
-  },
-  {
-    pattern: [shellCommands],
-    reason: (matchTokens) => `The nested shell command \`${matchTokens[0]}\` is blocked in the \`bash\` tool.`,
-  },
+const SYSTEM_WRITE_COMMANDS = ['rm', 'mv', 'dd', 'chmod', 'chown', 'mkfs', 'mkswap', 'fdisk', 'mount', 'umount', 'shutdown', 'reboot', 'poweroff']
+
+const CONFIRM_FIRST: Rule[] = [
+  { match: ['git', 'config'], when: isGitConfigWrite, reason: 'This modifies git configuration.' },
+  ...GIT_WRITE_SUBCOMMANDS.map((sub): Rule => ({ match: ['git', sub], reason: 'This modifies git state (index, working tree, history or remotes).' })),
+  ...SYSTEM_WRITE_COMMANDS.map((cmd): Rule => ({ match: cmd, reason: 'This writes to or destroys system/filesystem state.' })),
 ]
-const blockedTools = [
-  {
-    toolName: 'grep',
-    reason: "The `grep` tool is blocked. Use `rg '<text-pattern>'` or `rg --glob '<path-glob>' '<text-pattern>'` instead.",
-  },
-  {
-    toolName: 'find',
-    reason: "The `find` tool is blocked. Use `rg --files` or `rg --files --glob '<path-glob>'` instead.",
-  },
-  {
-    toolName: 'ls',
-    reason: "The `ls` tool is blocked. Use `rg --files` or `rg --files --glob '<path-glob>'` instead.",
-  },
-]
+
+// ------------------------------------------------------------- tokenizer ----
+type SplitResult = { segments?: string[]; sawPipe?: boolean; reason?: string }
+
+/** Split a command into segments (`|`, `&&`, `||`, `;`, newline) and validate syntax. */
+function splitCommand(command: string): SplitResult {
+  const segments: string[] = []
+  let current = ''
+  let sawPipe = false
+  let inSingle = false
+  let inDouble = false
+  let escaped = false
+  for (let i = 0; i < command.length; i += 1) {
+    const c = command[i]
+    if (escaped) {
+      current += c
+      escaped = false
+      continue
+    }
+    if (c === '\\' && !inSingle) {
+      current += c
+      escaped = true
+      continue
+    }
+    if (c === "'" && !inDouble) {
+      current += c
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      current += c
+      inDouble = !inDouble
+      continue
+    }
+    if (!inSingle && c === '`') return { reason: 'Command substitution with backticks is blocked.' }
+    if (!inSingle && c === '$' && command[i + 1] === '(') return { reason: 'Command substitution with `$()` is blocked.' }
+    if (!inSingle && !inDouble && (c === '<' || c === '>')) return { reason: 'Redirection, heredocs and herestrings are blocked.' }
+    if (!inSingle && !inDouble && (c === '(' || c === ')')) return { reason: 'Subshell syntax is blocked.' }
+    if (inSingle || inDouble) {
+      current += c
+      continue
+    }
+    if (c === '\n' || c === ';') {
+      const seg = current.trim()
+      if (seg) segments.push(seg)
+      current = ''
+      continue
+    }
+    if (c === '|') {
+      sawPipe = true
+      const seg = current.trim()
+      if (seg) segments.push(seg)
+      current = ''
+      if (command[i + 1] === '|') i += 1
+      continue
+    }
+    if (c === '&') {
+      if (command[i + 1] !== '&') return { reason: 'Background execution is blocked.' }
+      const seg = current.trim()
+      if (seg) segments.push(seg)
+      current = ''
+      i += 1
+      continue
+    }
+    current += c
+  }
+  if (inSingle || inDouble) return { reason: 'Unterminated quotes are blocked.' }
+  const last = current.trim()
+  if (last) segments.push(last)
+  return { segments, sawPipe }
+}
+
+/** Shell-like tokenization: split on whitespace, drop quotes and escapes. */
+function tokenizeCommand(segment: string): Tokens | undefined {
+  const tokens: Tokens = []
+  let current = ''
+  let inSingle = false
+  let inDouble = false
+  let escaped = false
+  for (let i = 0; i < segment.length; i += 1) {
+    const c = segment[i]
+    if (escaped) {
+      current += c
+      escaped = false
+      continue
+    }
+    if (c === '\\' && !inSingle) {
+      escaped = true
+      continue
+    }
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
+    if (!inSingle && !inDouble && /\s/.test(c)) {
+      if (current) tokens.push(current)
+      current = ''
+      continue
+    }
+    current += c
+  }
+  if (inSingle || inDouble || escaped) return undefined
+  if (current) tokens.push(current)
+  return tokens
+}
+
+/** Strip `VAR=x ...` assignments, then `env`/`command` prefixes, then find the executable. */
+function commandTokens(tokens: Tokens): Tokens {
+  const stripEnv = (ts: Tokens): Tokens => {
+    let i = 0
+    while (i < ts.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(ts[i])) i += 1
+    return ts.slice(i)
+  }
+  let rest = stripEnv(tokens)
+  for (;;) {
+    const first = rest[0]
+    if (first !== 'env' && first !== 'command') break
+    rest = rest.slice(1)
+    while (rest[0]?.startsWith('-') && rest[0] !== '--') rest = rest.slice(1)
+    rest = stripEnv(rest)
+  }
+  if (rest.length === 0) return []
+  return [posix.basename(rest[0]), ...rest.slice(1)]
+}
+
+/** First non-flag token after `git` (skips value flags such as `-c` / `-C`). */
+function gitSubcommand(tokens: Tokens): string | undefined {
+  for (let i = 1; i < tokens.length; i += 1) {
+    const t = tokens[i]
+    if (!t.startsWith('-') || t === '-') return t
+    if (t === '-c' || t === '-C') {
+      i += 1
+      continue
+    }
+    if (t.includes('=')) continue
+    if (GIT_VALUE_FLAGS.includes(t)) {
+      i += 1
+      continue
+    }
+  }
+  return undefined
+}
+
+/** Normalize tokens for rule matching: collapse `git <subcommand>` onto itself. */
+function ruleTokens(tokens: Tokens): Tokens {
+  if (tokens[0] === 'git') {
+    const sub = gitSubcommand(tokens)
+    return sub ? ['git', sub] : tokens
+  }
+  return tokens
+}
+
+function findRule(tokens: Tokens, rules: Rule[], ctx: RuleContext): { rule: Rule; matched: Tokens } | undefined {
+  const base = ruleTokens(tokens)
+  for (const rule of rules) {
+    const parts = rule.match === undefined ? undefined : typeof rule.match === 'string' ? [rule.match] : [...rule.match]
+    if (parts) {
+      if (parts.length > base.length) continue
+      let ok = true
+      for (let i = 0; i < parts.length; i += 1) {
+        if (base[i] !== parts[i]) {
+          ok = false
+          break
+        }
+      }
+      if (!ok) continue
+    }
+    if (rule.when && !rule.when(tokens, ctx)) continue
+    return { rule, matched: parts ?? [tokens[0] ?? ''] }
+  }
+  return undefined
+}
+
+function reasonText(rule: Rule, matched: Tokens): string {
+  return typeof rule.reason === 'function' ? rule.reason(matched) : rule.reason
+}
+
+type ConfirmContext = {
+  hasUI: boolean
+  mode: string
+  ui: { confirm(title: string, message: string): Promise<boolean> }
+}
+
+/** Ask the user, or block when interactive confirmation is unavailable. */
+async function confirmOrBlock(
+  ctx: ConfirmContext,
+  title: string,
+  body: string,
+): Promise<{ block: true; reason: string } | undefined> {
+  if (!ctx.hasUI) {
+    return {
+      block: true,
+      reason: `The command \`${title}\` requires interactive confirmation, which is unavailable in ${ctx.mode} mode.`,
+    }
+  }
+  const confirmed = await ctx.ui.confirm(title, body)
+  if (!confirmed) return { block: true, reason: `The \`${title}\` command was not confirmed.` }
+  return undefined
+}
 
 function getBashCommand(input: unknown): string | undefined {
   if (!input || typeof input !== 'object') return undefined
   const command = (input as { command?: unknown }).command
   if (typeof command !== 'string') return undefined
   const trimmedCommand = command.trim()
-  if (!trimmedCommand) return undefined
-  return trimmedCommand
+  return trimmedCommand || undefined
 }
 
-function splitCommand(command: string): SegmentResult {
-  const segments: string[] = []
-  let sawPipe = false
-  let current = ''
-  let inSingleQuotes = false
-  let inDoubleQuotes = false
-  let isEscaped = false
-  for (let index = 0; index < command.length; index += 1) {
-    const character = command[index]
-    if (isEscaped) {
-      current += character
-      isEscaped = false
-      continue
-    }
-    if (character === '\\' && !inSingleQuotes) {
-      current += character
-      isEscaped = true
-      continue
-    }
-    if (character === "'" && !inDoubleQuotes) {
-      current += character
-      inSingleQuotes = !inSingleQuotes
-      continue
-    }
-    if (character === '"' && !inSingleQuotes) {
-      current += character
-      inDoubleQuotes = !inDoubleQuotes
-      continue
-    }
-    if (!inSingleQuotes && character === '`') {
-      return {
-        reason: 'Command substitution with backticks is blocked in the `bash` tool.',
-      }
-    }
-    if (!inSingleQuotes && character === '$' && command[index + 1] === '(') {
-      return {
-        reason: 'Command substitution with `$()` is blocked in the `bash` tool.',
-      }
-    }
-    if (!inSingleQuotes && !inDoubleQuotes && (character === '<' || character === '>')) {
-      return {
-        reason: 'Redirection, heredocs, and herestrings are blocked in the `bash` tool.',
-      }
-    }
-    if (!inSingleQuotes && !inDoubleQuotes && (character === '(' || character === ')')) {
-      return {
-        reason: 'Subshell syntax is blocked in the `bash` tool.',
-      }
-    }
-    if (inSingleQuotes || inDoubleQuotes) {
-      current += character
-      continue
-    }
-    if (character === '\n' || character === ';') {
-      const trimmedSegment = current.trim()
-      if (trimmedSegment) segments.push(trimmedSegment)
-      current = ''
-      continue
-    }
-    if (character === '|') {
-      sawPipe = true
-      const trimmedSegment = current.trim()
-      if (trimmedSegment) segments.push(trimmedSegment)
-      current = ''
-      if (command[index + 1] === '|') index += 1
-      continue
-    }
-    if (character === '&') {
-      if (command[index + 1] !== '&') {
-        return {
-          reason: 'Background execution is blocked in the `bash` tool.',
-        }
-      }
-      const trimmedSegment = current.trim()
-      if (trimmedSegment) segments.push(trimmedSegment)
-      current = ''
-      index += 1
-      continue
-    }
-    current += character
-  }
-  if (inSingleQuotes || inDoubleQuotes) {
-    return {
-      reason: 'Unterminated quotes are blocked in the `bash` tool.',
-    }
-  }
-  const trimmedSegment = current.trim()
-  if (trimmedSegment) segments.push(trimmedSegment)
-  return { segments, sawPipe }
-}
-
-function tokenizeCommand(segment: string): string[] | undefined {
-  const tokens: string[] = []
-  let current = ''
-  let inSingleQuotes = false
-  let inDoubleQuotes = false
-  let isEscaped = false
-  for (let index = 0; index < segment.length; index += 1) {
-    const character = segment[index]
-    if (isEscaped) {
-      current += character
-      isEscaped = false
-      continue
-    }
-    if (character === '\\' && !inSingleQuotes) {
-      isEscaped = true
-      continue
-    }
-    if (character === "'" && !inDoubleQuotes) {
-      inSingleQuotes = !inSingleQuotes
-      continue
-    }
-    if (character === '"' && !inSingleQuotes) {
-      inDoubleQuotes = !inDoubleQuotes
-      continue
-    }
-    if (!inSingleQuotes && !inDoubleQuotes && /\s/.test(character)) {
-      if (current) tokens.push(current)
-      current = ''
-      continue
-    }
-    current += character
-  }
-  if (isEscaped) current += '\\'
-  if (inSingleQuotes || inDoubleQuotes) return undefined
-  if (current) tokens.push(current)
-  return tokens
-}
-
-function isEnvironmentAssignment(token: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
-}
-
-function normalizeExecutableToken(token: string): string {
-  if (!token) return token
-  if (token === '.' || token === '..') return token
-  if (!token.includes('/')) return token
-  return posix.basename(token)
-}
-
-function getCommandTokens(tokens: string[]): string[] {
-  let index = 0
-  while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index += 1
-  while (index < tokens.length) {
-    const normalizedToken = normalizeExecutableToken(tokens[index])
-    if (normalizedToken !== 'env' && normalizedToken !== 'command') break
-    if (normalizedToken === 'env') {
-      index += 1
-      while (index < tokens.length && tokens[index].startsWith('-')) index += 1
-      while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index += 1
-      continue
-    }
-    index += 1
-    while (index < tokens.length && tokens[index].startsWith('-')) index += 1
-  }
-  if (index >= tokens.length) return []
-  return [normalizeExecutableToken(tokens[index]), ...tokens.slice(index + 1)]
-}
-
-function isSedInPlace(tokens: string[]): boolean {
-  if (tokens.length === 0) return false
-  if (tokens[0] !== 'sed') return false
-  for (const token of tokens) {
-    if (token === '--in-place') return true
-    if (token.startsWith('--in-place=')) return true
-    if (/^-[A-Za-z0-9]*i/.test(token)) return true
-  }
-  return false
-}
-
-function getGitCommandTokens(tokens: string[]): string[] {
-  if (tokens.length === 0) return tokens
-  if (tokens[0] !== 'git') return tokens
-  let index = 1
-  while (index < tokens.length) {
-    const token = tokens[index]
-    if (!token.startsWith('-') || token === '-') break
-    let consumedValue = false
-    for (const flag of gitFlagsWithValues) {
-      if (token !== flag) continue
-      index += 1
-      if (index < tokens.length) index += 1
-      consumedValue = true
-      break
-    }
-    if (consumedValue) continue
-    let consumedInlineValue = false
-    for (const flag of gitFlagsWithValues) {
-      if (token === flag) continue
-      if (!token.startsWith(flag) || token.length === flag.length) continue
-      index += 1
-      consumedInlineValue = true
-      break
-    }
-    if (consumedInlineValue) continue
-    let consumedLongValue = false
-    for (const flag of gitLongFlagsWithValues) {
-      if (token === flag) {
-        index += 1
-        if (index < tokens.length) index += 1
-        consumedLongValue = true
-        break
-      }
-      if (!token.startsWith(`${flag}=`)) continue
-      index += 1
-      consumedLongValue = true
-      break
-    }
-    if (consumedLongValue) continue
-    index += 1
-  }
-  if (index >= tokens.length) return ['git']
-  return ['git', tokens[index], ...tokens.slice(index + 1)]
-}
-
-function getUnsupportedReason(tokens: string[]): string | undefined {
-  if (tokens.length === 0) return undefined
-  for (const keyword of shellControlKeywords) {
-    if (tokens[0] !== keyword) continue
-    return `The shell control-flow keyword \`${tokens[0]}\` is blocked in the \`bash\` tool.`
-  }
-  return undefined
-}
-
-function getSubcommandScanEndIndex(tokens: string[]): number {
-  for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index] !== '--') continue
-    return index
-  }
-  return tokens.length
-}
-
-function matchesPatternPart(token: string, part: PatternPart): boolean {
-  if (typeof part === 'string') return token === part
-  for (const value of part) {
-    if (token === value) return true
-  }
-  return false
-}
-
-function getCommandRunnerPositionalSkipLength(tokens: string[], tokenIndex: number, scanEndIndex: number): number {
-  const skipRules = commandRunnerPositionalSkipRules[tokens[0]]
-  if (!skipRules) return 0
-  for (const skipRule of skipRules) {
-    if (tokens[tokenIndex] !== skipRule.token) continue
-    if (!skipRule.consumesNextToken) return 1
-    if (tokenIndex + 1 >= scanEndIndex) return 0
-    return 2
-  }
-  return 0
-}
-
-function getCommandRunnerFlagSkipLength(tokens: string[], tokenIndex: number, expectedToken: string, scanEndIndex: number): number {
-  const token = tokens[tokenIndex]
-  if (!token.startsWith('-')) return 0
-  if (token === '--') return 0
-  if (token.includes('=')) return 1
-  const flagRules = commandRunnerFlagRules[tokens[0]]
-  if (flagRules?.booleanFlags.includes(token)) return 1
-  if (flagRules?.valueFlags.includes(token)) {
-    if (tokenIndex + 1 >= scanEndIndex) return 1
-    return 2
-  }
-  if (tokenIndex + 1 >= scanEndIndex) return 1
-  const nextToken = tokens[tokenIndex + 1]
-  if (nextToken === expectedToken) return 1
-  if (nextToken.startsWith('-')) return 1
-  return 2
-}
-
-function matchesCommandRunnerSubcommand(tokens: string[], subcommandTokens: string[]): boolean {
-  if (tokens.length < subcommandTokens.length) return false
-  if (tokens[0] !== subcommandTokens[0]) return false
-  const scanEndIndex = getSubcommandScanEndIndex(tokens)
-  let tokenIndex = 1
-  for (let subcommandIndex = 1; subcommandIndex < subcommandTokens.length; subcommandIndex += 1) {
-    const expectedToken = subcommandTokens[subcommandIndex]
-    let matched = false
-    while (tokenIndex < scanEndIndex) {
-      const currentToken = tokens[tokenIndex]
-      if (currentToken === expectedToken) {
-        matched = true
-        tokenIndex += 1
-        break
-      }
-      const positionalSkipLength = getCommandRunnerPositionalSkipLength(tokens, tokenIndex, scanEndIndex)
-      if (positionalSkipLength > 0) {
-        tokenIndex += positionalSkipLength
-        continue
-      }
-      const flagSkipLength = getCommandRunnerFlagSkipLength(tokens, tokenIndex, expectedToken, scanEndIndex)
-      if (flagSkipLength > 0) {
-        tokenIndex += flagSkipLength
-        continue
-      }
-      return false
-    }
-    if (!matched) return false
-  }
-  return true
-}
-
-function getForbiddenReason(tokens: string[]): string | undefined {
-  const unsupportedReason = getUnsupportedReason(tokens)
-  if (unsupportedReason) return unsupportedReason
-  const commandTokens = getCommandTokens(tokens)
-  if (commandTokens.length === 0) return undefined
-  for (const commandRunnerSubcommand of commandRunnerSubcommands) {
-    if (!matchesCommandRunnerSubcommand(commandTokens, commandRunnerSubcommand)) continue
-    return `The command runner \`${commandRunnerSubcommand.join(' ')}\` is blocked in the \`bash\` tool because it can execute untrusted remote tools.`
-  }
-  if (isSedInPlace(commandTokens)) {
-    return 'The `sed -i` command is blocked in the `bash` tool.'
-  }
-  const matchTokens = getGitCommandTokens(commandTokens)
-  for (const rule of forbiddenRules) {
-    if (matchTokens.length < rule.pattern.length) continue
-    let matched = true
-    for (let index = 0; index < rule.pattern.length; index += 1) {
-      if (matchesPatternPart(matchTokens[index], rule.pattern[index])) continue
-      matched = false
-      break
-    }
-    if (!matched) continue
-    if (typeof rule.reason === 'function') return rule.reason(matchTokens)
-    return rule.reason
-  }
-  return undefined
-}
-
+// ------------------------------------------------------------ extension -----
 export default function shellExtension(pi: ExtensionAPI) {
   pi.on('tool_call', async (event, ctx) => {
-    for (const blockedTool of blockedTools) {
-      if (event.toolName !== blockedTool.toolName) continue
-      return { block: true, reason: blockedTool.reason }
-    }
     if (event.toolName !== 'bash') return
     const command = getBashCommand(event.input)
-    if (!command)
-      return {
-        block: true,
-        reason: 'The `bash` tool was called without a command.',
-      }
-    const segmentResult = splitCommand(command)
-    if (segmentResult.reason)
-      return {
-        block: true,
-        reason: segmentResult.reason,
-      }
-    const segments = segmentResult.segments ?? []
-    const sawPipe = segmentResult.sawPipe === true
+    if (!command) return { block: true, reason: 'The `bash` tool was called without a command.' }
+
+    const parsed = splitCommand(command)
+    if (parsed.reason) return { block: true, reason: parsed.reason }
+    const segments = parsed.segments ?? []
+    const ruleCtx: RuleContext = { sawPipe: parsed.sawPipe === true }
+
     for (const segment of segments) {
       const tokens = tokenizeCommand(segment)
-      if (!tokens)
-        return {
-          block: true,
-          reason: 'Unterminated quotes are blocked in the `bash` tool.',
-        }
-      const commandTokens = getCommandTokens(tokens)
-      if (!sawPipe && commandTokens[0] === 'cat')
-        return {
-          block: true,
-          reason:
-            'The `cat` file-reading command is blocked in the `bash` tool unless it feeds a pipe. Use the read tool for files, or pipe it into another command (e.g. `cat x | jq`).',
-        }
-      const matchTokens = getGitCommandTokens(commandTokens)
-      for (const pattern of commandsRequiringConfirmation) {
-        if (matchTokens.length < pattern.length) continue
-        let matched = true
-        for (let index = 0; index < pattern.length; index += 1) {
-          if (matchesPatternPart(matchTokens[index], pattern[index])) continue
-          matched = false
-          break
-        }
-        if (!matched) continue
-        const title = matchTokens.slice(0, pattern.length).join(' ')
-        const confirmed = await ctx.ui.confirm(title, '')
-        if (!confirmed) {
-          return { block: true, reason: `The \`${title}\` command is blocked by the user.` }
-        }
-        break
+      if (!tokens) return { block: true, reason: 'Unterminated quotes are blocked.' }
+      const cmd = commandTokens(tokens)
+
+      const hard = findRule(cmd, HARD_BLOCKED, ruleCtx)
+      if (hard) return { block: true, reason: reasonText(hard.rule, hard.matched) }
+
+      const signal = writeSignal(cmd)
+      if (signal) {
+        const blocked = await confirmOrBlock(ctx, `$ ${cmd.join(' ')}`, WRITE_SIGNAL_REASONS[signal])
+        if (blocked) return blocked
       }
-      const reason = getForbiddenReason(tokens)
-      if (!reason) continue
-      return { block: true, reason }
+
+      const confirmRule = findRule(cmd, CONFIRM_FIRST, ruleCtx)
+      if (confirmRule) {
+        const title = `$ ${confirmRule.matched.join(' ')}`
+        const blocked = await confirmOrBlock(ctx, title, reasonText(confirmRule.rule, confirmRule.matched))
+        if (blocked) return blocked
+      }
     }
   })
 }

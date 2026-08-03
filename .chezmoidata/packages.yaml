@@ -3,7 +3,6 @@ packages:
     - base
     - base-devel
     - btop
-    - bun
     - chezmoi
     - curl
     - fastfetch
