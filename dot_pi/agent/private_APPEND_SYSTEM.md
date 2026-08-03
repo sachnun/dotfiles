@@ -12,5 +12,4 @@
 - Ask before removing intentional code. No backward compat unless asked.
 - Check dependency files before guessing APIs.
 - Prefer strong typing over `any`.
-- Read files fully before large changes or audits.
 - Upgrade outdated deps instead of downgrading code.
