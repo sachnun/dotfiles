@@ -1,3 +1,5 @@
+# AGENTS.md
+
 ## Commands
 
 - After code changes: run the project's check/lint/type-check and fix all issues before committing.
