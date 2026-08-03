@@ -8,6 +8,7 @@
 - Write ad-hoc scripts to `/tmp`, run, then remove.
 - Prefer `rg` over `find` for content search; use `find` for name/attribute queries.
 - Never commit unless asked.
+- No `echo` labels in bash commands; the output is for the agent, not the user.
 
 ## Git
 
