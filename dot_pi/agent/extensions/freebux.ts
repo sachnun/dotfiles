@@ -19,6 +19,7 @@ interface FreebuxModel {
 	max_tokens?: unknown;
 	reasoning?: unknown;
 	input?: unknown;
+	reasoning_effort?: unknown;
 }
 
 interface TokenState {
@@ -76,21 +77,47 @@ async function fetchJson(url: string, signal?: AbortSignal): Promise<unknown> {
 	}
 }
 
+function asStringList(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((v): v is string => typeof v === "string" && v.trim() !== "").map((v) => v.trim());
+}
+
+/** Map pi thinking levels to the reasoning efforts upstream advertises. */
+function toThinkingLevelMap(model: FreebuxModel): ProviderModelConfig["thinkingLevelMap"] | undefined {
+	const efforts = asStringList(model.reasoning_effort);
+	if (!efforts.length) return { xhigh: "max", max: "max" };
+
+	const byLevel: Record<string, string | null> = {};
+	for (const effort of efforts) {
+		if (effort === "none") byLevel.off = "none";
+		else if (effort === "minimal") byLevel.minimal = "minimal";
+		else if (effort === "low") byLevel.low = "low";
+		else if (effort === "medium") byLevel.medium = "medium";
+		else if (effort === "high") byLevel.high = "high";
+		else if (effort === "xhigh" || effort === "max") {
+			byLevel.xhigh = "xhigh";
+			byLevel.max = "xhigh";
+		}
+	}
+	return byLevel;
+}
+
 function toProviderModel(model: FreebuxModel): ProviderModelConfig | undefined {
 	const id = asString(model.id);
 	if (!id) return undefined;
 
 	const input: ("text" | "image")[] = Array.isArray(model.input) && model.input.includes("image") ? ["text", "image"] : ["text"];
+	const reasoning = model.reasoning === true;
 
 	return {
 		id,
 		name: asString(model.display_name) ?? asString(model.name) ?? id,
-		reasoning: true,
+		reasoning,
 		input,
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: asPositiveNumber(model.context_window, 272_000),
+		contextWindow: asPositiveNumber(model.context_window, 131_072),
 		maxTokens: asPositiveNumber(model.max_tokens, 16_384),
-		thinkingLevelMap: { xhigh: "max", max: "max" },
+		thinkingLevelMap: reasoning ? toThinkingLevelMap(model) : undefined,
 		compat: { supportsDeveloperRole: false, thinkingFormat: "openrouter" },
 	};
 }

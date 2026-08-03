@@ -2,21 +2,18 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode",
   "defaultModel": "deepseek-v4-flash-free",
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "packages": [],
-  "enabledModels": [
-    "opencode/deepseek-v4-flash-free",
-    "aihubmix/deepseek-v4-flash-0731"
-  ],
   "terminal": {
     "showTerminalProgress": true
   },
   "extensions": [
-    "+extensions/bash.ts",
-    "-extensions/aihubmix.ts"
+    "-extensions/aihubmix.ts",
+    "-extensions/restore.ts",
+    "-extensions/bash.ts"
   ],
   "quietStartup": false
 }

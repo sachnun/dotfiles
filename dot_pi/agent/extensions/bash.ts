@@ -9,12 +9,13 @@ type ForbiddenRule = {
 }
 type SegmentResult = {
   segments?: string[]
+  sawPipe?: boolean
   reason?: string
 }
 
-const searchCommands = ['fd', 'find', 'grep', 'ls', 'tree']
+const searchCommands = ['fd', 'find', 'grep', 'tree']
 const shellCommands = ['bash', 'sh', 'zsh']
-const wrapperCommands = ['eval', 'exec', 'nohup', 'timeout', 'time', 'watch', 'stdbuf']
+const wrapperCommands = ['eval', 'exec']
 const commandRunnerCommands = ['bunx', 'npx', 'pnpx', 'uvx']
 const commandRunnerSubcommands: string[][] = [
   ['pnpm', 'dlx'],
@@ -57,18 +58,20 @@ const commandRunnerFlagRules: Record<string, { booleanFlags: string[]; valueFlag
     valueFlags: ['--index-url'],
   },
 }
-const readCommands = ['cat']
 const writeCommands = ['tee']
 const shellControlKeywords = ['if', 'then', 'fi', 'for', 'while', 'until', 'do', 'done', 'case', 'esac', 'function', 'select']
 const gitFlagsWithValues = ['-c', '-C']
 const gitLongFlagsWithValues = ['--config-env', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix']
-const gitWriteCommands = [
+// git subcommands that change git / filesystem state and require user confirmation.
+const gitConfirmSubcommands = [
   'add',
+  'commit',
+  'push',
+  'pull',
   'am',
   'apply',
   'archive',
   'bisect',
-  'branch',
   'bundle',
   'checkout',
   'checkout-index',
@@ -77,9 +80,7 @@ const gitWriteCommands = [
   'clone',
   'commit-tree',
   'config',
-  'fetch',
   'gc',
-  'grep',
   'hash-object',
   'init',
   'maintenance',
@@ -89,7 +90,6 @@ const gitWriteCommands = [
   'prune',
   'read-tree',
   'rebase',
-  'remote',
   'replace',
   'rerere',
   'reset',
@@ -101,17 +101,29 @@ const gitWriteCommands = [
   'submodule',
   'switch',
   'symbolic-ref',
-  'tag',
   'update-index',
   'update-ref',
   'worktree',
   'write-tree',
 ]
 // Commands (as token patterns) that require user confirmation before running.
-// Add more as needed, e.g. ['rm'], ['del'], ['git', 'rebase']
+// Write / destructive commands are confirmation-gated; only truly dangerous
+// commands are hard-blocked in `forbiddenRules`.
 const commandsRequiringConfirmation: Pattern[] = [
-  ['git', 'commit'],
-  ['git', 'push'],
+  ['rm'],
+  ['mv'],
+  ['dd'],
+  ['chmod'],
+  ['chown'],
+  ['mkfs'],
+  ['mkswap'],
+  ['fdisk'],
+  ['mount'],
+  ['umount'],
+  ['shutdown'],
+  ['reboot'],
+  ['poweroff'],
+  ...gitConfirmSubcommands.map((name): Pattern => ['git', name]),
 ]
 const forbiddenRules: ForbiddenRule[] = [
   {
@@ -123,24 +135,12 @@ const forbiddenRules: ForbiddenRule[] = [
     reason: (matchTokens) => `The \`${matchTokens[0]}\` wrapper command is blocked in the \`bash\` tool.`,
   },
   {
-    pattern: ['git', gitWriteCommands],
-    reason: (matchTokens) => `The \`git ${matchTokens[1]}\` command is blocked in the \`bash\` tool.`,
-  },
-  {
     pattern: [commandRunnerCommands],
     reason: (matchTokens) => `The command runner \`${matchTokens[0]}\` is blocked in the \`bash\` tool because it can execute untrusted remote tools.`,
   },
   {
-    pattern: ['nl'],
-    reason: 'The `nl` command is blocked in the `bash` tool.',
-  },
-  {
     pattern: ['xargs'],
     reason: 'The `xargs` command is blocked in the `bash` tool.',
-  },
-  {
-    pattern: [readCommands],
-    reason: (matchTokens) => `The \`${matchTokens[0]}\` file-reading command is blocked in the \`bash\` tool. Use the read tool instead.`,
   },
   {
     pattern: [writeCommands],
@@ -180,22 +180,9 @@ function getBashCommand(input: unknown): string | undefined {
   return trimmedCommand
 }
 
-function isShellExpansionStart(command: string, index: number, inDoubleQuotes: boolean): boolean {
-  if (command[index] !== '$') return false
-  const nextCharacter = command[index + 1]
-  if (!nextCharacter) return false
-  if (nextCharacter === '(' || nextCharacter === '{' || nextCharacter === "'") {
-    return true
-  }
-  if (!inDoubleQuotes && nextCharacter === '"') return true
-  if (/[A-Za-z_]/.test(nextCharacter)) return true
-  if (/[0-9]/.test(nextCharacter)) return true
-  if ('@*#?$!-'.includes(nextCharacter)) return true
-  return false
-}
-
 function splitCommand(command: string): SegmentResult {
   const segments: string[] = []
+  let sawPipe = false
   let current = ''
   let inSingleQuotes = false
   let inDoubleQuotes = false
@@ -232,11 +219,6 @@ function splitCommand(command: string): SegmentResult {
         reason: 'Command substitution with `$()` is blocked in the `bash` tool.',
       }
     }
-    if (!inSingleQuotes && isShellExpansionStart(command, index, inDoubleQuotes)) {
-      return {
-        reason: 'Variable expansion and shell interpolation are blocked in the `bash` tool.',
-      }
-    }
     if (!inSingleQuotes && !inDoubleQuotes && (character === '<' || character === '>')) {
       return {
         reason: 'Redirection, heredocs, and herestrings are blocked in the `bash` tool.',
@@ -258,6 +240,7 @@ function splitCommand(command: string): SegmentResult {
       continue
     }
     if (character === '|') {
+      sawPipe = true
       const trimmedSegment = current.trim()
       if (trimmedSegment) segments.push(trimmedSegment)
       current = ''
@@ -285,7 +268,7 @@ function splitCommand(command: string): SegmentResult {
   }
   const trimmedSegment = current.trim()
   if (trimmedSegment) segments.push(trimmedSegment)
-  return { segments }
+  return { segments, sawPipe }
 }
 
 function tokenizeCommand(segment: string): string[] | undefined {
@@ -547,6 +530,7 @@ export default function shellExtension(pi: ExtensionAPI) {
         reason: segmentResult.reason,
       }
     const segments = segmentResult.segments ?? []
+    const sawPipe = segmentResult.sawPipe === true
     for (const segment of segments) {
       const tokens = tokenizeCommand(segment)
       if (!tokens)
@@ -555,6 +539,12 @@ export default function shellExtension(pi: ExtensionAPI) {
           reason: 'Unterminated quotes are blocked in the `bash` tool.',
         }
       const commandTokens = getCommandTokens(tokens)
+      if (!sawPipe && commandTokens[0] === 'cat')
+        return {
+          block: true,
+          reason:
+            'The `cat` file-reading command is blocked in the `bash` tool unless it feeds a pipe. Use the read tool for files, or pipe it into another command (e.g. `cat x | jq`).',
+        }
       const matchTokens = getGitCommandTokens(commandTokens)
       for (const pattern of commandsRequiringConfirmation) {
         if (matchTokens.length < pattern.length) continue
