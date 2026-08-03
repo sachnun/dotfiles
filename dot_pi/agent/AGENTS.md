@@ -3,12 +3,11 @@
 ## Commands
 
 - After code changes: run the project's check/lint/type-check and fix all issues before committing.
+- Never commit unless asked.
 - Never run build/test unless asked.
+- Prefer `rg` over `find` for content search.
 - Run tests you create until they pass.
 - Write ad-hoc scripts to `/tmp`, run, then remove.
-- Prefer `rg` over `find` for content search; use `find` for name/attribute queries.
-- Never commit unless asked.
-- No `echo` labels in bash commands; the output is for the agent, not the user.
 
 ## Git
 

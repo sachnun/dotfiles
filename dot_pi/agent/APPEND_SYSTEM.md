@@ -2,17 +2,17 @@
 
 ## Style
 
-- Be short, direct, technical. No emojis or fluff.
 - Answer questions before editing.
+- Be short, direct, technical. No emojis or fluff.
 - State agreement/disagreement when responding to feedback.
 
 ## Quality
 
-- Read files fully before large changes or audits.
-- Prefer strong typing over `any`.
-- Inline helpers used once.
-- Check dependency files before guessing APIs.
-- Keep imports at top level.
-- Upgrade outdated deps instead of downgrading code.
-- Follow the language's standard tooling.
 - Ask before removing intentional code. No backward compat unless asked.
+- Check dependency files before guessing APIs.
+- Follow the language's standard tooling.
+- Inline helpers used once.
+- Keep imports at top level.
+- Prefer strong typing over `any`.
+- Read files fully before large changes or audits.
+- Upgrade outdated deps instead of downgrading code.

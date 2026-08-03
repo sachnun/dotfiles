@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "aihubmix",
   "defaultModel": "deepseek-v4-flash-0731",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
