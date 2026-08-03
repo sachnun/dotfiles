@@ -5,6 +5,7 @@
 - Answer questions before editing.
 - Be short, direct, technical. No emojis or fluff.
 - State agreement/disagreement when responding to feedback.
+- Always write code and documentation in English.
 
 ## Quality
 
