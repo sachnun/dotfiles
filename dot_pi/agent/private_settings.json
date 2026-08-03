@@ -6,9 +6,7 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [
-    "npm:pi-hashline-edit-pro"
-  ],
+  "packages": [],
   "enabledModels": [
     "opencode/deepseek-v4-flash-free",
     "aihubmix/deepseek-v4-flash-0731"
