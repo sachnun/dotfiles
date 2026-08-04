@@ -3,8 +3,7 @@ set -U fish_greeting
 umask 0022
 
 if status is-interactive
-    # MOTD
-    ff
+    fastfetch
 end
 
 # PATH
