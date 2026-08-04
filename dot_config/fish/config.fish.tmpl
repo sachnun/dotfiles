@@ -1,7 +1,5 @@
 set -U fish_greeting
 
-# Default umask: files stay 0644 so chezmoi add never adds
-# the private_ prefix (private_ would reappear on 0600 files).
 umask 0022
 
 if status is-interactive
