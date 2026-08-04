@@ -3,15 +3,17 @@
   "display": {
     "brightColor": false,
     "separator": " ",
+    "disableLinewrap": true,
     "color": {
       "keys": "cyan"
     }
   },
   "logo": {
-    "type": "none",
+    "type": "auto",
+    "printRemaining": false,
     "padding": {
       "top": 0,
-      "right": 1
+      "right": 2
     }
   },
   "modules": [
