@@ -1,45 +1,20 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
 #!{{ lookPath "bash" }}
+# Tools hash: {{ include ".chezmoidata/tools.yaml" | sha256sum }}
 set -euo pipefail
 
-# Tools not reliably available in distro package repositories
-# (chezmoi, uv, opencode, starship, pi).
+# Tools not reliably available in distro package repositories.
 # Every install is guarded by `command -v`; already-installed tools are skipped.
 
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
-# --- chezmoi ---
-if ! command -v chezmoi >/dev/null 2>&1; then
-  echo "Installing chezmoi..."
-  sh -c "$(curl -fsLS get.chezmoi.io/lb)"
-fi
-
-# --- uv ---
-if ! command -v uv >/dev/null 2>&1; then
-  echo "Installing uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
-fi
-
-# --- opencode (Linux only: no Termux/Android build) ---
-{{- if not (eq .chezmoi.os "android") }}
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "Installing opencode..."
-  curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+{{- range .tools }}
+{{- if or (eq $.chezmoi.os "linux") (not (index . "exclude_android")) }}
+if ! command -v {{ .name }} >/dev/null 2>&1; then
+  echo "Installing {{ .name }}..."
+  {{ .install }}
 fi
 {{- end }}
-
-# --- starship ---
-if ! command -v starship >/dev/null 2>&1; then
-  echo "Installing starship..."
-  curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
-fi
-
-# --- pi (https://pi.dev) ---
-# Terminal coding harness. The official installer auto-detects the platform,
-# Node.js/npm availability, TTY, and npm prefix.
-if ! command -v pi >/dev/null 2>&1; then
-  echo "Installing pi (pi.dev)..."
-  curl -fsSL https://pi.dev/install.sh | sh
-fi
+{{- end }}
 {{ end -}}
