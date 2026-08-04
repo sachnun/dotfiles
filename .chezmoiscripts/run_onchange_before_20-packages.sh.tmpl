@@ -26,34 +26,13 @@ export DEBIAN_FRONTEND=noninteractive
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y "${apt_packages[@]}"
 
-# Latest Node.js via nvm — apt's nodejs is too old for pi (needs >= v20).
+# Latest Node.js via the NodeSource apt repo — Debian's nodejs is too old for pi (needs >= v20).
 if command -v node >/dev/null 2>&1 && [ "$(node -v | sed 's/[v.]/ /g' | awk '{print $1}')" -ge 20 ]; then
   echo "Node.js >= v20 already installed: $(node -v)"
 else
-  echo "Installing Node.js via nvm..."
-  export NVM_DIR="$HOME/.nvm"
-  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-  fi
-  # nvm is not `set -u` safe; temporarily disable nounset.
-  set +u
-  # shellcheck disable=SC1091
-  . "$NVM_DIR/nvm.sh"
-  nvm install {{ .nodejs }}
-  nvm alias default {{ .nodejs }}
-  NODE_BIN="$NVM_DIR/versions/node/$(nvm version)/bin"
-  set -u
-  # Expose node/npm/npx on PATH — chezmoi/pi installers run non-interactively.
-  mkdir -p "$HOME/.local/bin"
-  for tool in node npm npx; do
-    ln -sf "$NODE_BIN/$tool" "$HOME/.local/bin/$tool"
-  done
-  # Shadow system node too (Debian/Alpine roots have /usr/local/bin first).
-  if [ -w /usr/local/bin ]; then
-    for tool in node npm npx; do
-      ln -sf "$NODE_BIN/$tool" "/usr/local/bin/$tool"
-    done
-  fi
+  echo "Installing latest Node.js via NodeSource apt repo..."
+  curl -fsSL https://deb.nodesource.com/setup_current.x | ${SUDO:-} bash -
+  ${SUDO:-} apt-get install -y nodejs
 fi
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
