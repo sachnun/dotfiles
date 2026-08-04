@@ -26,13 +26,25 @@ export DEBIAN_FRONTEND=noninteractive
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y "${apt_packages[@]}"
 
-# Latest LTS Node.js via NodeSource — apt's nodejs is too old for pi (needs >= v20).
+# Latest LTS Node.js via nvm — apt's nodejs is too old for pi (needs >= v20).
 if command -v node >/dev/null 2>&1 && [ "$(node -v | sed 's/[v.]/ /g' | awk '{print $1}')" -ge 20 ]; then
   echo "Node.js >= v20 already installed: $(node -v)"
 else
-  echo "Installing Node.js {{ .nodejs_lts }} LTS via NodeSource..."
-  curl -fsSL "https://deb.nodesource.com/setup_{{ .nodejs_lts }}.x" | ${SUDO} -E bash -
-  ${SUDO} apt-get install -y nodejs
+  echo "Installing Node.js LTS via nvm..."
+  export NVM_DIR="$HOME/.nvm"
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  fi
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
+  nvm install {{ .nodejs_lts }}
+  nvm alias default {{ .nodejs_lts }}
+  # Expose node/npm/npx on PATH — chezmoi/pi installers run non-interactively.
+  NODE_BIN="$NVM_DIR/versions/node/$(nvm version)/bin"
+  mkdir -p "$HOME/.local/bin"
+  for tool in node npm npx; do
+    ln -sf "$NODE_BIN/$tool" "$HOME/.local/bin/$tool"
+  done
 fi
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg

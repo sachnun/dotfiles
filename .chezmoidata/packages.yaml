@@ -1,6 +1,6 @@
-# NodeSource LTS major version used on Debian/Ubuntu (apt ships old node,
-# while pi requires node >= v20).
-nodejs_lts: "22"
+# nvm target on Debian/Ubuntu (apt ships old node, while pi requires >= v20).
+# "lts/*" tracks the latest LTS release; pin a major (e.g. "22") if desired.
+nodejs_lts: "lts/*"
 
 packages:
   pacman:
