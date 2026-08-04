@@ -10,6 +10,21 @@ packages=(
 {{- end }}
 )
 pacman -Syu --needed --noconfirm "${packages[@]}"
+{{- else if and (hasKey .chezmoi.osRelease "id") (or (eq .chezmoi.osRelease.id "debian") (eq .chezmoi.osRelease.id "ubuntu")) }}
+# Debian / Ubuntu — use apt
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+apt_packages=(
+{{- range .packages.apt }}
+    {{ . }}
+{{- end }}
+)
+export DEBIAN_FRONTEND=noninteractive
+${SUDO} apt-get update
+${SUDO} apt-get install -y "${apt_packages[@]}"
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(

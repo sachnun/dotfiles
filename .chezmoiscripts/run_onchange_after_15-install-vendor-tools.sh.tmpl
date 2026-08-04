@@ -1,0 +1,43 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
+#!{{ lookPath "bash" }}
+set -euo pipefail
+
+# Tools not reliably available in distro package repositories
+# (chezmoi, uv, opencode, starship).
+# Every install is guarded by `command -v`; already-installed tools are skipped.
+
+INSTALL_DIR="$HOME/.local/bin"
+mkdir -p "$INSTALL_DIR"
+
+arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "amd64" ;;
+    aarch64|arm64) echo "aarch64" ;;
+    *) echo "unsupported" ;;
+  esac
+}
+
+# --- chezmoi ---
+if ! command -v chezmoi >/dev/null 2>&1; then
+  echo "Installing chezmoi..."
+  sh -c "$(curl -fsLS get.chezmoi.io/lb)"
+fi
+
+# --- uv ---
+if ! command -v uv >/dev/null 2>&1; then
+  echo "Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
+fi
+
+# --- opencode ---
+if ! command -v opencode >/dev/null 2>&1; then
+  echo "Installing opencode..."
+  curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+fi
+
+# --- starship ---
+if ! command -v starship >/dev/null 2>&1; then
+  echo "Installing starship..."
+  curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
+fi
+{{ end -}}

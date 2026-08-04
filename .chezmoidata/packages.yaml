@@ -2,10 +2,10 @@ packages:
   pacman:
     - base
     - base-devel
+    - age
     - btop
     - chezmoi
     - curl
-    - fastfetch
     - fd
     - fish
     - fzf
@@ -37,7 +37,6 @@ packages:
   pkg:
     - age
     - chezmoi
-    - fastfetch
     - fd
     - file
     - fish
@@ -65,4 +64,33 @@ packages:
     - vim
     - wget
     - which
+    - zip
+  apt:
+    - age
+    - btop
+    - build-essential
+    - curl
+    - fd-find
+    - fish
+    - fzf
+    - gh
+    - git
+    - git-lfs
+    - gnupg
+    - golang-go
+    - jq
+    - nano
+    - nodejs
+    - npm
+    - openssh-client
+    - python3
+    - ripgrep
+    - rclone
+    - sqlite3
+    - sudo
+    - tmux
+    - tree
+    - unzip
+    - vim
+    - wget
     - zip
