@@ -1,8 +1,8 @@
 set -U fish_greeting
 
-# Restrictive umask: dotfiles managed without the private_ prefix
-# become 0600 instead of 0644 (see chezmoi design/umask).
-umask 0077
+# Default umask: files stay 0644 so chezmoi add never adds
+# the private_ prefix (private_ would reappear on 0600 files).
+umask 0022
 
 if status is-interactive
     # Commands to run in interactive sessions can go here
