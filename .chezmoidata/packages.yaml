@@ -1,3 +1,7 @@
+# NodeSource LTS major version used on Debian/Ubuntu (apt ships old node,
+# while pi requires node >= v20).
+nodejs_lts: "22"
+
 packages:
   pacman:
     - base
@@ -83,8 +87,6 @@ packages:
     - golang-go
     - jq
     - nano
-    - nodejs
-    - npm
     - openssh-client
     - python3
     - ripgrep

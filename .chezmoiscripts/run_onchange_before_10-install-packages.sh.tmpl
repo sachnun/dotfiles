@@ -25,6 +25,15 @@ apt_packages=(
 export DEBIAN_FRONTEND=noninteractive
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y "${apt_packages[@]}"
+
+# Latest LTS Node.js via NodeSource — apt's nodejs is too old for pi (needs >= v20).
+if command -v node >/dev/null 2>&1 && [ "$(node -v | sed 's/[v.]/ /g' | awk '{print $1}')" -ge 20 ]; then
+  echo "Node.js >= v20 already installed: $(node -v)"
+else
+  echo "Installing Node.js {{ .nodejs_lts }} LTS via NodeSource..."
+  curl -fsSL "https://deb.nodesource.com/setup_{{ .nodejs_lts }}.x" | ${SUDO} -E bash -
+  ${SUDO} apt-get install -y nodejs
+fi
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(
