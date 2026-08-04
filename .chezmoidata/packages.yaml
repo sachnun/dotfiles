@@ -6,6 +6,7 @@ packages:
     - btop
     - chezmoi
     - curl
+    - expect
     - fd
     - fish
     - fzf
@@ -37,6 +38,7 @@ packages:
   pkg:
     - age
     - chezmoi
+    - expect
     - fd
     - file
     - fish
@@ -70,6 +72,7 @@ packages:
     - btop
     - build-essential
     - curl
+    - expect
     - fd-find
     - fish
     - fzf
