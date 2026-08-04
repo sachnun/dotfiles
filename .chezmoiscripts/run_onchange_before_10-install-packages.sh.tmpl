@@ -37,8 +37,8 @@ else
   fi
   # shellcheck disable=SC1091
   . "$NVM_DIR/nvm.sh"
-  nvm install {{ .nodejs_lts }}
-  nvm alias default {{ .nodejs_lts }}
+  nvm install {{ .nodejs }}
+  nvm alias default {{ .nodejs }}
   # Expose node/npm/npx on PATH — chezmoi/pi installers run non-interactively.
   NODE_BIN="$NVM_DIR/versions/node/$(nvm version)/bin"
   mkdir -p "$HOME/.local/bin"

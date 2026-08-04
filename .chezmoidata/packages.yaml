@@ -1,6 +1,4 @@
-# nvm target on Debian/Ubuntu (apt ships old node, while pi requires >= v20).
-# "node" tracks the latest stable release; use "lts/*" for latest LTS, or pin a major (e.g. "22").
-nodejs_lts: "node"
+nodejs: "node"
 
 packages:
   pacman:
