@@ -3,19 +3,11 @@
 set -euo pipefail
 
 # Tools not reliably available in distro package repositories
-# (chezmoi, uv, opencode, starship).
+# (chezmoi, uv, opencode, starship, pi).
 # Every install is guarded by `command -v`; already-installed tools are skipped.
 
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
-
-arch() {
-  case "$(uname -m)" in
-    x86_64|amd64) echo "amd64" ;;
-    aarch64|arm64) echo "aarch64" ;;
-    *) echo "unsupported" ;;
-  esac
-}
 
 # --- chezmoi ---
 if ! command -v chezmoi >/dev/null 2>&1; then
@@ -41,5 +33,13 @@ fi
 if ! command -v starship >/dev/null 2>&1; then
   echo "Installing starship..."
   curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
+fi
+
+# --- pi (https://pi.dev) ---
+# Terminal coding harness. The official installer auto-detects the platform,
+# Node.js/npm availability, TTY, and npm prefix.
+if ! command -v pi >/dev/null 2>&1; then
+  echo "Installing pi (pi.dev)..."
+  curl -fsSL https://pi.dev/install.sh | sh
 fi
 {{ end -}}

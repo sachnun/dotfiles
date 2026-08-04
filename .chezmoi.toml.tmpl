@@ -1,7 +1,3 @@
-{{- $osid := .chezmoi.os -}}
-{{- if hasKey .chezmoi.osRelease "id" -}}
-{{-   $osid = printf "%s-%s" .chezmoi.os .chezmoi.osRelease.id -}}
-{{- end -}}
 encryption = "age"
 [age]
     identity = "~/.config/chezmoi/key.txt"
@@ -9,5 +5,3 @@ encryption = "age"
 [git]
     autoCommit = true
     autoPush = true
-[data]
-    osid = {{ $osid | quote }}
