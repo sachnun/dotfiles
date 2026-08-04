@@ -7,7 +7,3 @@ fi
 
 # added by herdr installer
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
-# Start fish on login (set by chezmoi)
-if [ -x "$(command -v fish)" ] && [ "$(ps -p $$ -o comm= 2>/dev/null)" != "fish" ]; then
-  exec fish
-fi
