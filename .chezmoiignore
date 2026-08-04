@@ -1,5 +1,6 @@
 README.md
 key.txt.age
+install.sh
 .github/workflows/**
 {{- if ne .chezmoi.os "android" }}
 dot_termux/
