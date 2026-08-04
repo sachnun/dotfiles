@@ -10,5 +10,3 @@ tools:
     install: curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
   - name: pi
     install: curl -fsSL https://pi.dev/install.sh | sh
-  - name: herdr
-    install: curl -fsSL https://herdr.dev/install.sh | sh

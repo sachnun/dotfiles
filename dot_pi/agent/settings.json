@@ -16,5 +16,7 @@
     "-extensions/bash.ts"
   ],
   "quietStartup": false,
-  "httpIdleTimeoutMs": 30000
+  "httpIdleTimeoutMs": 30000,
+  "uiMode": "fullscreen",
+  "fullscreenScrollbar": "auto"
 }
