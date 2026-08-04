@@ -29,11 +29,13 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
 fi
 
-# --- opencode ---
+# --- opencode (Linux only: no Termux/Android build) ---
+{{- if not (eq .chezmoi.os "android") }}
 if ! command -v opencode >/dev/null 2>&1; then
   echo "Installing opencode..."
   curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
 fi
+{{- end }}
 
 # --- starship ---
 if ! command -v starship >/dev/null 2>&1; then
