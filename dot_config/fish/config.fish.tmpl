@@ -1,5 +1,9 @@
 set -U fish_greeting
 
+# Restrictive umask: dotfiles managed without the private_ prefix
+# become 0600 instead of 0644 (see chezmoi design/umask).
+umask 0077
+
 if status is-interactive
     # Commands to run in interactive sessions can go here
 end
@@ -9,6 +13,7 @@ end
 fish_add_path /root/.opencode/bin
 fish_add_path /root/.config/herd-lite/bin
 {{- end }}
+fish_add_path $HOME/.local/bin
 fish_add_path $HOME/go/bin
 
 # Environment variables
