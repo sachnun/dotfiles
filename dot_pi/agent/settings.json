@@ -25,5 +25,11 @@
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
   "uiMode": "fullscreen",
-  "fullscreenScrollbar": "auto"
+  "fullscreenScrollbar": "auto",
+  "images": {
+    "blockImages": true
+  },
+  "enableSkillCommands": false,
+  "showCacheMissNotices": true,
+  "collapseChangelog": true
 }
