@@ -13,3 +13,4 @@
 - Check dependency files before guessing APIs.
 - Prefer strong typing over `any`.
 - Upgrade outdated deps instead of downgrading code.
+- principles KISS, YAGNI, DRY.

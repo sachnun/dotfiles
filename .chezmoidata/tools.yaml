@@ -1,8 +1,6 @@
 tools:
   - name: chezmoi
     install: sh -c "$(curl -fsLS get.chezmoi.io/lb)"
-  - name: uv
-    install: curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
   - name: opencode
     install: curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
     exclude_android: true

@@ -31,7 +31,6 @@ packages:
     - tmux
     - tree
     - unzip
-    - uv
     - vim
     - wget
     - zip
@@ -62,7 +61,6 @@ packages:
     - termux-services
     - tmux
     - tree
-    - uv
     - vim
     - wget
     - which
