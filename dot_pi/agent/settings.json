@@ -7,7 +7,12 @@
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "packages": [
-    "npm:@llblab/pi-telegram"
+    {
+      "source": "npm:@llblab/pi-telegram",
+      "extensions": [
+        "-index.ts"
+      ]
+    }
   ],
   "terminal": {
     "showTerminalProgress": true
