@@ -13,3 +13,4 @@
 - Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
 - Subject line only, max 32 chars, imperative mood.
 - One commit per logical change.
+- Keep `README.md` simple, clean, and minimal — no tree.
