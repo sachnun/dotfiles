@@ -6,7 +6,9 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [],
+  "packages": [
+    "npm:@llblab/pi-telegram"
+  ],
   "terminal": {
     "showTerminalProgress": true
   },
