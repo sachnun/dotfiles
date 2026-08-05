@@ -6,7 +6,7 @@
 - Never commit unless asked.
 - Never run build/test unless asked.
 - Run tests you create until they pass.
-- Write ad-hoc scripts to `$TMPDIR`.
+- Write ad-hoc scripts to `tmp` not `~`.
 
 ## Git
 
