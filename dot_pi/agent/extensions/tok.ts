@@ -8,7 +8,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-const INTERVAL_MS = 50;
+const INTERVAL_MS = 200;
 const WINDOW_MS = 1000; // sliding window used to smooth the rate
 
 export default function (pi: ExtensionAPI) {
