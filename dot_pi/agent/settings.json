@@ -20,7 +20,8 @@
   "extensions": [
     "-extensions/aihubmix.ts",
     "-extensions/restore.ts",
-    "-extensions/bash.ts"
+    "-extensions/bash.ts",
+    "+extensions/checkpoint.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
