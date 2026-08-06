@@ -2,8 +2,8 @@
  * Composio MCP Bridge — single-file pi extension.
  *
  * Connects pi to https://connect.composio.dev/mcp (Streamable HTTP MCP).
- * Registers 3 core meta-tools (~470 tokens in the system prompt):
- *   composio_search_tools, composio_manage_connections, composio_multi_execute_tool
+ * Registers 2 core meta-tools (~330 tokens in the system prompt):
+ *   composio_search_tools, composio_multi_execute_tool
  *
  * Results are compacted before reaching the model: noise keys (log_id,
  * $schema, examples, next_steps_guidance, nulls) dropped, descriptions
@@ -19,7 +19,6 @@ import {
 	truncateToVisualLines,
 	type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
-import { StringEnum } from "@earendil-works/pi-ai";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type, type TSchema } from "typebox";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -28,11 +27,39 @@ import { dirname, join } from "node:path";
 
 const ENDPOINT = "https://connect.composio.dev/mcp";
 const CONFIG_FILE = join(homedir(), ".pi", "agent", "composio.json");
-const MAX_TEXT_LENGTH = 60_000;
+const MAX_TEXT_LENGTH = 30_000;
 const PREVIEW_LINES = 5;
 const TRUNCATION_MARKER = "\n…(output truncated,";
 const NOISE_KEYS = new Set(["log_id", "$schema", "examples", "next_steps_guidance"]);
 const MAX_DESC = 120;
+// Bulky SEO/duplicate fields commonly returned by search/news tools — always dropped.
+const BLOAT_KEYS = new Set([
+	"favicon", "favicons", "thumbnail", "thumbnailUrl", "og_image", "ogImage", "ogImageUrl",
+	"imageUrl", "url", "link", "sourceUrl", "urlLink", "titleImg", "img", "domain",
+	"trackingKeys", "bannerImage", "usageHints", "ogUsageHints", "siteRedirect",
+	"keywords", "seo", "openGraph", "canonicalUrl", "publisherUrl", "ampUrl",
+]);
+const MAX_ITEMS = 8; // per-array cap for listings (first N kept)
+const MAX_STR = 400; // hard cap for every remaining string value
+
+// --- Search-specific compaction (COMPOSIO_SEARCH_TOOLS runs every session) ---
+const MAX_SEARCH_TEXT = 8_000; // hard cap on the model-facing search result text
+const SEARCH_MAX_PLAN_STEPS = 1; // keep at most N recommended_plan_steps per item
+const SEARCH_STEP_LEN = 120; // per-step truncation
+// Meta-guidance that repeats verbatim on every call — the model does not need it again.
+// plan_id is a per-query random UUID (no action value): dropped to keep repeated search
+// outputs stable so the tool_schemas cache hits more often.
+const SEARCH_META_KEYS = new Set(["execution_guidance", "known_pitfalls", "reference_workbench_snippets", "plan_id"]);
+// BLOAT_KEYS minus link fields: url/link/domain are the valuable part of search results
+// and of multi_execute responses (the model builds a roundup with clickable URLs).
+const CONTENT_BLOAT_KEYS = new Set(
+	[...BLOAT_KEYS].filter((k) => !["url", "link", "domain", "sourceUrl", "canonicalUrl"].includes(k)),
+);
+
+// --- Execute-specific compaction (COMPOSIO_MULTI_EXECUTE_TOOL) ---
+const MAX_ANSWER = 3_000; // main narrative field — keep it longer than generic strings
+// Per-result schema/instruction boilerplate + top-level wrappers — pure guidance noise.
+const EXECUTE_META_KEYS = new Set(["structure_info", "instruction", "next_steps", "remote_file_info"]);
 
 // ---------------------------------------------------------------------------
 // MCP Streamable HTTP client
@@ -120,15 +147,6 @@ const SEARCH_PARAMS = Type.Object({
 	})),
 });
 
-const CONNECT_PARAMS = Type.Object({
-	toolkits: Type.Array(Type.Object({
-		name: Type.String(),
-		action: Type.Optional(StringEnum(["add", "rename", "list", "remove"] as const)),
-		alias: Type.Optional(Type.String()),
-		account_id: Type.Optional(Type.String()),
-	})),
-});
-
 const EXECUTE_PARAMS = Type.Object({
 	tools: Type.Array(Type.Object({
 		tool_slug: Type.String(),
@@ -151,11 +169,6 @@ const TOOLS: ToolDefinition[] = [
 		description:
 			"Call FIRST for real-time info (news, releases, prices, weather), web search, or anything involving an external app or service. Never claim you lack access before calling this.",
 		parameters: SEARCH_PARAMS,
-	},
-	{
-		name: "COMPOSIO_MANAGE_CONNECTIONS",
-		description: "Connect/disconnect app accounts.",
-		parameters: CONNECT_PARAMS,
 	},
 	{
 		name: "COMPOSIO_MULTI_EXECUTE_TOOL",
@@ -199,23 +212,133 @@ function summarizeJson(value: unknown): string {
 	return JSON.stringify(out);
 }
 
-/** Drop noise keys/nulls, truncate long descriptions. Never breaks structure. */
-function compactJsonValue(value: unknown): unknown {
+/**
+ * Execute-specific compaction: each result item ships a full response schema
+ * (structure_info), per-result instruction boilerplate, plus top-level
+ * next_steps/remote_file_info wrappers — all guidance noise. Keep the actual
+ * content (answer, citations with title/url, previews) and counts.
+ */
+function compactExecuteJson(value: unknown): unknown {
 	if (Array.isArray(value)) {
-		return value.map(compactJsonValue).filter((v) => v !== undefined && v !== null);
+		const items = value.map(compactExecuteJson).filter((v) => v !== undefined && v !== null);
+		if (value.length > MAX_ITEMS) {
+			return [items.slice(0, MAX_ITEMS), `…${value.length - MAX_ITEMS} more item(s) omitted`];
+		}
+		return items;
 	}
 	if (value !== null && typeof value === "object") {
 		const out: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-			if (NOISE_KEYS.has(k)) continue;
+			if (NOISE_KEYS.has(k) || CONTENT_BLOAT_KEYS.has(k) || EXECUTE_META_KEYS.has(k)) continue;
+			if (k === "answer" && typeof v === "string") {
+				out[k] = v.length > MAX_ANSWER ? `${v.slice(0, MAX_ANSWER - 1)}…` : v;
+				continue;
+			}
+			if (k === "citations" && Array.isArray(v)) {
+				// keep title/url/id only — that is what the model links to
+				const cit = v
+					.slice(0, MAX_ITEMS)
+					.map((c) => {
+						if (c === null || typeof c !== "object") return c;
+						const d = c as Record<string, unknown>;
+						const slim: Record<string, unknown> = {};
+						for (const key of ["title", "url", "id"]) if (d[key] !== undefined) slim[key] = d[key];
+						return slim;
+					})
+					.filter((x) => x !== undefined && x !== null);
+				if (v.length > MAX_ITEMS) cit.push(`…${v.length - MAX_ITEMS} more citation(s) omitted`);
+				out[k] = cit;
+				continue;
+			}
 			if (k === "description" && typeof v === "string" && v.length > MAX_DESC) {
 				out[k] = `${v.slice(0, MAX_DESC - 1)}…`;
 				continue;
 			}
-			const cv = compactJsonValue(v);
+			const cv = compactExecuteJson(v);
 			if (cv !== undefined && cv !== null) out[k] = cv;
 		}
 		return out;
+	}
+	if (typeof value === "string") {
+		return value.length > MAX_STR ? `${value.slice(0, MAX_STR - 1)}…` : value;
+	}
+	return value;
+}
+
+/**
+ * Search-specific compaction: the meta-search response is dominated by the
+ * query echo (use_case), identical boilerplate (execution_guidance) and long
+ * plan steps — all repeated on every call. Keep only what the model needs.
+ */
+function compactSearchJson(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		const items = value.map(compactSearchJson).filter((v) => v !== undefined && v !== null);
+		if (value.length > MAX_ITEMS) {
+			return [items.slice(0, MAX_ITEMS), `…${value.length - MAX_ITEMS} more item(s) omitted`];
+		}
+		return items;
+	}
+	if (value !== null && typeof value === "object") {
+		const out: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			if (NOISE_KEYS.has(k) || CONTENT_BLOAT_KEYS.has(k) || SEARCH_META_KEYS.has(k)) continue;
+			if (k === "use_case" && typeof v === "string") {
+				// echo of the query the model itself sent — shrink to a label
+				out.query = v.length > 100 ? `${v.slice(0, 97)}…` : v;
+				continue;
+			}
+			if (k === "recommended_plan_steps" && Array.isArray(v)) {
+				const steps = v
+					.slice(0, SEARCH_MAX_PLAN_STEPS)
+					.map((s) => (typeof s === "string" && s.length > SEARCH_STEP_LEN ? `${s.slice(0, SEARCH_STEP_LEN - 1)}…` : s));
+				if (v.length > SEARCH_MAX_PLAN_STEPS) steps.push(`…${v.length - SEARCH_MAX_PLAN_STEPS} more step(s) omitted`);
+				out[k] = steps;
+				continue;
+			}
+			if (k === "tool_schemas" && v !== null && typeof v === "object") {
+				// keep slug -> short description; drop toolkit/tool_slug (the key is the
+				// slug) and the input_schema bulk. Deduped across calls by execute().
+				const schemas: Record<string, unknown> = {};
+				for (const [slug, def] of Object.entries(v as Record<string, unknown>)) {
+					if (def === null || typeof def !== "object") continue;
+					const desc = (def as Record<string, unknown>).description;
+					schemas[slug] = typeof desc === "string" ? (desc.length > 120 ? `${desc.slice(0, 119)}…` : desc) : true;
+				}
+				out[k] = schemas;
+				continue;
+			}
+			if (k === "toolkit_connection_statuses" && Array.isArray(v)) {
+				// keep toolkit + connection state; status_message is boilerplate
+				// (and its "call MANAGE_CONNECTIONS" CTA is dead — the tool is gone)
+				out[k] = v.map((t) => {
+					if (t === null || typeof t !== "object") return t;
+					const d = t as Record<string, unknown>;
+					const slim: Record<string, unknown> = {};
+					for (const key of ["toolkit", "has_active_connection"]) if (d[key] !== undefined) slim[key] = d[key];
+					return slim;
+				});
+				continue;
+			}
+			if (k === "time_info" && v !== null && typeof v === "object") {
+				// keep the clock, drop the static "use UTC / do not hallucinate" essay
+				const d = v as Record<string, unknown>;
+				const slim: Record<string, unknown> = {};
+				if (typeof d.current_time_utc === "string") slim.current_time_utc = d.current_time_utc;
+				slim.note = "use UTC for relative-time params";
+				out[k] = slim;
+				continue;
+			}
+			if (k === "description" && typeof v === "string" && v.length > MAX_DESC) {
+				out[k] = `${v.slice(0, MAX_DESC - 1)}…`;
+				continue;
+			}
+			const cv = compactSearchJson(v);
+			if (cv !== undefined && cv !== null) out[k] = cv;
+		}
+		return out;
+	}
+	if (typeof value === "string") {
+		return value.length > MAX_STR ? `${value.slice(0, MAX_STR - 1)}…` : value;
 	}
 	return value;
 }
@@ -237,6 +360,10 @@ async function loadApiKey(): Promise<string | undefined> {
 
 export default function (pi: ExtensionAPI) {
 	let client: ComposioMCPClient | undefined;
+	// Compacted tool_schemas repeat across search calls in one session (same tool set
+	// ⇒ same blob). Keep the most recent blobs per session so recurring sets hit.
+	const toolSchemasCache = new Map<string, string[]>();
+	const TOOL_SCHEMAS_CACHE_DEPTH = 3;
 
 	for (const def of TOOLS) {
 		const name = def.name.toLowerCase();
@@ -246,7 +373,7 @@ export default function (pi: ExtensionAPI) {
 			description: def.description,
 			promptSnippet: "Composio: 500+ external app integrations",
 			promptGuidelines: [
-				"After search: composio_manage_connections for auth, then composio_multi_execute_tool. Never invent tool slugs.",
+				"After search: composio_multi_execute_tool. Never invent tool slugs.",
 			],
 			parameters: def.parameters,
 
@@ -312,16 +439,41 @@ export default function (pi: ExtensionAPI) {
 				return component;
 			},
 
-			async execute(_toolCallId, params, signal, onUpdate) {
+			async execute(_toolCallId, params, signal, onUpdate, ctx) {
 				if (!client) client = new ComposioMCPClient((await loadApiKey()) ?? "");
 				onUpdate?.({ content: [{ type: "text", text: `Running ${def.name}…` }] });
 				const result = await client.callTool(def.name, params, signal);
 				if (result.isError) throw new Error(extractResultText(result) || `${def.name} failed`);
 				let text = extractResultText(result);
 				const json = tryPrettyPrintJson(text);
-				if (json) text = JSON.stringify(compactJsonValue(json.parsed), null, 2);
-				if (text.length > MAX_TEXT_LENGTH) {
-					text = `${text.slice(0, MAX_TEXT_LENGTH)}\n…(output truncated, total ${text.length} chars)`;
+				const isSearch = def.name === "COMPOSIO_SEARCH_TOOLS";
+				const compactor = isSearch ? compactSearchJson : compactExecuteJson;
+				if (json) {
+					const parsed = json.parsed as { data?: { tool_schemas?: Record<string, unknown> } };
+					const rawSchemas = parsed.data?.tool_schemas;
+					const compacted = compactor(parsed) as { data?: { tool_schemas?: unknown } };
+					text = JSON.stringify(compacted);
+					// Tool schemas are identical across search calls in a session — send them
+					// once, then reference the previous blob instead of repeating it.
+					if (isSearch && rawSchemas && typeof rawSchemas === "object") {
+						// Signature from the compacted blob: deterministic given the tool set,
+						// so volatile fields composio may add to raw schemas never break hits.
+						const blob = JSON.stringify(compacted.data?.tool_schemas);
+						const session = ctx.sessionManager?.getSessionId() ?? "";
+						const recent = toolSchemasCache.get(session) ?? [];
+						if (recent.includes(blob)) {
+							if (compacted.data) compacted.data.tool_schemas = "unchanged from previous search call";
+							text = JSON.stringify(compacted);
+						} else {
+							recent.push(blob);
+							if (recent.length > TOOL_SCHEMAS_CACHE_DEPTH) recent.shift();
+							toolSchemasCache.set(session, recent);
+						}
+					}
+				}
+				const cap = isSearch ? MAX_SEARCH_TEXT : MAX_TEXT_LENGTH;
+				if (text.length > cap) {
+					text = `${text.slice(0, cap)}\n…(output truncated, total ${text.length} chars)`;
 				}
 				return { content: [{ type: "text", text }], details: { tool: def.name } };
 			},
