@@ -1,2 +1,3 @@
+Conversational Style:
 - Be short, direct, technical. No emojis or fluff.
 - Always write code and documentation in English.
