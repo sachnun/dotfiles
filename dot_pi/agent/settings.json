@@ -12,7 +12,8 @@
       "extensions": [
         "-index.ts"
       ]
-    }
+    },
+    "npm:pi-compact-thinking"
   ],
   "terminal": {
     "showTerminalProgress": true
@@ -21,7 +22,7 @@
     "-extensions/aihubmix.ts",
     "-extensions/restore.ts",
     "-extensions/bash.ts",
-    "+extensions/checkpoint.ts"
+    "-extensions/checkpoint.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
