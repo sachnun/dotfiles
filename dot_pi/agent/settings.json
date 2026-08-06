@@ -6,14 +6,7 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [
-    {
-      "source": "npm:@llblab/pi-telegram",
-      "extensions": [
-        "-index.ts"
-      ]
-    }
-  ],
+  "packages": [],
   "terminal": {
     "showTerminalProgress": true
   },
@@ -21,7 +14,8 @@
     "-extensions/aihubmix.ts",
     "-extensions/restore.ts",
     "-extensions/bash.ts",
-    "-extensions/checkpoint.ts"
+    "-extensions/checkpoint.ts",
+    "-extensions/composio.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
