@@ -14,7 +14,8 @@
  *   - the pi status bar shows "<threadName> · <state>" (e.g. "Timber · idle")
  *
  * pi command:
- *   /telegram  → set bot token (login) or confirm logout (composio-style)
+ *   /telegram  → login (set token), connect directly, or disconnect/logout
+ *     (no auto-connect — connection is manual via /telegram)
  *
  * Telegram commands (owner only):
  *   /start  → pair owner (first user) + status
@@ -120,9 +121,8 @@ interface TelegramConfig {
 	chatId?: number;
 }
 
-// Volatile runtime state — kept in tmp/telegram/state.json (not synced).
+// Volatile runtime state — in-memory only (this instance's bound thread).
 interface TelegramState {
-	lastUpdateId?: number;
 	threadId?: number;
 	threadName?: string;
 }
@@ -207,7 +207,8 @@ async function saveOffset(offset: { lastUpdateId?: number }): Promise<void> {
 
 export default function (pi: ExtensionAPI) {
 	let cfg: TelegramConfig = {};
-	let state: TelegramState = {};
+	let state: TelegramState = {}; // in-memory: this instance's thread
+	let offset: { lastUpdateId?: number } = {}; // shared polling offset
 	let client: TgClient | undefined;
 	let sessionCtx: ExtensionContext | undefined;
 	let pollRunning = false;
@@ -231,10 +232,56 @@ export default function (pi: ExtensionAPI) {
 		await saveConfig(cfg);
 	}
 
-	/** Persist volatile runtime state (tmp/telegram/state.json). */
-	async function persistState(partial: Partial<TelegramState>): Promise<void> {
-		state = { ...state, ...partial };
-		await saveState(state);
+	/** Persist the shared polling offset (only the active poller writes it). */
+	async function persistOffset(lastUpdateId: number): Promise<void> {
+		offset.lastUpdateId = lastUpdateId;
+		await saveOffset(offset).catch(() => {});
+	}
+
+	// -----------------------------------------------------------------------
+	// Multi-instance routing: one pi instance polls the bot (leader); messages
+	// in another live instance's thread are forwarded to that instance's inbox
+	// file, and the follower processes them itself. (Minimal version of the
+	// upstream leader/follower bus.)
+	// -----------------------------------------------------------------------
+
+	function pidAlive(pid: number): boolean {
+		try {
+			process.kill(pid, 0);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async function registerThread(threadId: number, threadName: string): Promise<void> {
+		await mkdir(THREADS_DIR, { recursive: true });
+		const file = join(THREADS_DIR, `${threadId}.json`);
+		const tmp = `${file}.tmp`;
+		await writeFile(tmp, JSON.stringify({ instanceId: INSTANCE_ID, pid: process.pid, threadName }), { mode: 0o600 });
+		await rename(tmp, file);
+	}
+
+	async function unregisterThread(threadId: number): Promise<void> {
+		await rm(join(THREADS_DIR, `${threadId}.json`), { force: true }).catch(() => {});
+	}
+
+	/** Returns the live instance owning a thread, or undefined when unbound/stale. */
+	async function lookupThreadOwner(threadId: number): Promise<string | undefined> {
+		try {
+			const reg = JSON.parse(await readFile(join(THREADS_DIR, `${threadId}.json`), "utf8")) as { instanceId: string; pid: number };
+			if (pidAlive(reg.pid)) return reg.instanceId;
+			await unregisterThread(threadId); // stale registration → clean up
+			return undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	/** Forward a raw update to another instance's inbox. */
+	async function routeToInstance(instanceId: string, update: TgUpdate): Promise<void> {
+		await mkdir(INBOX_DIR, { recursive: true });
+		await appendFile(join(INBOX_DIR, `${instanceId}.jsonl`), JSON.stringify(update) + "\n");
 	}
 
 	// -----------------------------------------------------------------------
@@ -246,6 +293,7 @@ export default function (pi: ExtensionAPI) {
 		const t = target();
 		if (!t) return;
 		const threadId = options.threadId ?? t.threadId;
+		if (threadId === undefined) return; // disconnected — no session thread
 		for (const chunk of splitMessage(text)) {
 			try {
 				await getClient().sendMessage(t.chatId, chunk, {
@@ -261,13 +309,15 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	/** Send HTML-rendered text silently (status replies). */
-	async function sendHtml(text: string): Promise<void> {
+	async function sendHtml(text: string, options: { threadId?: number } = {}): Promise<void> {
 		const t = target();
 		if (!t) return;
+		const threadId = options.threadId ?? t.threadId;
+		if (threadId === undefined) return; // disconnected — no session thread
 		for (const chunk of splitMessage(text)) {
 			try {
 				await getClient().sendMessage(t.chatId, chunk, {
-					threadId: t.threadId,
+					threadId,
 					parseMode: "HTML",
 					replyTo: lastUserMsgId,
 					disableNotification: true,
@@ -288,7 +338,7 @@ export default function (pi: ExtensionAPI) {
 	 *  Loud by default (final answer); pass silent: true for intermediate content. */
 	async function sendRich(text: string, options: { replyMarkup?: unknown; silent?: boolean } = {}): Promise<void> {
 		const t = target();
-		if (!t) return;
+		if (!t || t.threadId === undefined) return; // disconnected — no session thread
 		// Rich messages support up to 32768 chars; chunk conservatively.
 		for (const chunk of splitMessage(text, 30000)) {
 			const replyTo = lastUserMsgId;
@@ -322,6 +372,7 @@ export default function (pi: ExtensionAPI) {
 	function startTyping(): void {
 		if (typingTimer || !target()) return;
 		const t = target()!;
+		if (t.threadId === undefined) return;
 		const ping = () => getClient().sendChatAction(t.chatId, t.threadId, "typing").catch(() => {});
 		ping();
 		typingTimer = setInterval(ping, 5000);
@@ -382,7 +433,9 @@ export default function (pi: ExtensionAPI) {
 		const name = generateThreadName();
 		try {
 			const topic = await getClient().createForumTopic(t.chatId, name);
-			await persistState({ threadId: topic.message_thread_id, threadName: name });
+			state.threadId = topic.message_thread_id;
+			state.threadName = name;
+			await registerThread(state.threadId, name);
 			return topic.message_thread_id;
 		} catch {
 			// Threaded Mode off or API failure → fall back to the existing
@@ -498,6 +551,17 @@ export default function (pi: ExtensionAPI) {
 		const m = u.message;
 		if (!m || m.chat.type !== "private") return;
 
+		// Multi-instance routing: a message in another live instance's thread is
+		// forwarded to that instance's inbox; each instance answers in its own
+		// thread. Unregistered threads (e.g. pre-pairing) are handled here.
+		if (m.message_thread_id && m.message_thread_id !== state.threadId) {
+			const owner = await lookupThreadOwner(m.message_thread_id);
+			if (owner && owner !== INSTANCE_ID) {
+				await routeToInstance(owner, u);
+				return;
+			}
+		}
+
 		// Reply-to only makes sense when the message arrived in the session
 		// thread; cross-thread replies would be rejected by the API.
 		lastUserMsgId = m.message_thread_id === state.threadId ? m.message_id : undefined;
@@ -538,6 +602,9 @@ export default function (pi: ExtensionAPI) {
 		pollRunning = false;
 		pollCtl?.abort();
 		pollCtl = undefined;
+		followerRunning = false;
+		followerCtl?.abort();
+		followerCtl = undefined;
 		stopTyping();
 	}
 
@@ -558,13 +625,13 @@ export default function (pi: ExtensionAPI) {
 		const loop = async () => {
 			while (pollRunning) {
 				try {
-					const updates = await tg.getUpdates((state.lastUpdateId ?? 0) + 1, 30, signal);
+					const updates = await tg.getUpdates((offset.lastUpdateId ?? 0) + 1, 30, signal);
 					for (const u of updates) {
 						await handleUpdate(u);
 					}
 					if (updates.length > 0) {
 						const maxId = Math.max(...updates.map((u) => u.update_id));
-						await persistState({ lastUpdateId: maxId });
+						await persistOffset(maxId);
 					}
 				} catch (err) {
 					if (signal.aborted || !pollRunning) break;
@@ -574,9 +641,68 @@ export default function (pi: ExtensionAPI) {
 						pollRunning = false;
 						break;
 					}
-					// Another pi instance polls this bot (409) → back off longer.
-					const delay = /Conflict|terminated by other getUpdates/i.test(msg) ? 5000 : 1000;
-					await sleep(delay, signal);
+					if (/Conflict|terminated by other getUpdates/i.test(msg)) {
+						// Another pi instance polls this bot → become a follower:
+						// process our routed inbox, retry takeover if the leader dies.
+						pollRunning = false;
+						void startFollower();
+						return;
+					}
+					await sleep(1000, signal);
+				}
+			}
+		};
+		void loop();
+	}
+
+	// -----------------------------------------------------------------------
+	// Follower mode (multi-instance): no polling; drains our routed inbox and
+	// periodically tries to take over polling when the leader dies.
+	// -----------------------------------------------------------------------
+
+	let followerRunning = false;
+	let followerCtl: AbortController | undefined;
+
+	function startFollower(): void {
+		if (followerRunning || !cfg.botToken) return;
+		followerRunning = true;
+		followerCtl = new AbortController();
+		const signal = followerCtl.signal;
+		const tg = getClient();
+		const inboxFile = join(INBOX_DIR, `${INSTANCE_ID}.jsonl`);
+		let processed = 0;
+
+		const loop = async () => {
+			while (followerRunning) {
+				// 1. Drain messages routed to us (sent in OUR thread).
+				try {
+					const content = await readFile(inboxFile, "utf8").catch(() => "");
+					const lines = content.split("\n").filter((l) => l.trim().length > 0);
+					while (processed < lines.length) {
+						try {
+							await handleUpdate(JSON.parse(lines[processed]) as TgUpdate);
+						} catch {
+							// Malformed line — skip.
+						}
+						processed++;
+					}
+				} catch {
+					// Ignore.
+				}
+				// 2. Takeover: only succeeds when the leader's long poll is gone.
+				try {
+					offset = await loadOffset();
+					const updates = await tg.getUpdates((offset.lastUpdateId ?? 0) + 1, 1, signal);
+					followerRunning = false;
+					for (const u of updates) await handleUpdate(u);
+					if (updates.length > 0) {
+						await persistOffset(Math.max(...updates.map((u) => u.update_id)));
+					}
+					void startPolling();
+					return;
+				} catch {
+					// 409 (leader alive) or transient → stay a follower.
+					await sleep(20000, signal);
 				}
 			}
 		};
@@ -709,7 +835,7 @@ export default function (pi: ExtensionAPI) {
 	async function doPublishToolActivity(): Promise<void> {
 		toolPublishTimer = undefined;
 		const t = target();
-		if (!t || toolOrder.length === 0) return;
+		if (!t || t.threadId === undefined || toolOrder.length === 0) return;
 		if (toolActivityHtml().length > 30000) return; // keep the message bounded
 
 		if (toolMsgId === undefined) {
@@ -797,13 +923,13 @@ export default function (pi: ExtensionAPI) {
 		// token. Force one last publish with the complete rolling window.
 		if (reasoningFrames > 0 && reasoningChars > 0 && !reasoningBlocked) {
 			const t = target();
-			if (t) void publishThinking(t);
+			if (t?.threadId) void publishThinking(t);
 		}
 	});
 
 	pi.on("message_update", (event) => {
 		const t = target();
-		if (!t) return;
+		if (!t?.threadId) return;
 		// The streaming partial carries both thinking and answer text.
 		const partialContent =
 			(event as { assistantMessageEvent?: { partial?: { content?: unknown } } }).assistantMessageEvent?.partial?.content ??
@@ -940,7 +1066,7 @@ export default function (pi: ExtensionAPI) {
 		if (thinking && reasoningFrames === 0) {
 			// Not streamed live → send the rolling-window view once (silent, HTML).
 			const t = target();
-			if (t) {
+			if (t?.threadId) {
 				getClient()
 					.sendMessage(t.chatId, buildThinkingHtml(buildThinkingWindowText(thinking)), { threadId: t.threadId, parseMode: "HTML", disableNotification: true })
 					.catch(() => {});
@@ -955,49 +1081,29 @@ export default function (pi: ExtensionAPI) {
 	// Lifecycle: auto connect / disconnect
 	// -----------------------------------------------------------------------
 
-	pi.on("session_start", async (event, ctx) => {
+	pi.on("session_start", async (_event, ctx) => {
 		sessionCtx = ctx;
 		aborted = false;
 		lastUserMsgId = undefined;
 		reminderSent = false;
 		if (ctx.mode === "print") return; // Short-lived runs stay passive.
 		cfg = await loadConfig();
-		state = await loadState();
+		state = {};
+		offset = await loadOffset();
 		client = undefined;
-		updateStatus();
-		if (cfg.botToken) {
-			// One thread per pi session: only a fresh open creates it.
-			// Reload/new/resume keep the existing session thread.
-			if (event.reason === "startup" && cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
-				await createSessionThread();
-				updateStatus();
-			} else if (event.reason === "new" || event.reason === "resume" || event.reason === "fork") {
-				// Session replacement started from the pi terminal: notify Telegram
-				// in the same session thread.
-				sendPlain(`New session started (${event.reason}).`).catch(() => {});
-			}
-			startPolling();
-		}
+		updateStatus(); // no thread yet → status hidden
+		// No auto-connect: run /telegram to connect.
 	});
 
 	pi.on("session_shutdown", async (event) => {
-		stopPolling();
-		sessionCtx?.ui.setStatus("telegram", undefined);
-		// Real quit: delete the session thread (like upstream's automatic thread
-		// cleanup on quit). Session replacements (/new, /reload, /resume, /fork)
-		// keep the thread for the next session.
+		// Real quit: clean up the session thread. Session replacements
+		// (/new, /reload, /resume, /fork) only stop polling; reconnect via /telegram.
 		if (event.reason === "quit") {
-			const t = target();
-			if (t?.threadId) {
-				// pi awaits session_shutdown handlers; bound the API call so a
-				// stalled network can't delay shutdown indefinitely.
-				await Promise.race([
-					getClient().deleteForumTopic(t.chatId, t.threadId),
-					sleep(2500),
-				]).catch(() => {});
-				await persistState({ threadId: undefined, threadName: undefined }).catch(() => {});
-			}
+			await disconnectBridge();
+		} else {
+			stopPolling();
 		}
+		sessionCtx?.ui.setStatus("telegram", undefined);
 	});
 
 	// -----------------------------------------------------------------------
@@ -1005,17 +1111,54 @@ export default function (pi: ExtensionAPI) {
 	// -----------------------------------------------------------------------
 
 	// -----------------------------------------------------------------------
-	// /telegram command (login / logout)
+	// Connect / disconnect helpers
+	// -----------------------------------------------------------------------
+
+	/** Connect: create this session's thread (when paired) and start polling. */
+	async function connectBridge(ctx: ExtensionContext): Promise<void> {
+		cfg = await loadConfig();
+		state = {};
+		offset = await loadOffset();
+		sessionCtx = ctx;
+		client = undefined;
+		if (!cfg.botToken) return;
+		if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+			await createSessionThread();
+		}
+		updateStatus();
+		startPolling();
+	}
+
+	/** Disconnect: stop polling and delete this session's thread (best-effort). */
+	async function disconnectBridge(): Promise<void> {
+		stopPolling();
+		const t = target();
+		if (t?.threadId) {
+			await Promise.race([
+				getClient().deleteForumTopic(t.chatId, t.threadId),
+				sleep(2500),
+			]).catch(() => {});
+			await unregisterThread(t.threadId).catch(() => {});
+		}
+		state = {};
+		updateStatus();
+	}
+
+	// -----------------------------------------------------------------------
+	// /telegram command: login / connect / disconnect / logout
 	// -----------------------------------------------------------------------
 
 	pi.registerCommand("telegram", {
-		description: "Telegram bridge login/logout: set bot token or confirm logout",
+		description: "Telegram bridge: login, connect/disconnect, logout",
 		handler: async (_args, ctx) => {
-			cfg = await loadConfig();
-			state = await loadState();
 			sessionCtx = ctx;
+			// NOTE: state (this instance's thread) must NOT be reset here — the
+			// connected-state actions (Disconnect/Logout) need state.threadId to
+			// find and delete the session thread.
+			cfg = await loadConfig();
 
 			if (!cfg.botToken) {
+				// Login: token input → validate → save → connect immediately.
 				const input = await ctx.ui.input(
 					"Telegram bot token",
 					"123456:ABC… (from @BotFather → /newbot)",
@@ -1028,12 +1171,14 @@ export default function (pi: ExtensionAPI) {
 				try {
 					const me = await new TgClient(token).getMe();
 					await persistCfg({ botToken: token, allowedUserId: undefined, chatId: undefined });
-					await persistState({ threadId: undefined, threadName: undefined, lastUpdateId: undefined });
+					state = {};
+					offset = {};
+					await saveOffset(offset).catch(() => {});
 					client = undefined;
 					botUsername = `@${me.username ?? ""}`;
-					startPolling();
+					await connectBridge(ctx);
 					ctx.ui.notify(
-						`Logged in as @${me.username ?? me.id}. Open the bot DM and send /start (Threaded Mode must be enabled in BotFather).`,
+						`Connected as @${me.username ?? me.id}. Open the bot DM and send /start (Threaded Mode must be enabled in BotFather).`,
 						"info",
 					);
 				} catch (err) {
@@ -1042,31 +1187,31 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			let me = "";
-			try {
-				const user = await getClient().getMe();
-				me = `@${user.username ?? user.id}`;
-			} catch {
-				me = "(getMe failed)";
+			if (!pollRunning && !followerRunning) {
+				// Token saved but not connected → connect directly, no confirmation.
+				await connectBridge(ctx);
+				ctx.ui.notify(
+					`Connected${botUsername ? ` as ${botUsername}` : ""}${cfg.allowedUserId !== undefined ? "" : " — waiting for /start pairing"}.`,
+					"info",
+				);
+				return;
 			}
 
-			const ok = await ctx.ui.confirm("Telegram bridge", [
-				`Bot: ${me}`,
-				`Owner: ${cfg.allowedUserId ?? "not paired"}`,
-				`Thread: ${state.threadName ?? "—"} (${state.threadId ?? "—"})`,
-				`Polling: ${pollRunning ? "on" : "off"}`,
-				"",
-				"Logout? (clear token + pairing)",
-			].join("\n"));
-			if (!ok) return;
-
-			stopPolling();
-			client = undefined;
-			botUsername = "";
-			await persistCfg({ botToken: "", allowedUserId: undefined, chatId: undefined });
-			await persistState({ threadId: undefined, threadName: undefined, lastUpdateId: undefined });
-			updateStatus();
-			ctx.ui.notify("Logged out. Run /telegram to log in again.", "info");
+			// Already connected → Disconnect / Logout / Cancel.
+			const choice = await ctx.ui.select("Telegram bridge", ["Disconnect", "Logout", "Cancel"]);
+			if (choice === "Disconnect") {
+				await disconnectBridge();
+				ctx.ui.notify("Disconnected. Run /telegram to connect again.", "info");
+			} else if (choice === "Logout") {
+				await disconnectBridge();
+				client = undefined;
+				botUsername = "";
+				await persistCfg({ botToken: "", allowedUserId: undefined, chatId: undefined });
+				offset = {};
+				await saveOffset(offset).catch(() => {});
+				ctx.ui.notify("Logged out. Run /telegram to log in again.", "info");
+			}
+			// Cancel → nothing.
 		},
 	});
 }
