@@ -1,0 +1,1072 @@
+/**
+ * Telegram bridge — minimalist pi extension (zero deps).
+ *
+ * Turns a private Telegram DM into a mobile operator surface for the running
+ * pi session. Requires Telegram private-chat Threaded Mode (BotFather →
+ * /mybots → bot → Bot Settings → Threaded Mode).
+ *
+ * Lifecycle (one Telegram thread per pi session, random name from the
+ * palette, like upstream):
+ *   - session_start (startup) → auto-create a session thread via
+ *     createForumTopic, auto-connect long-polling
+ *   - session_shutdown (quit) → delete that thread via deleteForumTopic
+ *     (session replacements like /new, /reload, /resume keep the thread)
+ *   - the pi status bar shows "<threadName> · <state>" (e.g. "Timber · idle")
+ *
+ * pi command:
+ *   /telegram  → set bot token (login) or confirm logout (composio-style)
+ *
+ * Telegram commands (owner only):
+ *   /start  → pair owner (first user) + status
+ *   /stop   → abort the current pi run
+ *
+ * (No /new or /reload: pi 0.84's public extension API cannot trigger a full
+ * new session or extension reload from the polling loop — ctx.newSession()
+ * and ctx.reload() are command-context-only. Run them in the terminal.)
+ *
+ * Outbound (verbose): thinking is streamed by default as a headerless
+ * expandable blockquote (like upstream), the tool activity feed
+ * (tool + result lines), and the final answer as a Rich Message (Rich
+ * Markdown). While streaming, a Rich Draft preview is animated every ~2s.
+ * Tools: none — the assistant can't push files or buttons to Telegram.
+ *
+ * Notes on pi 0.84 API limits (verified empirically):
+ *   - pi.sendUserMessage("/cmd") does NOT dispatch extension commands
+ *     (sendUserMessage forces expandPromptTemplates:false). So Telegram
+ *     control commands are handled directly in the polling loop.
+ *   - ctx.newSession()/ctx.reload() exist only on ExtensionCommandContext,
+ *     unreachable from the polling loop. A real /new (fresh LLM context) or
+ *     extension reload from Telegram is therefore impossible; use the
+ *     terminal for those.
+ */
+
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import {
+	escapeHtml,
+	sanitizeFilename,
+	splitMessage,
+	sleep,
+	TgClient,
+	type TgMessage,
+	type TgUpdate,
+} from "./telegram.ts";
+
+const CONFIG_FILE = join(homedir(), ".pi", "agent", "telegram.json");
+const TMP_DIR = join(homedir(), ".pi", "agent", "tmp", "telegram");
+// Volatile runtime state lives outside telegram.json so the syncable config
+// only changes on login/logout/pairing. state.json is not meant for sync.
+const OFFSET_FILE = join(TMP_DIR, "offset.json"); // polling offset (leader writes)
+const THREADS_DIR = join(TMP_DIR, "threads"); // one <threadId>.json per instance
+const INBOX_DIR = join(TMP_DIR, "inbox"); // routed inbound messages per instance
+// Unique id for this pi process/run (used for thread registration + inbox).
+const INSTANCE_ID = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+// Thinking streaming limits (same as upstream llblab/pi-telegram):
+// rolling window of the latest chars + "… [N earlier chars omitted]" header.
+const REASONING_BUFFER_MAX_CHARS = 1200;
+const REASONING_MESSAGE_MAX_FRAMES = 24;
+const REASONING_MIN_INTERVAL_MS = 1200;
+const REASONING_MIN_DELTA_CHARS = 160;
+const ACTIVITY_MESSAGE_MAX_CHARS = 3900;
+
+// Random thread-name palette (same words as upstream llblab/pi-telegram).
+const THREAD_NAME_PALETTE: string[] = [
+	"Atlas", "Aster", "Aurora", "Anchor", "Ashen",
+	"Beacon", "Briar", "Boreal", "Birch", "Bison",
+	"Cedar", "Comet", "Cipher", "Coral", "Cinder",
+	"Delta", "Dawn", "Drift", "Dune", "Dagger",
+	"Ember", "Echo", "Eagle", "Eden", "Elder",
+	"Falcon", "Fjord", "Flint", "Forest", "Fable",
+	"Grove", "Glade", "Glyph", "Garnet", "Gale",
+	"Harbor", "Hawk", "Hazel", "Helix", "Haven",
+	"Iris", "Ivory", "Iron", "Isle", "Idea",
+	"Jade", "Juno", "Jolt", "Jewel", "Jasper",
+	"Kite", "Karma", "Kernel", "Kodiak", "Kelp",
+	"Lumen", "Laurel", "Lynx", "Lotus", "Lagoon",
+	"Maple", "Meteor", "Meadow", "Marble", "Moss",
+	"Nimbus", "Nova", "Nectar", "North", "Noble",
+	"Orion", "Onyx", "Opal", "Orbit", "Olive",
+	"Pine", "Pulse", "Praxis", "Pebble", "Prism",
+	"Quartz", "Quill", "Quasar", "Quest", "Quiver",
+	"River", "Raven", "Rune", "Reef", "Ridge",
+	"Spruce", "Solar", "Signal", "Stone", "Sable",
+	"Timber", "Talon", "Terra", "Torch", "Tide",
+	"Umber", "Unity", "Ursa", "Uplink", "Ulmus",
+	"Violet", "Vector", "Vista", "Vale", "Vortex",
+	"Willow", "Warden", "Wave", "Winter", "Wisp",
+	"Xenon", "Xylem", "Xavier", "Xylo", "Xerus",
+	"Yarrow", "Yonder", "Yukon", "Yale", "Yogi",
+	"Zenith", "Zephyr", "Zircon", "Zebra", "Zion",
+];
+
+function generateThreadName(): string {
+	return THREAD_NAME_PALETTE[Math.floor(Math.random() * THREAD_NAME_PALETTE.length)] ?? "Pi";
+}
+const THREADED_MODE_INSTRUCTIONS =
+	"Threaded Mode is not enabled.\n\n" +
+	"This bot requires Threaded Mode (private chat). To enable it:\n\n" +
+	"1. Open @BotFather in Telegram\n" +
+	"2. Send /mybots → choose your bot\n" +
+	"3. Bot Settings → Threaded Mode → Enable\n\n" +
+	"Then send /start again.";
+
+// Stable identity — kept in telegram.json (syncable).
+interface TelegramConfig {
+	botToken?: string;
+	allowedUserId?: number;
+	chatId?: number;
+}
+
+// Volatile runtime state — kept in tmp/telegram/state.json (not synced).
+interface TelegramState {
+	lastUpdateId?: number;
+	threadId?: number;
+	threadName?: string;
+}
+
+interface Target {
+	chatId: number;
+	threadId?: number;
+}
+
+type SendUserMessageContent = Parameters<ExtensionAPI["sendUserMessage"]>[0];
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+async function loadConfig(): Promise<TelegramConfig> {
+	try {
+		const raw = JSON.parse(await readFile(CONFIG_FILE, "utf8")) as TelegramConfig & {
+			profiles?: { default?: { botToken?: string; lastUpdateId?: number } };
+		};
+		// Migration: old llblab format kept the token under profiles.default.
+		if (typeof raw.botToken === "string") {
+			// Keep only stable identity in the syncable config.
+			const stable: TelegramConfig = { botToken: raw.botToken, allowedUserId: raw.allowedUserId, chatId: raw.chatId };
+			// One-time cleanup: migrate volatile leftovers (old lastUpdateId /
+			// thread fields) out of the syncable config into state.json.
+			const rawAny = raw as TelegramConfig & { lastUpdateId?: number; threadId?: number; threadName?: string };
+			if (rawAny.lastUpdateId !== undefined || rawAny.threadId !== undefined || rawAny.threadName !== undefined) {
+				if (rawAny.lastUpdateId !== undefined) {
+					try {
+						const existing = JSON.parse(await readFile(OFFSET_FILE, "utf8")) as { lastUpdateId?: number };
+
+						if (existing.lastUpdateId === undefined) await saveOffset({ lastUpdateId: rawAny.lastUpdateId });
+
+						} catch {
+
+						await saveOffset({ lastUpdateId: rawAny.lastUpdateId });
+
+						}
+				}
+				await saveConfig(stable);
+			}
+			return stable;
+		}
+		const old = raw.profiles?.default;
+		if (old?.botToken) {
+			const migrated: TelegramConfig = { botToken: old.botToken };
+			await saveConfig(migrated);
+			return migrated;
+		}
+		return {};
+	} catch {
+		return {};
+	}
+}
+
+async function loadOffset(): Promise<{ lastUpdateId?: number }> {
+	try {
+		return JSON.parse(await readFile(OFFSET_FILE, "utf8")) as { lastUpdateId?: number };
+	} catch {
+		return {};
+	}
+}
+
+async function saveConfig(cfg: TelegramConfig): Promise<void> {
+	await mkdir(dirname(CONFIG_FILE), { recursive: true });
+	const tmp = `${CONFIG_FILE}.tmp`;
+	await writeFile(tmp, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
+	await rename(tmp, CONFIG_FILE);
+}
+
+async function saveOffset(offset: { lastUpdateId?: number }): Promise<void> {
+	await mkdir(dirname(OFFSET_FILE), { recursive: true });
+	const tmp = `${OFFSET_FILE}.tmp`;
+	await writeFile(tmp, JSON.stringify(offset, null, 2) + "\n", { mode: 0o600 });
+	await rename(tmp, OFFSET_FILE);
+}
+
+// ---------------------------------------------------------------------------
+// Extension entry
+// ---------------------------------------------------------------------------
+
+export default function (pi: ExtensionAPI) {
+	let cfg: TelegramConfig = {};
+	let state: TelegramState = {};
+	let client: TgClient | undefined;
+	let sessionCtx: ExtensionContext | undefined;
+	let pollRunning = false;
+	let pollCtl: AbortController | undefined;
+	let typingTimer: NodeJS.Timeout | undefined;
+	let botUsername = "";
+	let aborted = false;
+	let lastUserMsgId: number | undefined;
+	let reminderSent = false;
+
+	const getClient = (): TgClient => (client ??= new TgClient(cfg.botToken ?? ""));
+
+	function target(): Target | undefined {
+		if (cfg.allowedUserId === undefined || cfg.chatId === undefined) return undefined;
+		return { chatId: cfg.chatId, threadId: state.threadId };
+	}
+
+	/** Persist stable identity (telegram.json) — only on login/logout/pairing. */
+	async function persistCfg(partial: Partial<TelegramConfig>): Promise<void> {
+		cfg = { ...cfg, ...partial };
+		await saveConfig(cfg);
+	}
+
+	/** Persist volatile runtime state (tmp/telegram/state.json). */
+	async function persistState(partial: Partial<TelegramState>): Promise<void> {
+		state = { ...state, ...partial };
+		await saveState(state);
+	}
+
+	// -----------------------------------------------------------------------
+	// Outbound helpers
+	// -----------------------------------------------------------------------
+
+	/** Send plain text silently (intermediate/status messages — no notification). */
+	async function sendPlain(text: string, options: { threadId?: number } = {}): Promise<void> {
+		const t = target();
+		if (!t) return;
+		const threadId = options.threadId ?? t.threadId;
+		for (const chunk of splitMessage(text)) {
+			try {
+				await getClient().sendMessage(t.chatId, chunk, {
+					threadId,
+					replyTo: lastUserMsgId,
+					disableNotification: true,
+				});
+			} catch {
+				// Ignore: thread may be deleted (after quit).
+			}
+			lastUserMsgId = undefined;
+		}
+	}
+
+	/** Send HTML-rendered text silently (status replies). */
+	async function sendHtml(text: string): Promise<void> {
+		const t = target();
+		if (!t) return;
+		for (const chunk of splitMessage(text)) {
+			try {
+				await getClient().sendMessage(t.chatId, chunk, {
+					threadId: t.threadId,
+					parseMode: "HTML",
+					replyTo: lastUserMsgId,
+					disableNotification: true,
+				});
+			} catch {
+				// Fall back to plain text if HTML entities fail.
+				try {
+					await getClient().sendMessage(t.chatId, chunk, { threadId: t.threadId, replyTo: lastUserMsgId, disableNotification: true });
+				} catch {
+					// Ignore.
+				}
+			}
+			lastUserMsgId = undefined;
+		}
+	}
+
+	/** Send a Rich Message (Rich Markdown) to the owner; falls back to HTML, then plain.
+	 *  Loud by default (final answer); pass silent: true for intermediate content. */
+	async function sendRich(text: string, options: { replyMarkup?: unknown; silent?: boolean } = {}): Promise<void> {
+		const t = target();
+		if (!t) return;
+		// Rich messages support up to 32768 chars; chunk conservatively.
+		for (const chunk of splitMessage(text, 30000)) {
+			const replyTo = lastUserMsgId;
+			try {
+				await getClient().sendRichMessage(t.chatId, chunk, {
+					threadId: t.threadId,
+					replyTo,
+					replyMarkup: options.replyMarkup,
+					disableNotification: options.silent,
+				});
+			} catch {
+				// Rich Markdown rejected → try HTML, then plain text.
+				try {
+					const sent = await getClient().sendMessage(t.chatId, chunk, {
+						threadId: t.threadId,
+						parseMode: "HTML",
+						replyTo,
+					});
+				} catch {
+					try {
+						const sent = await getClient().sendMessage(t.chatId, chunk, { threadId: t.threadId, replyTo });
+					} catch {
+						// Thread may be deleted (after quit).
+					}
+				}
+			}
+			lastUserMsgId = undefined;
+		}
+	}
+
+	function startTyping(): void {
+		if (typingTimer || !target()) return;
+		const t = target()!;
+		const ping = () => getClient().sendChatAction(t.chatId, t.threadId, "typing").catch(() => {});
+		ping();
+		typingTimer = setInterval(ping, 5000);
+	}
+
+	function stopTyping(): void {
+		if (typingTimer) {
+			clearInterval(typingTimer);
+			typingTimer = undefined;
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Status
+	// -----------------------------------------------------------------------
+
+	function updateStatus(): void {
+		if (!sessionCtx) return;
+		// Show only when a session thread exists (lowercase label). While
+		// loading, unpaired, or on error there is nothing meaningful to show,
+		// so the status entry stays hidden instead of a placeholder label.
+		if (!state.threadName) {
+			sessionCtx.ui.setStatus("telegram", undefined);
+			return;
+		}
+		sessionCtx.ui.setStatus("telegram", state.threadName.toLowerCase());
+	}
+
+	function statusLines(): string[] {
+		const m = sessionCtx?.model;
+		const lines = [
+			`<b>${escapeHtml(botUsername || "telegram")}</b> · bridge active`,
+			`owner: <code>${cfg.allowedUserId ?? "—"}</code>`,
+			`thread: <code>${state.threadName ?? state.threadId ?? "—"}</code>`,
+			`model: <code>${escapeHtml(m ? `${m.provider}/${m.id}` : "—")}</code>`,
+			`thinking: <code>${escapeHtml(String(sessionCtx?.thinkingLevel ?? "—"))}</code>`,
+			`status: ${sessionCtx?.isIdle() ? "idle" : "working"}`,
+			`session: <code>${escapeHtml(basename(sessionCtx?.sessionManager.getSessionFile() ?? "—"))}</code>`,
+			"",
+			"Commands: /start · /stop",
+		];
+		return lines;
+	}
+
+	function basename(path: string): string {
+		return path.split(/[\\/]/).pop() ?? path;
+	}
+
+	// -----------------------------------------------------------------------
+	// Session thread (one thread per pi session)
+	// -----------------------------------------------------------------------
+
+	/** Create a fresh session thread via createForumTopic; persists it as the outbound target. */
+	async function createSessionThread(): Promise<number | undefined> {
+		const t = target();
+		if (!t?.chatId) return undefined;
+		// Random name from the palette (like upstream), one per pi session.
+		const name = generateThreadName();
+		try {
+			const topic = await getClient().createForumTopic(t.chatId, name);
+			await persistState({ threadId: topic.message_thread_id, threadName: name });
+			return topic.message_thread_id;
+		} catch {
+			// Threaded Mode off or API failure → fall back to the existing
+			// thread (or the All tab when none exists).
+			return undefined;
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Telegram command handlers
+	// -----------------------------------------------------------------------
+
+	async function handleStart(m: TgMessage, threadId: number | undefined): Promise<void> {
+		if (cfg.allowedUserId === undefined || cfg.chatId === undefined) {
+			if (!threadId) {
+				// Threaded Mode not active → refuse to pair, show instructions.
+				await sendPlain(THREADED_MODE_INSTRUCTIONS, { threadId });
+				return;
+			}
+			await persistCfg({ allowedUserId: m.from?.id, chatId: m.chat.id });
+			// Pairing done: create this pi session's thread and welcome the owner there.
+			const tid = await createSessionThread();
+			updateStatus();
+			await sendPlain(
+				tid
+					? `Owner paired (${m.from?.id}). Session thread created — all replies land in the \"${state.threadName}\" thread. Send a prompt to start.`
+					: `Owner paired (${m.from?.id}). Send a prompt to start.`,
+				{ threadId: tid ?? threadId },
+			);
+			return;
+		}
+		await sendHtml(statusLines().join("\n"));
+	}
+
+
+	function handleStop(ctx: ExtensionContext): void {
+		if (ctx.isIdle()) {
+			sendPlain("No run in progress.").catch(() => {});
+			return;
+		}
+		aborted = true;
+		ctx.abort();
+		sendPlain("Stopped.").catch(() => {});
+	}
+
+	// -----------------------------------------------------------------------
+	// Inbound: prompts (text / photo / document)
+	// -----------------------------------------------------------------------
+
+	function dispatchToPi(content: SendUserMessageContent): void {
+		const ctx = sessionCtx;
+		if (!ctx) return;
+		if (ctx.isIdle()) {
+			pi.sendUserMessage(content);
+		} else {
+			pi.sendUserMessage(content, { deliverAs: "followUp" });
+		}
+	}
+
+	async function handlePrompt(m: TgMessage): Promise<void> {
+		if (m.photo?.length) {
+			const fileId = m.photo[m.photo.length - 1].file_id;
+			const file = await getClient().getFile(fileId).catch(() => undefined);
+			if (file?.file_path) {
+				const data = await getClient().downloadFile(file.file_path).catch(() => undefined);
+				if (data) {
+					dispatchToPi([
+						{ type: "text", text: m.caption ?? "Photo" },
+						{
+							type: "image",
+							source: {
+								type: "base64",
+								mediaType: "image/jpeg",
+								data: Buffer.from(data).toString("base64"),
+							},
+						},
+					] as SendUserMessageContent);
+					return;
+				}
+			}
+			dispatchToPi(m.caption ?? "Photo (download failed)");
+			return;
+		}
+
+		if (m.document) {
+			const file = await getClient().getFile(m.document.file_id).catch(() => undefined);
+			if (file?.file_path) {
+				const data = await getClient().downloadFile(file.file_path).catch(() => undefined);
+				if (data) {
+					const name = sanitizeFilename(m.document.file_name ?? "file");
+					const dest = join(TMP_DIR, `${Date.now()}_${name}`);
+					await mkdir(TMP_DIR, { recursive: true });
+					await writeFile(dest, data);
+					const caption = m.caption ? `${m.caption}\n` : "";
+					dispatchToPi(`File: ${name} (${data.length} bytes)\n${caption}Saved at: ${dest}`);
+					return;
+				}
+			}
+			dispatchToPi(`File: ${m.document.file_name ?? "file"} (download failed)`);
+			return;
+		}
+
+		if (m.text) {
+			dispatchToPi(m.text);
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Update routing
+	// -----------------------------------------------------------------------
+
+	async function handleUpdate(u: TgUpdate): Promise<void> {
+		const m = u.message;
+		if (!m || m.chat.type !== "private") return;
+
+		// Reply-to only makes sense when the message arrived in the session
+		// thread; cross-thread replies would be rejected by the API.
+		lastUserMsgId = m.message_thread_id === state.threadId ? m.message_id : undefined;
+
+		const isOwner = cfg.allowedUserId !== undefined && m.from?.id === cfg.allowedUserId;
+		if (!isOwner) {
+			if (m.text === "/start") await handleStart(m, m.message_thread_id);
+			// Strangers are ignored.
+			return;
+		}
+
+		if (!m.message_thread_id && !reminderSent) {
+			reminderSent = true;
+			sendPlain("Threaded Mode is off — re-enable it in BotFather (Bot Settings → Threaded Mode).").catch(() => {});
+		}
+
+		const text = m.text ?? "";
+		if (text === "/start") {
+			await handleStart(m, m.message_thread_id);
+		} else if (text === "/new" || text === "/reload") {
+			// Full /new and /reload are command-context-only in pi 0.84 and
+			// cannot be triggered from the polling loop — point to the terminal.
+			sendPlain(
+				`${text} is not available from Telegram in pi 0.84.\nRun ${text} in the pi terminal.`,
+			).catch(() => {});
+		} else if (text === "/stop") {
+			if (sessionCtx) handleStop(sessionCtx);
+		} else {
+			await handlePrompt(m);
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Polling
+	// -----------------------------------------------------------------------
+
+	function stopPolling(): void {
+		pollRunning = false;
+		pollCtl?.abort();
+		pollCtl = undefined;
+		stopTyping();
+	}
+
+	function startPolling(): void {
+		if (pollRunning || !cfg.botToken) return;
+		pollRunning = true;
+		pollCtl = new AbortController();
+		const signal = pollCtl.signal;
+		const tg = getClient();
+
+		// Expose the bot command list in Telegram's UI.
+		tg.setMyCommands([
+			{ command: "start", description: "Status / pairing" },
+			{ command: "stop", description: "Stop current run" },
+		]).catch(() => {});
+		tg.getMe().then((me) => (botUsername = `@${me.username ?? ""}`)).catch(() => {});
+
+		const loop = async () => {
+			while (pollRunning) {
+				try {
+					const updates = await tg.getUpdates((state.lastUpdateId ?? 0) + 1, 30, signal);
+					for (const u of updates) {
+						await handleUpdate(u);
+					}
+					if (updates.length > 0) {
+						const maxId = Math.max(...updates.map((u) => u.update_id));
+						await persistState({ lastUpdateId: maxId });
+					}
+				} catch (err) {
+					if (signal.aborted || !pollRunning) break;
+					const msg = err instanceof Error ? err.message : String(err);
+					if (/Unauthorized|token/i.test(msg)) {
+						// Invalid token → stop silently; /telegram to re-login.
+						pollRunning = false;
+						break;
+					}
+					// Another pi instance polls this bot (409) → back off longer.
+					const delay = /Conflict|terminated by other getUpdates/i.test(msg) ? 5000 : 1000;
+					await sleep(delay, signal);
+				}
+			}
+		};
+		void loop();
+	}
+
+	// -----------------------------------------------------------------------
+	// Bridge: pi events → Telegram (verbose: thinking + tools + answer)
+	// -----------------------------------------------------------------------
+
+	interface AssistantContent {
+		thinking: string;
+		text: string;
+	}
+
+	function extractAssistantContent(content: unknown): AssistantContent {
+		if (typeof content === "string") return { thinking: "", text: content };
+		if (!Array.isArray(content)) return { thinking: "", text: "" };
+		let thinking = "";
+		let text = "";
+		for (const part of content) {
+			if (!part || typeof part !== "object") continue;
+			const p = part as { type?: string; thinking?: unknown; reasoning?: unknown; text?: unknown };
+			if (p.type === "thinking" && typeof p.thinking === "string") {
+				thinking += (thinking ? "\n\n" : "") + p.thinking;
+			} else if (p.type === "reasoning" && typeof p.reasoning === "string") {
+				thinking += (thinking ? "\n\n" : "") + p.reasoning;
+			} else if (p.type === "text" && typeof p.text === "string") {
+				text += (text ? "\n" : "") + p.text;
+			}
+		}
+		return { thinking, text };
+	}
+
+	function lastAssistantContent(): AssistantContent | undefined {
+		const entries = sessionCtx?.sessionManager.getEntries() ?? [];
+		for (let i = entries.length - 1; i >= 0; i--) {
+			const e = entries[i];
+			if (e.type === "message" && e.message?.role === "assistant") {
+				const content = extractAssistantContent(e.message.content);
+				if (content.thinking.trim() || content.text.trim()) return content;
+			}
+		}
+		return undefined;
+	}
+
+	// -----------------------------------------------------------------------
+	// Tool activity feed (upstream-style: one rich details tree per tool in a
+	// single message, edited in place as tools run).
+	// -----------------------------------------------------------------------
+
+	interface ToolActivity {
+		name: string;
+		status: "running" | "success" | "error";
+		args: string; // input shown in the first bash code block
+		result?: string; // result/error text (second bash code block)
+	}
+
+	let tools = new Map<string, ToolActivity>();
+	let toolOrder: string[] = [];
+	let toolMsgId: number | undefined;
+	let toolMsgFormat: "rich" | "html" | undefined;
+	let toolPublishTimer: NodeJS.Timeout | undefined;
+	let toolPublishing = false; // guards the send race
+
+	/** Input text for the first bash code block: the raw command for bash,
+	 *  key: value lines for everything else. */
+	function toolArgsJson(args: unknown): string {
+		if (args && typeof args === "object") {
+			const record = args as Record<string, unknown>;
+			if (typeof record.command === "string" && record.command.trim()) {
+				return record.command.trim().slice(0, 2000);
+			}
+			const lines = Object.entries(record)
+				.filter(([, v]) => v !== undefined)
+				.map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+			return lines.join("\n").slice(0, 2000);
+		}
+		return String(args ?? "").slice(0, 2000);
+	}
+
+	function toolResultText(result: unknown): string {
+		const r = result as { content?: Array<{ type?: string; text?: unknown }>; isError?: boolean } | undefined;
+		const text = (r?.content ?? [])
+			.filter((c): c is { type: string; text: string } => c?.type === "text" && typeof c.text === "string")
+			.map((c) => c.text)
+			.join("\n");
+		return text.slice(0, 3000);
+	}
+
+	/** Native rich blocks: closed details per tool. Title = "name: status",
+	 *  content = two ```bash code blocks (input, then result). */
+	function toolActivityBlocks(): Array<Record<string, unknown>> {
+		return toolOrder.map((name) => {
+			const tool = tools.get(name)!;
+			const blocks: Array<Record<string, unknown>> = [
+				{ type: "pre", text: tool.args, language: "bash" },
+			];
+			if (tool.result !== undefined) {
+				blocks.push({ type: "pre", text: tool.result, language: "bash" });
+			}
+			return { type: "details", summary: `${tool.name}: ${tool.status}`, blocks };
+		});
+	}
+
+	/** HTML fallback: "name: status" title + the two bash code blocks. */
+	function toolActivityHtml(): string {
+		return toolOrder
+			.map((name) => {
+				const tool = tools.get(name)!;
+				const parts = [`<b>${escapeHtml(tool.name)}: ${escapeHtml(tool.status)}</b>`];
+				parts.push(`<pre>${escapeHtml(tool.args)}</pre>`);
+				if (tool.result !== undefined) parts.push(`<pre>${escapeHtml(tool.result)}</pre>`);
+				return parts.join("\n");
+			})
+			.join("\n\n");
+	}
+
+	/** Create the tool message, or edit it in place. Falls back to HTML on rich rejection. */
+	async function publishToolActivity(): Promise<void> {
+		if (toolPublishing) return;
+		toolPublishing = true;
+		try {
+			await doPublishToolActivity();
+		} finally {
+			toolPublishing = false;
+		}
+	}
+
+	async function doPublishToolActivity(): Promise<void> {
+		toolPublishTimer = undefined;
+		const t = target();
+		if (!t || toolOrder.length === 0) return;
+		if (toolActivityHtml().length > 30000) return; // keep the message bounded
+
+		if (toolMsgId === undefined) {
+			try {
+				const sent = await getClient().sendRichMessageBlocks(t.chatId, toolActivityBlocks(), { threadId: t.threadId, disableNotification: true });
+				toolMsgId = sent.message_id;
+				toolMsgFormat = "rich";
+			} catch {
+				try {
+					const sent = await getClient().sendMessage(t.chatId, toolActivityHtml(), { threadId: t.threadId, parseMode: "HTML", disableNotification: true });
+					toolMsgId = sent.message_id;
+					toolMsgFormat = "html";
+				} catch {
+					// Ignore.
+				}
+			}
+			return;
+		}
+		try {
+			if (toolMsgFormat === "rich") {
+				await getClient().editMessageTextBlocks(t.chatId, toolMsgId, toolActivityBlocks());
+			} else {
+				await getClient().editMessageTextHtml(t.chatId, toolMsgId, toolActivityHtml());
+			}
+		} catch {
+			// Edit failed (e.g. message too old) → start a fresh message.
+			toolMsgId = undefined;
+			void doPublishToolActivity();
+		}
+	}
+
+	function scheduleToolPublish(): void {
+		if (toolPublishTimer) clearTimeout(toolPublishTimer);
+		toolPublishTimer = setTimeout(() => void publishToolActivity(), 150);
+	}
+
+	function resetToolActivity(): void {
+		tools.clear();
+		toolOrder = [];
+		toolMsgId = undefined;
+		toolMsgFormat = undefined;
+		if (toolPublishTimer) {
+			clearTimeout(toolPublishTimer);
+			toolPublishTimer = undefined;
+		}
+	}
+
+	// Realtime streaming state: thinking is live-updated in one message via
+	// editMessageText; the answer streams as an animated Rich Draft.
+	let draftId = 0;
+	let lastDraftSent = 0;
+	let lastDraftLen = 0;
+	let reasoningBuffer = "";
+	let reasoningChars = 0;
+	let reasoningFrames = 0;
+	let lastReasoningChars = 0;
+	let lastReasoningPublishMs = 0;
+	let reasoningMsgId: number | undefined;
+	let reasoningBlocked = false;
+	let reasoningPublishing = false; // guards the send race (see message_update)
+	let prevThinkingLen = 0;
+
+	pi.on("agent_start", () => {
+		startTyping();
+		updateStatus();
+		draftId = (draftId % 2_000_000_000) + 1;
+		lastDraftSent = 0;
+		lastDraftLen = 0;
+		reasoningBuffer = "";
+		reasoningChars = 0;
+		reasoningFrames = 0;
+		lastReasoningChars = 0;
+		lastReasoningPublishMs = 0;
+		reasoningMsgId = undefined;
+		reasoningBlocked = false;
+		reasoningPublishing = false;
+		prevThinkingLen = 0;
+		resetToolActivity();
+	});
+
+	pi.on("agent_end", () => {
+		stopTyping();
+		// Final thinking frame: a short thinking phase may never satisfy the
+		// throttle (1.2s / 160 chars), leaving the collapse stuck at the first
+		// token. Force one last publish with the complete rolling window.
+		if (reasoningFrames > 0 && reasoningChars > 0 && !reasoningBlocked) {
+			const t = target();
+			if (t) void publishThinking(t);
+		}
+	});
+
+	pi.on("message_update", (event) => {
+		const t = target();
+		if (!t) return;
+		// The streaming partial carries both thinking and answer text.
+		const partialContent =
+			(event as { assistantMessageEvent?: { partial?: { content?: unknown } } }).assistantMessageEvent?.partial?.content ??
+			(event.message as { content?: unknown } | undefined)?.content;
+		const { thinking, text } = extractAssistantContent(partialContent);
+		const now = Date.now();
+
+		// Thinking: upstream-style streaming — rolling window of the latest
+		// chars, one expandable collapse message edited in place.
+		if (thinking.trim() && thinking.length > prevThinkingLen) {
+			reasoningChars += thinking.length - prevThinkingLen;
+			reasoningBuffer = `${reasoningBuffer}${thinking.slice(prevThinkingLen)}`.slice(-REASONING_BUFFER_MAX_CHARS);
+			prevThinkingLen = thinking.length;
+			if (
+				reasoningFrames < REASONING_MESSAGE_MAX_FRAMES &&
+				(reasoningFrames === 0 ||
+					(now - lastReasoningPublishMs >= REASONING_MIN_INTERVAL_MS &&
+						reasoningChars - lastReasoningChars >= REASONING_MIN_DELTA_CHARS)) &&
+				!aborted &&
+				!reasoningBlocked &&
+				!reasoningPublishing
+			) {
+				void publishThinking(t);
+			}
+		}
+
+		// Answer: animated Rich Draft preview (realtime-ish).
+		if (!text.trim()) return;
+		if (now - lastDraftSent < 1200 || text.length - lastDraftLen < 20) return;
+		lastDraftSent = now;
+		lastDraftLen = text.length;
+		getClient()
+			.sendRichMessageDraft(t.chatId, draftId, text.slice(0, 30000), { threadId: t.threadId })
+			.catch(() => {});
+	});
+
+	/** Headerless expandable blockquote, like upstream's renderTelegramThinkingActivityHtml.
+	 *  Sent via plain HTML (parse_mode HTML), not rich markdown — raw thinking
+	 *  often contains characters (||, backticks, <, …) that would break rich
+	 *  markdown parsing, so everything is HTML-escaped. */
+	function buildThinkingHtml(thinking: string): string {
+		// Neutralize auto-link detection like upstream (no clickable URLs).
+		const neutralized = thinking.replace(/(https?:\/\/)/gi, "$1\u200b");
+		return `<blockquote expandable>${escapeHtml(neutralized)}</blockquote>`;
+	}
+
+	/** Rolling window text: "… [N earlier chars omitted]" header above the latest chars. */
+	function buildThinkingWindowText(thinking: string): string {
+		const retained = thinking.slice(-REASONING_BUFFER_MAX_CHARS);
+		const omitted = thinking.length - retained.length;
+		return omitted > 0 ? `… [${omitted} earlier chars omitted]\n${retained}` : retained;
+	}
+
+	/** Send the thinking collapse once, then edit it in place (upstream-style). */
+	async function publishThinking(t: Target): Promise<void> {
+		if (reasoningPublishing) return;
+		reasoningPublishing = true;
+		try {
+			await doPublishThinking(t);
+		} finally {
+			reasoningPublishing = false;
+		}
+	}
+
+	async function doPublishThinking(t: Target): Promise<void> {
+		let retained = reasoningBuffer;
+		let body = "";
+		do {
+			const omitted = reasoningChars - retained.length;
+			const text = omitted > 0 ? `… [${omitted} earlier chars omitted]\n${retained}` : retained;
+			body = buildThinkingHtml(text);
+			if (body.length <= ACTIVITY_MESSAGE_MAX_CHARS) break;
+			retained = retained.slice(-Math.max(1, Math.floor(retained.length * 0.75)));
+		} while (retained.length > 1);
+
+		if (reasoningMsgId === undefined) {
+			try {
+				const sent = await getClient().sendMessage(t.chatId, body, { threadId: t.threadId, parseMode: "HTML", disableNotification: true });
+				reasoningMsgId = sent.message_id;
+			} catch {
+				reasoningBlocked = true; // HTML rejected → stop retrying this run.
+				return;
+			}
+		} else {
+			try {
+				await getClient().editMessageTextHtml(t.chatId, reasoningMsgId, body);
+			} catch {
+				// Edit failed (e.g. message too old) → restart the message.
+				reasoningMsgId = undefined;
+			}
+		}
+		reasoningFrames += 1;
+		lastReasoningChars = reasoningChars;
+		lastReasoningPublishMs = Date.now();
+	}
+
+	// Realtime tool activity: one details tree per tool, single message, edited
+	// in place as tools start and complete (summary = trimmed input label).
+	pi.on("tool_execution_start", (event) => {
+		if (!target()) return;
+		if (!tools.has(event.toolName)) toolOrder.push(event.toolName);
+		tools.set(event.toolName, {
+			name: event.toolName,
+			status: "running",
+			args: toolArgsJson(event.args),
+		});
+		scheduleToolPublish();
+	});
+
+	pi.on("tool_execution_end", (event) => {
+		if (!target()) return;
+		const tool = tools.get(event.toolName);
+		if (!tool) return;
+		tool.result = toolResultText(event.result);
+		tool.status = event.isError ? "error" : "success";
+		scheduleToolPublish();
+	});
+
+	pi.on("agent_settled", () => {
+		stopTyping();
+		updateStatus();
+		if (aborted) {
+			aborted = false;
+			return; // /stop already acknowledged; don't push the partial reply.
+		}
+		const content = lastAssistantContent();
+		if (!content) return;
+
+		const thinking = content.thinking.trim();
+		const text = content.text.trim();
+
+		// Thinking was streamed live into a message — only send it at the end
+		// when no streaming update was observed (e.g. no message_update events).
+		if (thinking && reasoningFrames === 0) {
+			// Not streamed live → send the rolling-window view once (silent, HTML).
+			const t = target();
+			if (t) {
+				getClient()
+					.sendMessage(t.chatId, buildThinkingHtml(buildThinkingWindowText(thinking)), { threadId: t.threadId, parseMode: "HTML", disableNotification: true })
+					.catch(() => {});
+			}
+		}
+		if (text) {
+			sendRich(text).catch(() => {});
+		}
+	});
+
+	// -----------------------------------------------------------------------
+	// Lifecycle: auto connect / disconnect
+	// -----------------------------------------------------------------------
+
+	pi.on("session_start", async (event, ctx) => {
+		sessionCtx = ctx;
+		aborted = false;
+		lastUserMsgId = undefined;
+		reminderSent = false;
+		if (ctx.mode === "print") return; // Short-lived runs stay passive.
+		cfg = await loadConfig();
+		state = await loadState();
+		client = undefined;
+		updateStatus();
+		if (cfg.botToken) {
+			// One thread per pi session: only a fresh open creates it.
+			// Reload/new/resume keep the existing session thread.
+			if (event.reason === "startup" && cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+				await createSessionThread();
+				updateStatus();
+			} else if (event.reason === "new" || event.reason === "resume" || event.reason === "fork") {
+				// Session replacement started from the pi terminal: notify Telegram
+				// in the same session thread.
+				sendPlain(`New session started (${event.reason}).`).catch(() => {});
+			}
+			startPolling();
+		}
+	});
+
+	pi.on("session_shutdown", async (event) => {
+		stopPolling();
+		sessionCtx?.ui.setStatus("telegram", undefined);
+		// Real quit: delete the session thread (like upstream's automatic thread
+		// cleanup on quit). Session replacements (/new, /reload, /resume, /fork)
+		// keep the thread for the next session.
+		if (event.reason === "quit") {
+			const t = target();
+			if (t?.threadId) {
+				// pi awaits session_shutdown handlers; bound the API call so a
+				// stalled network can't delay shutdown indefinitely.
+				await Promise.race([
+					getClient().deleteForumTopic(t.chatId, t.threadId),
+					sleep(2500),
+				]).catch(() => {});
+				await persistState({ threadId: undefined, threadName: undefined }).catch(() => {});
+			}
+		}
+	});
+
+	// -----------------------------------------------------------------------
+	// Tools
+	// -----------------------------------------------------------------------
+
+	// -----------------------------------------------------------------------
+	// /telegram command (login / logout)
+	// -----------------------------------------------------------------------
+
+	pi.registerCommand("telegram", {
+		description: "Telegram bridge login/logout: set bot token or confirm logout",
+		handler: async (_args, ctx) => {
+			cfg = await loadConfig();
+			state = await loadState();
+			sessionCtx = ctx;
+
+			if (!cfg.botToken) {
+				const input = await ctx.ui.input(
+					"Telegram bot token",
+					"123456:ABC… (from @BotFather → /newbot)",
+				);
+				if (!input?.trim()) {
+					ctx.ui.notify("Cancelled — token unchanged.", "warning");
+					return;
+				}
+				const token = input.trim();
+				try {
+					const me = await new TgClient(token).getMe();
+					await persistCfg({ botToken: token, allowedUserId: undefined, chatId: undefined });
+					await persistState({ threadId: undefined, threadName: undefined, lastUpdateId: undefined });
+					client = undefined;
+					botUsername = `@${me.username ?? ""}`;
+					startPolling();
+					ctx.ui.notify(
+						`Logged in as @${me.username ?? me.id}. Open the bot DM and send /start (Threaded Mode must be enabled in BotFather).`,
+						"info",
+					);
+				} catch (err) {
+					ctx.ui.notify(`Token invalid: ${err instanceof Error ? err.message : String(err)}`, "error");
+				}
+				return;
+			}
+
+			let me = "";
+			try {
+				const user = await getClient().getMe();
+				me = `@${user.username ?? user.id}`;
+			} catch {
+				me = "(getMe failed)";
+			}
+
+			const ok = await ctx.ui.confirm("Telegram bridge", [
+				`Bot: ${me}`,
+				`Owner: ${cfg.allowedUserId ?? "not paired"}`,
+				`Thread: ${state.threadName ?? "—"} (${state.threadId ?? "—"})`,
+				`Polling: ${pollRunning ? "on" : "off"}`,
+				"",
+				"Logout? (clear token + pairing)",
+			].join("\n"));
+			if (!ok) return;
+
+			stopPolling();
+			client = undefined;
+			botUsername = "";
+			await persistCfg({ botToken: "", allowedUserId: undefined, chatId: undefined });
+			await persistState({ threadId: undefined, threadName: undefined, lastUpdateId: undefined });
+			updateStatus();
+			ctx.ui.notify("Logged out. Run /telegram to log in again.", "info");
+		},
+	});
+}
