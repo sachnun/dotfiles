@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.0",
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash-free",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -37,5 +37,10 @@
   "enabledModels": [
     "opencode/deepseek-v4-flash-free",
     "freebux/deepseek/deepseek-v4-flash"
-  ]
+  ],
+  "retry": {
+     "enabled": true,
+     "maxRetries": 10,
+     "baseDelayMs": 0
+   }
 }
