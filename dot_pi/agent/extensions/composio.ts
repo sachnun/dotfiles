@@ -3,7 +3,7 @@
  *
  * Connects pi to https://connect.composio.dev/mcp (Streamable HTTP MCP).
  * Registers 2 core meta-tools (~330 tokens in the system prompt):
- *   composio_search_tools, composio_multi_execute_tool
+ *   composio_search (search + optional one-shot execute), composio_execute
  *
  * Results are compacted before reaching the model: noise keys (log_id,
  * $schema, examples, next_steps_guidance, nulls) dropped, descriptions
@@ -26,6 +26,10 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 const ENDPOINT = "https://connect.composio.dev/mcp";
+// MCP server-facing tool names — the server only knows these. The model-facing
+// names (composio_search / composio_execute) are mapped to them below.
+const MCP_SEARCH_TOOL = "COMPOSIO_SEARCH_TOOLS";
+const MCP_EXECUTE_TOOL = "COMPOSIO_MULTI_EXECUTE_TOOL";
 const CONFIG_FILE = join(homedir(), ".pi", "agent", "composio.json");
 const MAX_TEXT_LENGTH = 30_000;
 const PREVIEW_LINES = 5;
@@ -42,7 +46,7 @@ const BLOAT_KEYS = new Set([
 const MAX_ITEMS = 8; // per-array cap for listings (first N kept)
 const MAX_STR = 400; // hard cap for every remaining string value
 
-// --- Search-specific compaction (COMPOSIO_SEARCH_TOOLS runs every session) ---
+// --- Search-specific compaction (composio_search runs every session) ---
 const MAX_SEARCH_TEXT = 8_000; // hard cap on the model-facing search result text
 const SEARCH_MAX_PLAN_STEPS = 1; // keep at most N recommended_plan_steps per item
 const SEARCH_STEP_LEN = 120; // per-step truncation
@@ -56,7 +60,7 @@ const CONTENT_BLOAT_KEYS = new Set(
 	[...BLOAT_KEYS].filter((k) => !["url", "link", "domain", "sourceUrl", "canonicalUrl"].includes(k)),
 );
 
-// --- Execute-specific compaction (COMPOSIO_MULTI_EXECUTE_TOOL) ---
+// --- Execute-specific compaction (composio_execute) ---
 const MAX_ANSWER = 3_000; // main narrative field — keep it longer than generic strings
 // Per-result schema/instruction boilerplate + top-level wrappers — pure guidance noise.
 const EXECUTE_META_KEYS = new Set(["structure_info", "instruction", "next_steps", "remote_file_info"]);
@@ -145,6 +149,7 @@ const SEARCH_PARAMS = Type.Object({
 		generate_id: Type.Optional(Type.Boolean()),
 		id: Type.Optional(Type.String()),
 	})),
+	execute: Type.Optional(Type.Boolean()),
 });
 
 const EXECUTE_PARAMS = Type.Object({
@@ -158,21 +163,24 @@ const EXECUTE_PARAMS = Type.Object({
 });
 
 interface ToolDefinition {
-	name: string;
+	name: string; // model-facing name (registered lowercase)
 	description: string;
 	parameters: TSchema;
+	mcpName?: string; // server-facing MCP tool name; defaults to name
 }
 
 const TOOLS: ToolDefinition[] = [
 	{
-		name: "COMPOSIO_SEARCH_TOOLS",
+		name: "COMPOSIO_SEARCH",
 		description:
-			"Call FIRST for real-time info (news, releases, prices, weather), web search, or anything involving an external app or service. Never claim you lack access before calling this.",
+			"Call FIRST for real-time info (news, releases, prices, weather), web search, or anything involving an external app or service. Never claim you lack access before calling this. Pass execute: true to auto-run the plan and return content in one shot (saves a turn); omit it to get the plan and execute it yourself via composio_execute.",
+		mcpName: MCP_SEARCH_TOOL,
 		parameters: SEARCH_PARAMS,
 	},
 	{
-		name: "COMPOSIO_MULTI_EXECUTE_TOOL",
+		name: "COMPOSIO_EXECUTE",
 		description: "Run discovered tools in parallel (max 50).",
+		mcpName: MCP_EXECUTE_TOOL,
 		parameters: EXECUTE_PARAMS,
 	},
 ];
@@ -192,24 +200,41 @@ function tryPrettyPrintJson(text: string): { pretty: string; parsed: unknown } |
 	}
 }
 
-/** One-line JSON structure summary (valid JSON, highlightable). */
+/**
+ * Compact one-line structure summary for the TUI collapse (valid JSON).
+ * Goes two levels deep and includes a first-item sample for arrays of
+ * objects, so nested payloads like {data:{results:[…]}} stay readable.
+ */
 function summarizeJson(value: unknown): string {
-	const summarize = (v: unknown): unknown => {
+	const summarize = (v: unknown, depth: number): unknown => {
 		if (v === null) return null;
 		if (typeof v === "number" || typeof v === "boolean") return v;
 		if (typeof v === "string") return v.length > 24 ? `${v.slice(0, 21)}…` : v;
-		if (Array.isArray(v)) return `[${v.length} item(s)]`;
-		if (typeof v === "object") return "{…}";
+		if (Array.isArray(v)) {
+			if (v.length === 0) return "[]";
+			if (depth <= 0) return `[${v.length} item(s)]`;
+			const first = v[0];
+			if (first !== null && typeof first === "object") {
+				const rec = first as Record<string, unknown>;
+				const keys = Object.keys(rec);
+				const sample: Record<string, unknown> = {};
+				for (const k of keys.slice(0, 3)) sample[k] = summarize(rec[k], depth - 1);
+				if (keys.length > 3) sample["+more"] = "{…}";
+				return { count: v.length, sample };
+			}
+			return `[${v.length} item(s)]`;
+		}
+		if (typeof v === "object") {
+			const rec = v as Record<string, unknown>;
+			const keys = Object.keys(rec);
+			const out: Record<string, unknown> = {};
+			for (const k of keys.slice(0, 6)) out[k] = summarize(rec[k], depth - 1);
+			if (keys.length > 6) out[`+${keys.length - 6} more`] = "{…}";
+			return out;
+		}
 		return String(v);
 	};
-	if (Array.isArray(value)) return JSON.stringify(`[${value.length} item(s)]`);
-	if (typeof value !== "object" || value === null) return JSON.stringify(value);
-	const record = value as Record<string, unknown>;
-	const keys = Object.keys(record);
-	const out: Record<string, unknown> = {};
-	for (const k of keys.slice(0, 6)) out[k] = summarize(record[k]);
-	if (keys.length > 6) out[`+${keys.length - 6} more`] = "{…}";
-	return JSON.stringify(out);
+	return JSON.stringify(summarize(value, 3));
 }
 
 /**
@@ -281,6 +306,198 @@ interface SearchCompactionContext {
  * Resolve which toolkits/slugs are usable right now from connection statuses
  * and schemas. Empty when the response carries no connection info.
  */
+// ---------------------------------------------------------------------------
+// Merged search+execute mode (execute: true on composio_search)
+// ---------------------------------------------------------------------------
+
+const MAX_RUN_TOOLS = 4; // unique plan tools executed per merged call
+const MERGED_ANSWER_LEN = 1_500; // narrative cap per tool result
+const MERGED_CITATIONS = 6; // citation cap per tool result
+
+/** Find the query-ish argument a tool accepts, from its raw input_schema. */
+function deriveQueryArg(schema: unknown): string | undefined {
+	const props = (schema as { input_schema?: { properties?: Record<string, unknown> } })?.input_schema?.properties;
+	if (!props || typeof props !== "object") return undefined;
+	for (const key of ["query", "q", "search", "search_query", "query_string", "text", "keywords"]) {
+		if (Object.prototype.hasOwnProperty.call(props, key)) return key;
+	}
+	return undefined;
+}
+
+/**
+ * Pull the model-facing content out of a compacted tool response:
+ * the first substantial narrative (answer) + up to MERGED_CITATIONS link-like
+ * items (any object with title/link/url, e.g. citations, news_results,
+ * fetched-page results, reddit posts). Descends with a depth cap so nested
+ * reddit blobs cannot blow up.
+ */
+function extractContent(
+	value: unknown,
+	out: { answer?: string; citations: Array<Record<string, unknown>> },
+	depth = 0,
+): void {
+	if (depth > 4) return;
+	if (Array.isArray(value)) {
+		for (const v of value) {
+			if (out.citations.length >= MERGED_CITATIONS && out.answer !== undefined) return;
+			if (v !== null && typeof v === "object") {
+				const d = v as Record<string, unknown>;
+				const title = d.title;
+				const link = d.link ?? d.url ?? d.permalink;
+				if ((typeof title === "string" && title.length > 0) || typeof link === "string") {
+					if (out.citations.length < MERGED_CITATIONS) {
+						const slim: Record<string, unknown> = {};
+						if (typeof title === "string" && title.length > 0) slim.title = title;
+						if (typeof link === "string" && link.length > 0) slim.url = link;
+						if (typeof d.date === "string") slim.date = d.date;
+						if (typeof d.published_at === "string") slim.date = d.published_at;
+						if (typeof d.score === "number") slim.score = d.score;
+						if (typeof d.num_comments === "number") slim.comments = d.num_comments;
+						out.citations.push(slim);
+					}
+					continue;
+				}
+			}
+			extractContent(v, out, depth + 1);
+		}
+		return;
+	}
+	if (value === null || typeof value !== "object") return;
+	const d = value as Record<string, unknown>;
+	if (out.answer === undefined && typeof d.answer === "string" && d.answer.length > 40) out.answer = d.answer;
+	for (const v of Object.values(d)) {
+		if (out.citations.length >= MERGED_CITATIONS && out.answer !== undefined) return;
+		extractContent(v, out, depth + 1);
+	}
+}
+
+/**
+ * One-shot search: run the plan's primary tools server-side and return only
+ * the content (answers + citations). The plan/schemas never reach the model.
+ */
+async function runSearchPlan(client: ComposioMCPClient, searchRaw: unknown, signal?: AbortSignal): Promise<string> {
+	const data = (searchRaw as { data?: { results?: unknown; tool_schemas?: unknown; time_info?: unknown; toolkit_connection_statuses?: unknown } })?.data;
+	const results = Array.isArray(data?.results) ? data.results : [];
+	const schemas = ((data?.tool_schemas ?? {}) as Record<string, unknown>);
+
+	// only run slugs whose toolkit is connected right now (unconnected tools cannot run)
+	const connected = new Set<string>();
+	const usableSlugs = new Set<string>();
+	const statuses = data?.toolkit_connection_statuses;
+	if (Array.isArray(statuses)) {
+		for (const t of statuses) {
+			if (t === null || typeof t !== "object") continue;
+			const d = t as Record<string, unknown>;
+			if (typeof d.toolkit === "string" && d.has_active_connection === true) connected.add(d.toolkit.toLowerCase());
+		}
+	}
+	if (connected.size > 0) {
+		for (const [slug, def] of Object.entries(schemas)) {
+			if (def === null || typeof def !== "object") continue;
+			const tk = (def as Record<string, unknown>).toolkit;
+			if (typeof tk === "string" && connected.has(tk.toLowerCase())) usableSlugs.add(slug);
+		}
+	}
+
+	// unique primary slugs, in plan order, with the query that introduced them
+	const toRun: Array<{ slug: string; query: string }> = [];
+	const seen = new Set<string>();
+	for (const r of results) {
+		if (r === null || typeof r !== "object") continue;
+		const d = r as Record<string, unknown>;
+		const useCase = typeof d.use_case === "string" ? d.use_case : "";
+		const prim = d.primary_tool_slugs;
+		if (!Array.isArray(prim)) continue;
+		for (const s of prim) {
+			if (typeof s === "string" && !seen.has(s) && (usableSlugs.size === 0 || usableSlugs.has(s))) {
+				seen.add(s);
+				toRun.push({ slug: s, query: useCase });
+				if (toRun.length >= MAX_RUN_TOOLS) break;
+			}
+		}
+		if (toRun.length >= MAX_RUN_TOOLS) break;
+	}
+
+	if (toRun.length === 0) {
+		// nothing executable in the plan — fall back to the compacted plan
+		return JSON.stringify(compactSearchJson(searchRaw));
+	}
+
+	// individual tools are not MCP tools — run them through the multi-execute meta tool
+	const execArgs: Array<{ tool_slug: string; arguments: Record<string, unknown> }> = [];
+	const skipped: Array<{ tool: string; reason: string }> = [];
+	for (const { slug, query } of toRun) {
+		const argKey = deriveQueryArg(schemas[slug]);
+		if (!argKey) {
+			skipped.push({ tool: slug, reason: "no query arg derivable from schema" });
+			continue;
+		}
+		execArgs.push({ tool_slug: slug, arguments: { [argKey]: query } });
+	}
+	if (execArgs.length === 0) return JSON.stringify(compactSearchJson(searchRaw));
+
+	const exec = await client.callTool(MCP_EXECUTE_TOOL, {
+		tools: execArgs,
+		sync_response_to_workbench: false,
+	}, signal);
+	if (exec.isError) throw new Error(extractResultText(exec) || "plan execution failed");
+	const execJson = tryPrettyPrintJson(extractResultText(exec));
+	const bySlug = new Map<string, unknown>();
+	if (execJson?.parsed !== null && typeof execJson?.parsed === "object") {
+		const results = (execJson.parsed as { data?: { results?: unknown } }).data?.results;
+		if (Array.isArray(results)) {
+			for (const r of results) {
+				if (r === null || typeof r !== "object") continue;
+				const rr = r as Record<string, unknown>;
+				if (typeof rr.tool_slug === "string" && rr.response !== undefined) bySlug.set(rr.tool_slug, rr.response);
+			}
+		}
+	}
+
+	const items: Record<string, unknown>[] = [];
+	const errors: Array<{ tool: string; error: string }> = [];
+	const queryBySlug = new Map(toRun.map(({ slug, query }) => [slug, query]));
+	for (const { tool_slug } of execArgs) {
+		const query = queryBySlug.get(tool_slug) ?? "";
+		const resp = bySlug.get(tool_slug);
+		if (resp === undefined || (resp !== null && typeof resp === "object" && (resp as Record<string, unknown>).successful === false)) {
+			const msg =
+				resp !== undefined && typeof resp === "object"
+					? JSON.stringify((resp as Record<string, unknown>).error ?? resp).slice(0, 200)
+					: "no response";
+			errors.push({ tool: tool_slug, error: msg });
+			continue;
+		}
+		const compacted = compactExecuteJson(resp);
+		const content: { answer?: string; citations: Array<Record<string, unknown>> } = { citations: [] };
+		extractContent(compacted, content);
+		const answer =
+			content.answer && content.answer.length > 40
+				? content.answer.length > MERGED_ANSWER_LEN
+					? `${content.answer.slice(0, MERGED_ANSWER_LEN - 1)}…`
+					: content.answer
+				: undefined;
+		const item: Record<string, unknown> = { tool: tool_slug, query: query.length > 80 ? `${query.slice(0, 77)}…` : query };
+		if (answer !== undefined) item.answer = answer;
+		if (content.citations.length > 0) item.citations = content.citations;
+		if (answer === undefined && content.citations.length === 0) item.result = compacted;
+		items.push(item);
+	}
+
+	const out: Record<string, unknown> = { data: { results: items } };
+	if (errors.length > 0) (out.data as Record<string, unknown>).errors = errors;
+	if (skipped.length > 0) (out.data as Record<string, unknown>).skipped = skipped;
+	const timeInfo = data?.time_info;
+	if (timeInfo !== null && typeof timeInfo === "object" && typeof (timeInfo as Record<string, unknown>).current_time_utc === "string") {
+		(out.data as Record<string, unknown>).time_info = { current_time_utc: (timeInfo as Record<string, unknown>).current_time_utc };
+	}
+	let text = JSON.stringify(out);
+	if (text.length > MAX_SEARCH_TEXT) {
+		text = `${text.slice(0, MAX_SEARCH_TEXT)}\n…(output truncated, total ${text.length} chars)`;
+	}
+	return text;
+}
+
 function searchContext(value: unknown): SearchCompactionContext {
 	const connected = new Set<string>();
 	const usableSlugs = new Set<string>();
@@ -442,7 +659,7 @@ export default function (pi: ExtensionAPI) {
 			description: def.description,
 			promptSnippet: "Composio: 500+ external app integrations",
 			promptGuidelines: [
-				"After search: composio_multi_execute_tool. Never invent tool slugs.",
+				"Prefer execute: true on composio_search for straightforward lookups; use plan mode for multi-source research. Never invent tool slugs.",
 			],
 			parameters: def.parameters,
 
@@ -483,7 +700,8 @@ export default function (pi: ExtensionAPI) {
 								} else {
 									const summary = summarizeJson(json.parsed);
 									const capped = summary.length > 240 ? `${summary.slice(0, 237)}…` : summary;
-									state.lines = highlightCode(capped, "json");
+									// wrap the one-line summary to the terminal width instead of overflowing
+									state.lines = truncateToVisualLines(capped, 1_000_000, width).visualLines;
 									state.skipped = total.length;
 								}
 							} else {
@@ -495,7 +713,7 @@ export default function (pi: ExtensionAPI) {
 						}
 						if (state.skipped && state.skipped > 0) {
 							const hint = `${theme.fg("muted", `... (${state.skipped} ${json ? "lines" : "earlier lines"},`)} ${keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`;
-							return ["", hint, ...(state.lines ?? [])];
+							return ["", ...(state.lines ?? []), hint];
 						}
 						return ["", ...(state.lines ?? [])];
 					},
@@ -511,11 +729,28 @@ export default function (pi: ExtensionAPI) {
 			async execute(_toolCallId, params, signal, onUpdate, ctx) {
 				if (!client) client = new ComposioMCPClient((await loadApiKey()) ?? "");
 				onUpdate?.({ content: [{ type: "text", text: `Running ${def.name}…` }] });
-				const result = await client.callTool(def.name, params, signal);
+				const mcpName = def.mcpName ?? def.name;
+
+				if (def.mcpName === MCP_SEARCH_TOOL && params.execute === true) {
+					// merged one-shot mode: search + auto-run the plan, return content only
+					onUpdate?.({ content: [{ type: "text", text: "Searching + executing plan…" }] });
+					const { execute: _execute, ...searchParams } = params;
+					const searchResult = await client.callTool(mcpName, searchParams, signal);
+					if (searchResult.isError) throw new Error(extractResultText(searchResult) || `${def.name} failed`);
+					const searchText = extractResultText(searchResult);
+					const searchJson = tryPrettyPrintJson(searchText);
+					if (!searchJson) return { content: [{ type: "text", text: searchText }], details: { tool: def.name } };
+					return {
+						content: [{ type: "text", text: await runSearchPlan(client, searchJson.parsed, signal) }],
+						details: { tool: def.name },
+					};
+				}
+
+				const result = await client.callTool(mcpName, params, signal);
 				if (result.isError) throw new Error(extractResultText(result) || `${def.name} failed`);
 				let text = extractResultText(result);
 				const json = tryPrettyPrintJson(text);
-				const isSearch = def.name === "COMPOSIO_SEARCH_TOOLS";
+				const isSearch = def.mcpName === MCP_SEARCH_TOOL;
 				const compactor = isSearch ? compactSearchJson : compactExecuteJson;
 				if (json) {
 					const parsed = json.parsed as { data?: { tool_schemas?: Record<string, unknown> } };
