@@ -209,8 +209,10 @@ export default async function (pi: ExtensionAPI) {
 		trackModel(event.model.provider, event.model.id);
 	});
 
-	pi.on("turn_start", (_event, ctx) => bind(ctx));
-	pi.on("turn_end", (_event, ctx) => bind(ctx));
+	pi.on("before_agent_start", (_event, ctx) => {
+		bind(ctx);
+		void refreshStatus();
+	});
 
 	pi.on("session_shutdown", () => {
 		clearInterval(statusTimer);
