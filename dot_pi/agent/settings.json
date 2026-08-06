@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.84.0",
   "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultModel": "meta/muse-spark-1.2-contributor",
   "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -31,5 +31,6 @@
   },
   "enableSkillCommands": false,
   "showCacheMissNotices": true,
-  "collapseChangelog": true
+  "collapseChangelog": true,
+  "tuiMode": "fullscreen"
 }
