@@ -30,6 +30,7 @@ symbol = " "
 
 [container]
 symbol = " "
+format = "[$symbol]($style)"
 
 [crystal]
 symbol = " "
