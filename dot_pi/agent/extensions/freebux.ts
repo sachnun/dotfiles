@@ -4,7 +4,7 @@ import type {
 	ExtensionUIContext,
 	ProviderModelConfig,
 } from "@earendil-works/pi-coding-agent";
-import type { Model, Api, RefreshModelsContext } from "@earendil-works/pi-ai";
+import type { Model, Api } from "@earendil-works/pi-ai";
 
 const BASE_URL = "https://freebux.up.railway.app/v1";
 const TIMEOUT_MS = 15_000;
@@ -21,39 +21,29 @@ interface FreebuxModel {
 	input?: unknown;
 }
 
+interface QuotaSnapshot {
+	limit?: number;
+	used?: number;
+	remaining?: number;
+	period?: string;
+	reset_at?: string;
+	reset_timezone?: string;
+}
+
 interface TokenState {
 	state?: string;
 	session_status?: string;
 	session_model?: string;
 	session_expires_at?: string;
-	session_quota?: { limit?: number; remaining?: number };
+	quota_by_model?: Record<string, QuotaSnapshot>;
 }
 
 interface StatusResponse {
-	available_models?: string[];
 	token_state?: TokenState[];
-}
-
-/** pi's runtime UI context exposes `theme` (missing from the d.ts type). */
-interface StyledStatusUi extends ExtensionUIContext {
-	theme: { fg(color: string, text: string): string };
 }
 
 function asPositiveNumber(value: unknown, fallback: number): number {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-/** Restore catalog persisted by pi's built-in model store (models-store.json). */
-async function readStoreModels(
-	store: RefreshModelsContext["store"],
-): Promise<ProviderModelConfig[] | undefined> {
-	try {
-		const entry = await store.read();
-		if (entry?.models?.length) return entry.models as ProviderModelConfig[];
-	} catch {
-		// store read failure is non-fatal
-	}
-	return undefined;
 }
 
 function asString(value: unknown): string | undefined {
@@ -75,8 +65,6 @@ async function fetchJson(url: string, signal?: AbortSignal): Promise<unknown> {
 		signal?.removeEventListener("abort", abort);
 	}
 }
-
-
 
 function toProviderModel(model: FreebuxModel): ProviderModelConfig | undefined {
 	const id = asString(model.id);
@@ -116,30 +104,23 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function formatStatus(data: StatusResponse, modelId: string): string | undefined {
-	if (data.available_models && !data.available_models.includes(modelId)) return "inactive";
-
 	const token = data.token_state?.find(
 		(t) => t.session_model === modelId && (t.session_status === "active" || t.state === "active"),
 	);
 	if (!token) return "inactive";
 
+	// Per-account quota for this model (each token account has its own window).
+	const quota = token.quota_by_model?.[modelId];
+	const quotaLimit = typeof quota?.limit === "number" && quota.limit > 0 ? quota.limit : 0;
+	const quotaRemaining = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) : 0;
+
 	const expires = token.session_expires_at ? Date.parse(token.session_expires_at) : Number.NaN;
 	const secs = Number.isFinite(expires) ? Math.round((expires - Date.now()) / 1000) : undefined;
 
-	const { limit, remaining } = token.session_quota ?? {};
-	const quotaRemaining = typeof remaining === "number" ? remaining : 0;
-	const quotaLimit = typeof limit === "number" && limit > 0 ? limit : 0;
-
-	if (quotaLimit > 0 && quotaRemaining > 0) {
-		const totalMinutes = quotaRemaining * 60 + Math.max(0, Math.round((secs ?? 0) / 60));
-		const hours = Math.floor(totalMinutes / 60);
-		const minutes = totalMinutes % 60;
-		return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-	}
-
-	if (secs !== undefined) return secs <= 0 ? "expired" : formatDuration(secs);
-	if (quotaLimit > 0) return `${quotaRemaining}/${quotaLimit}h`;
-	return undefined;
+	const parts: string[] = [];
+	if (quotaLimit > 0) parts.push(`${quotaRemaining}/${quotaLimit}`);
+	if (secs !== undefined) parts.push(secs <= 0 ? "expired" : formatDuration(secs));
+	return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -156,23 +137,17 @@ export default async function (pi: ExtensionAPI) {
 		api: "openai-completions",
 		apiKey: "freebux",
 		models,
-		refreshModels: async ({ signal, store }) => {
-			// Abort/offline → serve pi's built-in store catalog.
-			if (signal?.aborted) {
-				const cached = await readStoreModels(store);
-				return cached ?? [];
-			}
+		refreshModels: async ({ signal, stored, publish }) => {
+			// Abort/offline → serve the persisted catalog.
+			if (signal.aborted) return (stored?.models as unknown as ProviderModelConfig[]) ?? [];
 			try {
 				const fresh = await fetchModels(signal);
-				try {
-					await store.write({ models: fresh as Model<Api>[], checkedAt: Date.now() });
-				} catch {
-					// non-fatal
-				}
+				await publish({
+					persist: { models: fresh as Model<Api>[], checkedAt: Date.now() },
+				});
 				return fresh;
 			} catch (error) {
-				const cached = await readStoreModels(store);
-				if (cached?.length) return cached;
+				if (stored?.models?.length) return stored.models as unknown as ProviderModelConfig[];
 				throw error;
 			}
 		},
@@ -182,11 +157,6 @@ export default async function (pi: ExtensionAPI) {
 	let statusTimer: ReturnType<typeof setInterval> | undefined;
 	let statusInFlight = false;
 	let modelId: string | undefined;
-
-/** pi's runtime UI context exposes `theme` (missing from the d.ts type). */
-interface StyledStatusUi extends ExtensionUIContext {
-	theme: { fg(color: string, text: string): string };
-}
 
 	const refreshStatus = async () => {
 		if (!statusUi || statusInFlight) return;
@@ -198,9 +168,7 @@ interface StyledStatusUi extends ExtensionUIContext {
 		// while the status fetch is in flight.
 		const ui = statusUi;
 		statusInFlight = true;
-		// pi's ExtensionUIContext type omits `theme`, but the runtime exposes it
-		// (get theme() on the UI context); cast to keep the dim styling type-safe.
-		const theme = (ui as unknown as StyledStatusUi).theme;
+		const theme = ui.theme;
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
