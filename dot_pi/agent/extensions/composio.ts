@@ -270,9 +270,56 @@ function compactExecuteJson(value: unknown): unknown {
  * query echo (use_case), identical boilerplate (execution_guidance) and long
  * plan steps — all repeated on every call. Keep only what the model needs.
  */
+
+interface SearchCompactionContext {
+	connected: Set<string>; // toolkit names with an active connection (lowercased)
+	usableSlugs: Set<string>; // tool slugs belonging to connected toolkits
+	usedSlugs: Set<string>; // slugs the plan actually directs the model to use (primary)
+}
+
+/**
+ * Resolve which toolkits/slugs are usable right now from connection statuses
+ * and schemas. Empty when the response carries no connection info.
+ */
+function searchContext(value: unknown): SearchCompactionContext {
+	const connected = new Set<string>();
+	const usableSlugs = new Set<string>();
+	const usedSlugs = new Set<string>();
+	const data = (value as { data?: { toolkit_connection_statuses?: unknown; tool_schemas?: unknown; results?: unknown } })?.data;
+	const statuses = data?.toolkit_connection_statuses;
+	if (Array.isArray(statuses)) {
+		for (const t of statuses) {
+			if (t === null || typeof t !== "object") continue;
+			const d = t as Record<string, unknown>;
+			if (typeof d.toolkit === "string" && d.has_active_connection === true) connected.add(d.toolkit.toLowerCase());
+		}
+	}
+	const schemas = data?.tool_schemas;
+	if (schemas !== null && typeof schemas === "object") {
+		for (const [slug, def] of Object.entries(schemas as Record<string, unknown>)) {
+			if (def === null || typeof def !== "object") continue;
+			const tk = (def as Record<string, unknown>).toolkit;
+			if (typeof tk === "string" && connected.has(tk.toLowerCase())) usableSlugs.add(slug);
+		}
+	}
+	const results = data?.results;
+	if (Array.isArray(results)) {
+		for (const r of results) {
+			if (r === null || typeof r !== "object") continue;
+			const prim = (r as Record<string, unknown>).primary_tool_slugs;
+			if (Array.isArray(prim)) for (const s of prim) if (typeof s === "string") usedSlugs.add(s);
+		}
+	}
+	return { connected, usableSlugs, usedSlugs };
+}
+
 function compactSearchJson(value: unknown): unknown {
+	return compactSearchJsonInner(value, searchContext(value));
+}
+
+function compactSearchJsonInner(value: unknown, ctx: SearchCompactionContext): unknown {
 	if (Array.isArray(value)) {
-		const items = value.map(compactSearchJson).filter((v) => v !== undefined && v !== null);
+		const items = value.map((v) => compactSearchJsonInner(v, ctx)).filter((v) => v !== undefined && v !== null);
 		if (value.length > MAX_ITEMS) {
 			return [items.slice(0, MAX_ITEMS), `…${value.length - MAX_ITEMS} more item(s) omitted`];
 		}
@@ -280,11 +327,12 @@ function compactSearchJson(value: unknown): unknown {
 	}
 	if (value !== null && typeof value === "object") {
 		const out: Record<string, unknown> = {};
+		const filterByConnection = ctx.connected.size > 0; // only filter when we know connections
 		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
 			if (NOISE_KEYS.has(k) || CONTENT_BLOAT_KEYS.has(k) || SEARCH_META_KEYS.has(k)) continue;
 			if (k === "use_case" && typeof v === "string") {
 				// echo of the query the model itself sent — shrink to a label
-				out.query = v.length > 100 ? `${v.slice(0, 97)}…` : v;
+				out.query = v.length > 80 ? `${v.slice(0, 77)}…` : v;
 				continue;
 			}
 			if (k === "recommended_plan_steps" && Array.isArray(v)) {
@@ -296,27 +344,48 @@ function compactSearchJson(value: unknown): unknown {
 				continue;
 			}
 			if (k === "tool_schemas" && v !== null && typeof v === "object") {
-				// keep slug -> short description; drop toolkit/tool_slug (the key is the
-				// slug) and the input_schema bulk. Deduped across calls by execute().
+				// keep slug -> short description for the tools the plan actually uses
+				// (primary slugs, connected). Drop everything else: descriptions are
+				// deduped across calls by execute() anyway.
 				const schemas: Record<string, unknown> = {};
 				for (const [slug, def] of Object.entries(v as Record<string, unknown>)) {
 					if (def === null || typeof def !== "object") continue;
+					if (filterByConnection && !ctx.usableSlugs.has(slug)) continue;
+					if (ctx.usedSlugs.size > 0 && !ctx.usedSlugs.has(slug)) continue;
 					const desc = (def as Record<string, unknown>).description;
-					schemas[slug] = typeof desc === "string" ? (desc.length > 120 ? `${desc.slice(0, 119)}…` : desc) : true;
+					schemas[slug] = typeof desc === "string" ? (desc.length > 90 ? `${desc.slice(0, 89)}…` : desc) : true;
 				}
-				out[k] = schemas;
+				if (Object.keys(schemas).length > 0) out[k] = schemas;
 				continue;
 			}
 			if (k === "toolkit_connection_statuses" && Array.isArray(v)) {
 				// keep toolkit + connection state; status_message is boilerplate
-				// (and its "call MANAGE_CONNECTIONS" CTA is dead — the tool is gone)
-				out[k] = v.map((t) => {
-					if (t === null || typeof t !== "object") return t;
-					const d = t as Record<string, unknown>;
-					const slim: Record<string, unknown> = {};
-					for (const key of ["toolkit", "has_active_connection"]) if (d[key] !== undefined) slim[key] = d[key];
-					return slim;
-				});
+				// (and its "call MANAGE_CONNECTIONS" CTA is dead — the tool is gone).
+				// Unconnected toolkits are dropped: their tools cannot run either.
+				const kept = v
+					.map((t) => {
+						if (t === null || typeof t !== "object") return undefined;
+						const d = t as Record<string, unknown>;
+						if (filterByConnection && !(typeof d.toolkit === "string" && ctx.connected.has(d.toolkit.toLowerCase()))) {
+							return undefined;
+						}
+						const slim: Record<string, unknown> = {};
+						for (const key of ["toolkit", "has_active_connection"]) if (d[key] !== undefined) slim[key] = d[key];
+						return slim;
+					})
+					.filter((x) => x !== undefined && x !== null);
+				if (kept.length > 0) out[k] = kept;
+				continue;
+			}
+			if ((k === "primary_tool_slugs") && Array.isArray(v)) {
+				// keep only slugs that can actually run right now
+				const kept = v.filter((s): s is string => typeof s === "string" && (!filterByConnection || ctx.usableSlugs.has(s)));
+				if (kept.length > 0) out[k] = kept;
+				continue;
+			}
+			if (k === "related_tool_slugs" || k === "toolkits") {
+				// secondary suggestions + toolkit list are redundant: schemas cover the
+				// used tools and connection statuses already list available toolkits
 				continue;
 			}
 			if (k === "time_info" && v !== null && typeof v === "object") {
@@ -332,7 +401,7 @@ function compactSearchJson(value: unknown): unknown {
 				out[k] = `${v.slice(0, MAX_DESC - 1)}…`;
 				continue;
 			}
-			const cv = compactSearchJson(v);
+			const cv = compactSearchJsonInner(v, ctx);
 			if (cv !== undefined && cv !== null) out[k] = cv;
 		}
 		return out;
