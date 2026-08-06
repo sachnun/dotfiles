@@ -35,6 +35,7 @@ interface TokenState {
 	session_status?: string;
 	session_model?: string;
 	session_expires_at?: string;
+	session_quota?: { limit?: number; remaining?: number };
 	quota_by_model?: Record<string, QuotaSnapshot>;
 }
 
@@ -104,23 +105,30 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function formatStatus(data: StatusResponse, modelId: string): string | undefined {
-	const token = data.token_state?.find(
-		(t) => t.session_model === modelId && (t.session_status === "active" || t.state === "active"),
-	);
-	if (!token) return "inactive";
+	const token = data.token_state?.find((t) => t.session_model === modelId);
+	if (!token) return "idle";
 
-	// Per-account quota for this model (each token account has its own window).
-	const quota = token.quota_by_model?.[modelId];
-	const quotaLimit = typeof quota?.limit === "number" && quota.limit > 0 ? quota.limit : 0;
-	const quotaRemaining = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) : 0;
+	const state = token.state ?? token.session_status;
+	if (state !== "active") return state === "cooling_down" ? "cooling" : (state ?? "idle");
 
 	const expires = token.session_expires_at ? Date.parse(token.session_expires_at) : Number.NaN;
 	const secs = Number.isFinite(expires) ? Math.round((expires - Date.now()) / 1000) : undefined;
 
-	const parts: string[] = [];
-	if (quotaLimit > 0) parts.push(`${quotaRemaining}/${quotaLimit}`);
-	if (secs !== undefined) parts.push(secs <= 0 ? "expired" : formatDuration(secs));
-	return parts.length > 0 ? parts.join(" · ") : undefined;
+	// Quota per model (hours), older API shape: session_quota.
+	const quota = token.quota_by_model?.[modelId] ?? token.session_quota;
+	const quotaLimit = typeof quota?.limit === "number" && quota.limit > 0 ? quota.limit : 0;
+	const quotaRemaining = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) : 0;
+
+	// Total waktu: sisa kuota (jam) + sisa sesi (menit).
+	if (quotaLimit > 0 && quotaRemaining > 0) {
+		const totalMinutes = quotaRemaining * 60 + Math.max(0, Math.round((secs ?? 0) / 60));
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+		return `active ${minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`}`;
+	}
+
+	if (secs === undefined) return "active";
+	return secs <= 0 ? "expired" : `active ${formatDuration(secs)}`;
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -172,9 +180,10 @@ export default async function (pi: ExtensionAPI) {
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
-			ui.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
+			const color: "dim" | "error" = text === "banned" ? "error" : "dim";
+			ui.setStatus(STATUS_KEY, text ? theme.fg(color, text) : undefined);
 		} catch {
-			ui.setStatus(STATUS_KEY, theme.fg("dim", "offline"));
+			ui.setStatus(STATUS_KEY, theme.fg("warning", "offline"));
 		} finally {
 			statusInFlight = false;
 		}
