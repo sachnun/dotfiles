@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.84.0",
   "defaultProvider": "freebux",
   "defaultModel": "deepseek/deepseek-v4-flash",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
