@@ -8,8 +8,3 @@ tools:
     install: curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
   - name: pi
     install: curl -fsSL https://pi.dev/install.sh | sh
-  - name: glab
-    install: |
-      arch="$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
-      ver="$(curl -fsSL 'https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases/permalink/latest' | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4 | tr -d 'v')"
-      curl -fsSL "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${ver}/glab_${ver}_linux_${arch}.tar.gz" | tar -xz -C "$INSTALL_DIR" --strip-components=1 bin/glab
