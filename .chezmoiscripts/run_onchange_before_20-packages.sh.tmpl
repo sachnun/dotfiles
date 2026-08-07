@@ -34,21 +34,6 @@ else
   curl -fsSL https://deb.nodesource.com/setup_current.x | ${SUDO:-} bash -
   ${SUDO:-} apt-get install -y nodejs
 fi
-
-# glab is not in official Debian/Ubuntu repos — install the official .deb from GitLab releases.
-if ! command -v glab >/dev/null 2>&1; then
-  echo "Installing glab from GitLab releases..."
-  glab_arch="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-  case "$glab_arch" in
-    amd64|arm64) ;;
-    *) echo "Skipping glab: unsupported architecture $glab_arch"; exit 0 ;;
-  esac
-  glab_version="$(curl -fsSL 'https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases/permalink/latest' | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4 | tr -d 'v')"
-  glab_deb="$(mktemp --suffix=.deb)"
-  curl -fsSL "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${glab_version}/glab_${glab_version}_linux_${glab_arch}.deb" -o "$glab_deb"
-  ${SUDO} dpkg -i "$glab_deb" || ${SUDO} apt-get -f install -y
-  rm -f "$glab_deb"
-fi
 {{- else if not (hasKey .chezmoi.osRelease "id") }}
 # Termux / Android — use pkg
 termux_packages=(
