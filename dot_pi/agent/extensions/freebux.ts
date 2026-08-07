@@ -8,7 +8,7 @@ import type { Model, Api } from "@earendil-works/pi-ai";
 
 const BASE_URL = "https://freebux.up.railway.app/v1";
 const TIMEOUT_MS = 15_000;
-const POLL_MS = 60_000;
+const POLL_MS = 30_000;
 const STATUS_KEY = "freebux-status";
 
 interface FreebuxModel {
@@ -207,11 +207,6 @@ export default async function (pi: ExtensionAPI) {
 	pi.on("model_select", (event, ctx) => {
 		bind(ctx);
 		trackModel(event.model.provider, event.model.id);
-	});
-
-	pi.on("before_agent_start", (_event, ctx) => {
-		bind(ctx);
-		void refreshStatus();
 	});
 
 	pi.on("session_shutdown", () => {
