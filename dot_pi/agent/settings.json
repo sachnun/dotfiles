@@ -15,7 +15,7 @@
     "-extensions/restore.ts",
     "-extensions/bash.ts",
     "-extensions/checkpoint.ts",
-    "-extensions/composio.ts"
+    "+extensions/composio.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
