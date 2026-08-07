@@ -13,6 +13,7 @@ packages:
     - git
     - git-lfs
     - github-cli
+    - glab
     - gnupg
     - go
     - grep
@@ -45,6 +46,7 @@ packages:
     - gh
     - git
     - git-lfs
+    - glab-cli
     - gnupg
     - golang
     - jq
