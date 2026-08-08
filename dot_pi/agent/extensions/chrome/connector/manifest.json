@@ -6,16 +6,10 @@
   "description": "Pi browser control.",
   "permissions": [
     "tabs",
-    "tabGroups",
-    "scripting",
     "storage",
     "activeTab",
     "alarms",
-    "webNavigation",
-    "debugger",
-    "downloads",
-    "pageCapture",
-    "cookies"
+    "debugger"
   ],
   "host_permissions": [
     "<all_urls>",

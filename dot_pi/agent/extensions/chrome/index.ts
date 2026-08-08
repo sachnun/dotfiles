@@ -1,7 +1,10 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Container, Text } from "@earendil-works/pi-tui";
+import { Type } from "typebox";
 import { readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 /**
  * Existing-profile Chrome bridge for pi.
@@ -14,10 +17,10 @@ import { join, resolve } from "node:path";
  * pi extension for commands. That gives pi access to the user's existing tabs/authenticated
  * profile, subject to the browser extension permissions the user grants.
  *
- * The model does NOT get chrome_* tools registered here. Instead, control happens through the
- * `chrome` skill (~/.pi/agent/skills/chrome/SKILL.md), which drives this bridge via the
- * `pi-chrome` CLI. That keeps tool schemas out of the model context until the skill is loaded.
- * This file only runs the bridge + the ●/○ connection status indicator.
+ * The model gets ONE native tool (`chrome`): a raw Chrome DevTools Protocol passthrough
+ * (action `page.cdp` in the companion extension). The tool schema is small and always active;
+ * there is no skill and no CLI — the agent figures out the details from the CDP reference.
+ * This file also runs the bridge + the ●/○ connection status indicator.
  */
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -56,6 +59,43 @@ const PI_CHROME_GLOBAL_KEY = "__piChromeProfileBridgeLoaded__";
 const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
 const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
 const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_TEXT_CHARS = 15_000;
+
+function truncateText(text: unknown, maxChars = MAX_TEXT_CHARS): string {
+  const value = String(text ?? "");
+  if (value.length <= maxChars) return value;
+  // Don't split a UTF-16 surrogate pair (emoji etc.) at the cut point.
+  let end = maxChars;
+  const code = value.charCodeAt(end - 1);
+  if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+  return `${value.slice(0, end)}\n\n[truncated ${value.length - maxChars} characters]`;
+}
+
+// First saveable blob in a CDP result (recursive, shallow). Used by `save` to write binary
+// output to a file: base64 blobs (Page.captureScreenshot / Page.printToPDF) or raw MHTML text
+// (Page.captureSnapshot returns quoted-printable MHTML, not base64).
+function findSaveableBlob(value: unknown, depth = 0): { data: string; encoding: "base64" | "utf8" } | undefined {
+  if (depth > 4 || value === null || value === undefined) return undefined;
+  if (typeof value === "string" && value.length > 500) {
+    if (/^[A-Za-z0-9+/=\r\n]+$/.test(value)) return { data: value, encoding: "base64" };
+    if (value.startsWith("From: <Saved by Blink>")) return { data: value, encoding: "utf8" };
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findSaveableBlob(item, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (typeof value === "object") {
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      const found = findSaveableBlob((value as Record<string, unknown>)[key], depth + 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
 
 function extensionRoot(): string {
 	// Resolve relative to this extension file, not ctx.cwd. ctx.cwd can temporarily be
@@ -507,6 +547,133 @@ export default function (pi: ExtensionAPI): void {
 	// Remembered so session-scoped sends can tag tabs with this session's group even when ctx isn't handy.
 	let sessionCtx: ExtensionContext | undefined;
 
+	// The one native tool: raw Chrome DevTools Protocol passthrough. Registered once at load;
+	// the bridge starts on demand. Description is intentionally concise — no skill, no CLI.
+	// renderCall/renderResult follow the built-in-tool-renderer.ts example: compact header,
+	// summary when collapsed, full output when expanded (ctrl+o / click).
+	pi.registerTool({
+		name: "chrome",
+		label: "Chrome",
+		description:
+			"Control the user's real Chrome via raw Chrome DevTools Protocol (CDP): any method, any feature " +
+			"(navigate, JS, input, screenshot, device/media/network emulation, cookies, storage). " +
+			"method = CDP method, or \"status\" to check connectivity. params = arguments as JSON string or " +
+			"object. save = optional output path for binary/MHTML results. Runs on pi's own automation " +
+			"window unless targetId/urlIncludes/titleIncludes picks a real tab — never the user's active " +
+			"tab. Destructive methods blocked; output truncated ~15K. Reference: " +
+			"https://chromedevtools.github.io/devtools-protocol/",
+		promptSnippet: "Drive the user's Chrome via raw CDP",
+		parameters: Type.Object({
+			method: Type.String({ description: "CDP method or \"status\"" }),
+			params: Type.Optional(Type.Unknown({ description: "JSON args (string or object)" })),
+			save: Type.Optional(Type.String({ description: "write result to this path" })),
+			targetId: Type.Optional(Type.Number({ description: "existing tab id" })),
+			urlIncludes: Type.Optional(Type.String({ description: "tab URL contains" })),
+			titleIncludes: Type.Optional(Type.String({ description: "tab title contains" })),
+			timeoutMs: Type.Optional(Type.Number({ description: "ms (default 30000)" })),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			await bridge.start();
+			const method = String(params.method ?? "");
+			if (method === "status") {
+				const connected = await bridge.probeConnected();
+				return {
+					content: [
+						{
+							type: "text",
+							text: connected
+								? "Chrome connected."
+								: "Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions, then retry.",
+						},
+					],
+					details: { method: "status", kind: "text" },
+				};
+			}
+			if (!method) {
+				throw new Error(
+					"chrome requires method (CDP method, e.g. Page.navigate). Full reference: https://chromedevtools.github.io/devtools-protocol/",
+				);
+			}
+			let cdpParams: Record<string, unknown> = {};
+			if (params.params !== undefined && params.params !== null && params.params !== "") {
+				if (typeof params.params === "string") {
+					try {
+						cdpParams = JSON.parse(params.params) as Record<string, unknown>;
+					} catch {
+						throw new Error("params must be a JSON object string, e.g. '{\"width\":375}'");
+					}
+				} else if (typeof params.params === "object") {
+					cdpParams = params.params as Record<string, unknown>;
+				} else {
+					throw new Error("params must be a JSON object string or object");
+				}
+				if (!cdpParams || typeof cdpParams !== "object" || Array.isArray(cdpParams)) {
+					throw new Error("params must be a JSON object, e.g. '{\"width\":375}'");
+				}
+			}
+			const result = (await bridge.send(
+				"page.cdp",
+				{
+					method,
+					cdpParams,
+					targetId: params.targetId,
+					urlIncludes: params.urlIncludes,
+					titleIncludes: params.titleIncludes,
+				},
+				params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+			)) as { result?: unknown };
+			const value = result?.result;
+			if (typeof params.save === "string" && params.save) {
+				const blob = findSaveableBlob(value);
+				if (!blob) throw new Error(`chrome: no saveable data in ${method} result (expected base64 binary or MHTML)`);
+				const outputPath = resolve(ctx.cwd, params.save);
+				await mkdir(dirname(outputPath), { recursive: true });
+				const buf =
+					blob.encoding === "base64"
+						? Buffer.from(blob.data.replace(/\s+/g, ""), "base64")
+						: Buffer.from(blob.data, "utf8");
+				await writeFile(outputPath, buf);
+				const text = `Saved ${method} binary (${Math.round(buf.length / 1024)} KB) to ${outputPath}`;
+				return { content: [{ type: "text", text }], details: { method, kind: "file", size: buf.length } };
+			}
+			const outputText = `CDP ${method}:\n${truncateText(JSON.stringify(value, null, 2))}`;
+			return { content: [{ type: "text", text: outputText }], details: { method, kind: "text" } };
+		},
+
+		// Compact header: chrome <method> <params-snippet>.
+		renderCall(args, theme, _context) {
+			let text = theme.fg("toolTitle", theme.bold("chrome "));
+			text += theme.fg("accent", typeof args.method === "string" ? args.method : "?");
+			if (typeof args.params === "string" && args.params) {
+				const snippet = args.params.length > 40 ? `${args.params.slice(0, 37)}...` : args.params;
+				text += theme.fg("dim", ` ${snippet}`);
+			}
+			return new Text(text, 0, 0);
+		},
+
+		// No summary label when collapsed (the header already shows chrome <method>);
+		// full output only when expanded (ctrl+o / click), like built-in tools.
+		renderResult(result, { expanded, isPartial }, theme, _context) {
+			if (isPartial) return new Text(theme.fg("warning", "Running..."), 0, 0);
+			const content = result.content[0];
+			const output = content?.type === "text" ? content.text : "";
+			const details = result.details as { method?: string; kind?: string } | undefined;
+			if (result.isError || output.startsWith("chrome:") || output.startsWith("Error")) {
+				return new Text(theme.fg("error", output.split("\n")[0].slice(0, 120)), 0, 0);
+			}
+			const method = details?.method ?? "CDP";
+			if (details?.kind === "file") {
+				return new Text(theme.fg("success", `${method} → ${output}`), 0, 0);
+			}
+			if (!expanded) return new Container(0, 0);
+			const lines = output.split("\n");
+			let text = "";
+			for (const line of lines.slice(0, 30)) text += `${theme.fg("dim", line)}\n`;
+			if (lines.length > 30) text += theme.fg("muted", `... ${lines.length - 30} more lines`);
+			return new Text(text, 0, 0);
+		},
+	});
+
 	// Stable per-session key the service worker uses to scope its dedicated automation tab/window
 	// to *this* session (one extension brokers all sessions). The session id is stable across
 	// /reload, so the automation target is reused rather than orphaned. Returns undefined only
@@ -525,9 +692,8 @@ export default function (pi: ExtensionAPI): void {
 		void bridge.send("automation.cleanup", sessionKey !== undefined ? { sessionKey } : {}, 3_000).catch(() => undefined);
 	};
 
-	// Drives the ●/○ connection status indicator. The chrome_* capability itself is loaded
-	// on-demand via the `chrome` skill (see ~/.pi/agent/skills/chrome/SKILL.md), so there are
-	// no tools to enable/disable here.
+	// Drives the ●/○ connection status indicator. The chrome capability itself is the native
+	// `chrome` tool registered above — no skill, no CLI.
 	const refreshChromeStatus = async (ctx: ExtensionContext): Promise<void> => {
 		if (await bridge.probeConnected()) {
 			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("success", "●") + ctx.ui.theme.fg("dim", " chrome"));
@@ -546,14 +712,7 @@ export default function (pi: ExtensionAPI): void {
 		statusTicker = setInterval(() => void refreshChromeStatus(ctx), 10_000);
 	});
 
-	// Official skill registration: contribute the bundled `chrome` skill so pi handles
-	// everything automatically — discovery, listing in the system prompt, and on-demand
-	// loading (the agent `read`s the SKILL.md only when a Chrome task matches). This also
-	// exposes the standard /skill:chrome command, exactly like every other skill.
-	pi.on("resources_discover", (_event) => {
-		return { skillPaths: [join(extensionRoot(), "skill")] };
-	});
-
+	// No skill registration: the `chrome` tool above is the only model-facing surface.
 	pi.on("session_shutdown", (event) => {
 		clearInterval(statusTicker);
 		// Tidy up this session's dedicated automation window on real session end, but NOT on
