@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Pi",
+  "short_name": "Pi",
+  "version": "0.0.1",
+  "description": "Pi browser control.",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "scripting",
+    "storage",
+    "activeTab",
+    "alarms",
+    "webNavigation",
+    "debugger",
+    "downloads",
+    "pageCapture",
+    "cookies"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:17318/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_title": "Pi"
+  }
+}

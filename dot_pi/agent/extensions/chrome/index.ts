@@ -1,0 +1,572 @@
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { join, resolve } from "node:path";
+
+/**
+ * Existing-profile Chrome bridge for pi.
+ *
+ * This is intentionally not a remote-debugging-port integration. Chrome blocks default-profile
+ * remote debugging in many normal launches, so pi-chrome uses a companion extension from the
+ * browser-extension folder bundled next to this Pi extension.
+ *
+ * The companion extension runs inside the user's real Chrome profile and polls this local
+ * pi extension for commands. That gives pi access to the user's existing tabs/authenticated
+ * profile, subject to the browser extension permissions the user grants.
+ *
+ * The model does NOT get chrome_* tools registered here. Instead, control happens through the
+ * `chrome` skill (~/.pi/agent/skills/chrome/SKILL.md), which drives this bridge via the
+ * `pi-chrome` CLI. That keeps tool schemas out of the model context until the skill is loaded.
+ * This file only runs the bridge + the ●/○ connection status indicator.
+ */
+
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+
+type BridgeCommand = {
+	id: string;
+	action: string;
+	params: Record<string, unknown>;
+};
+
+type PendingCommand = {
+	command: BridgeCommand;
+	resolve: (value: unknown) => void;
+	reject: (error: Error) => void;
+	timer: NodeJS.Timeout;
+	deliveredAt?: number;
+};
+
+type BridgeResult = {
+	id: string;
+	ok: boolean;
+	result?: unknown;
+	error?: string;
+};
+
+const PI_CHROME_PKG_PATH = resolve(__dirname, "..", "..", "package.json");
+function readPiChromeVersion(): string {
+	try {
+		const pkg = JSON.parse(readFileSync(PI_CHROME_PKG_PATH, "utf8")) as { version?: string };
+		if (pkg.version) return pkg.version;
+	} catch {}
+	return "0.0.0-dev";
+}
+const PI_CHROME_VERSION = readPiChromeVersion();
+const PI_CHROME_GLOBAL_KEY = "__piChromeProfileBridgeLoaded__";
+const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
+const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+function extensionRoot(): string {
+	// Resolve relative to this extension file, not ctx.cwd. ctx.cwd can temporarily be
+	// an attachment/clipboard path when Pi is handling pasted images.
+	if (typeof __dirname === "string") return __dirname;
+	return process.cwd();
+}
+
+function readRequestBody(request: IncomingMessage): Promise<string> {
+	return new Promise((resolveBody, rejectBody) => {
+		const chunks: Buffer[] = [];
+		request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+		request.on("end", () => resolveBody(Buffer.concat(chunks).toString("utf8")));
+		request.on("error", rejectBody);
+	});
+}
+
+function corsHeadersFor(request: IncomingMessage): Record<string, string> {
+	const origin = String(request.headers.origin ?? "");
+	if (!origin.startsWith("chrome-extension://")) return {};
+	return {
+		"access-control-allow-origin": origin,
+		"access-control-allow-methods": "GET,POST,OPTIONS",
+		"access-control-allow-headers": "content-type",
+		"access-control-expose-headers": "x-pi-chrome-version",
+		"vary": "origin",
+	};
+}
+
+function isBrowserOriginAllowed(request: IncomingMessage): boolean {
+	const origin = String(request.headers.origin ?? "");
+	if (origin) return origin.startsWith("chrome-extension://");
+	const secFetchSite = String(request.headers["sec-fetch-site"] ?? "");
+	return !secFetchSite || secFetchSite === "none" || secFetchSite === "same-origin";
+}
+
+function isLocalProcessRequest(request: IncomingMessage): boolean {
+	return !request.headers.origin && !request.headers["sec-fetch-site"];
+}
+
+function sendJson(response: ServerResponse, status: number, body: unknown, extraHeaders?: Record<string, string>): void {
+	response.writeHead(status, {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-store",
+		...(extraHeaders ?? {}),
+	});
+	response.end(JSON.stringify(body));
+}
+
+class ChromeProfileBridge {
+	private server: Server | undefined;
+	private pending = new Map<string, PendingCommand>();
+	private queue: BridgeCommand[] = [];
+	private waiters: Array<(command: BridgeCommand | undefined) => void> = [];
+	private lastSeenAt: number | undefined;
+	private clientName: string | undefined;
+	private mode: "server" | "client" | undefined;
+
+	constructor(
+		private readonly host: string,
+		private readonly port: number,
+	) {}
+
+	get url(): string {
+		return `http://${this.host}:${this.port}`;
+	}
+
+	get connected(): boolean {
+		// The companion extension polls /next almost continuously while its service worker is
+		// alive, and a 30 s keepalive alarm wakes a suspended worker. So a live extension always
+		// polls within ~30 s; treat a poll older than 60 s as disconnected (e.g. extension
+		// disabled, Chrome closed). Real chrome_* tool calls are the end-to-end health check.
+		return this.lastSeenAt !== undefined && Date.now() - this.lastSeenAt < 60_000;
+	}
+
+	// True when the Chrome companion extension is actively polling the bridge. In server mode
+	// that is our own lastSeenAt. In client mode (another Pi session owns the port, so the
+	// extension never talks to us) we ask the owner for its lastSeenAt and apply our own
+	// staleness window — independent of the owner's code version.
+	async probeConnected(): Promise<boolean> {
+		if (this.mode !== "client") return this.connected;
+		if (await this.probeOwner()) return true;
+		// Owner unreachable (its Pi session closed, or it just lost the port). Self-heal here
+		// instead of waiting for a chrome_* command: grab the now-free port and become the
+		// server so the extension reconnects to us and the ● indicator recovers on its own.
+		// Only one client wins the bind; losers stay clients and probe whoever won.
+		const promoted = await this.tryPromoteToServer().catch(() => false);
+		if (promoted) return this.connected;
+		// Another client won the race mid-probe; re-check against the new owner.
+		return this.probeOwner();
+	}
+
+	private async probeOwner(): Promise<boolean> {
+		try {
+			const response = await fetch(`${this.url}/status`, { cache: "no-store", signal: AbortSignal.timeout(3_000) });
+			if (!response.ok) return false;
+			const status = (await response.json()) as { lastSeenAt?: number };
+			return typeof status.lastSeenAt === "number" && Date.now() - status.lastSeenAt < 60_000;
+		} catch {
+			return false;
+		}
+	}
+
+	status(): Record<string, unknown> {
+		return {
+			url: this.url,
+			mode: this.mode ?? "starting",
+			connected: this.connected,
+			lastSeenAt: this.lastSeenAt,
+			clientName: this.clientName,
+			queuedCommands: this.queue.length,
+			pendingCommands: this.pending.size,
+		};
+	}
+
+	async start(): Promise<void> {
+		if (this.server || this.mode === "client") return;
+		await this.bindServerOrClient();
+	}
+
+	// Try to own the bridge port. On success we are the server; on EADDRINUSE another Pi
+	// session owns it and we run as a client that forwards commands to that owner.
+	private async bindServerOrClient(): Promise<void> {
+		const server = createServer((request, response) => {
+			void this.handle(request, response).catch((error) => {
+				sendJson(response, 500, { error: (error as Error).message });
+			});
+		});
+		try {
+			await new Promise<void>((resolveStart, rejectStart) => {
+				server.once("error", rejectStart);
+				server.listen(this.port, this.host, () => {
+					server.off("error", rejectStart);
+					resolveStart();
+				});
+			});
+			this.server = server;
+			this.mode = "server";
+		} catch (error) {
+			server.close();
+			if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
+			// Another Pi session already owns the bridge port. Use it as the shared
+			// machine-local broker so multiple Pi sessions can control Chrome at once.
+			this.mode = "client";
+		}
+	}
+
+	// Client-mode self-heal: when the owning Pi session disappears, fetches to its port fail
+	// with `fetch failed` / ECONNREFUSED forever. Try to grab the now-free port and become the
+	// server ourselves so chrome_* tools recover without a manual restart. Single-flight: the
+	// 10 s status ticker and command forwarding can both trigger promotion concurrently, and
+	// two overlapping binds would let the loser overwrite the winner's mode back to "client".
+	private promoteInFlight: Promise<boolean> | undefined;
+	private tryPromoteToServer(): Promise<boolean> {
+		if (this.promoteInFlight) return this.promoteInFlight;
+		this.promoteInFlight = this.doPromoteToServer().finally(() => {
+			this.promoteInFlight = undefined;
+		});
+		return this.promoteInFlight;
+	}
+
+	private async doPromoteToServer(): Promise<boolean> {
+		if (this.mode !== "client") return this.mode === "server";
+		this.mode = undefined;
+		await this.bindServerOrClient();
+		return this.mode === "server";
+	}
+
+	stop(): void {
+		if (this.mode === "client") {
+			this.mode = undefined;
+			return;
+		}
+		for (const pending of this.pending.values()) {
+			clearTimeout(pending.timer);
+			pending.reject(new Error("Chrome profile bridge stopped"));
+		}
+		this.pending.clear();
+		this.queue = [];
+		for (const waiter of this.waiters) waiter(undefined);
+		this.waiters = [];
+		this.server?.close();
+		this.server = undefined;
+		this.mode = undefined;
+	}
+
+	send(action: string, params: Record<string, unknown>, timeoutMs = DEFAULT_TIMEOUT_MS, signal?: AbortSignal): Promise<unknown> {
+		if (this.mode === "client") return this.sendViaOwner(action, params, timeoutMs, signal);
+		return this.sendLocal(action, params, timeoutMs, signal);
+	}
+
+	private sendLocal(action: string, params: Record<string, unknown>, timeoutMs = DEFAULT_TIMEOUT_MS, signal?: AbortSignal): Promise<unknown> {
+		const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+		const command = { id, action, params };
+		return new Promise((resolveCommand, rejectCommand) => {
+			if (signal?.aborted) {
+				rejectCommand(new Error("Chrome command aborted"));
+				return;
+			}
+			const cleanupAbort = () => {
+				if (signal) signal.removeEventListener("abort", onAbort);
+			};
+			const onAbort = () => {
+				clearTimeout(timer);
+				this.pending.delete(id);
+				this.queue = this.queue.filter((queued) => queued.id !== id);
+				cleanupAbort();
+				rejectCommand(new Error("Chrome command aborted"));
+			};
+			const timer = setTimeout(() => {
+				const entry = this.pending.get(id);
+				this.pending.delete(id);
+				this.queue = this.queue.filter((queued) => queued.id !== id);
+				cleanupAbort();
+				rejectCommand(new Error(this.timeoutMessage(entry, timeoutMs)));
+			}, timeoutMs);
+			this.pending.set(id, {
+				command,
+				resolve: (value) => { cleanupAbort(); resolveCommand(value); },
+				reject: (err) => { cleanupAbort(); rejectCommand(err); },
+				timer,
+			});
+			if (signal) signal.addEventListener("abort", onAbort, { once: true });
+			this.enqueue(command);
+		});
+	}
+
+	// Classify why a local command timed out so the agent isn't left guessing. The three
+	// distinct failure modes are: extension never polled (not installed / not running),
+	// extension polled but never picked up this command, and extension picked up the command
+	// but never posted a result back (long-running action or a failed /result post).
+	private timeoutMessage(entry: PendingCommand | undefined, timeoutMs: number): string {
+		const pollAgeMs = this.lastSeenAt === undefined ? undefined : Date.now() - this.lastSeenAt;
+		if (entry?.deliveredAt) {
+			return `Timed out after ${timeoutMs}ms: the Chrome extension received the command but never returned a result. The action may be long-running, or the result post failed. Reload 'Pi' at chrome://extensions.`;
+		}
+		if (pollAgeMs === undefined || pollAgeMs > 60_000) {
+			return `Timed out after ${timeoutMs}ms: the Chrome extension is not polling (last seen ${pollAgeMs === undefined ? "never" : Math.round(pollAgeMs / 1000) + "s ago"}). Load the bundled 'Pi' extension (the connector/ folder next to this Pi extension) in your normal Chrome profile and keep that Chrome window open.`;
+		}
+		return `Timed out after ${timeoutMs}ms: the Chrome extension is polling (last seen ${Math.round(pollAgeMs / 1000)}s ago) but did not pick up this command in time. Retry; if it persists, reload 'Pi' at chrome://extensions.`;
+	}
+
+	private async sendViaOwner(action: string, params: Record<string, unknown>, timeoutMs: number, signal?: AbortSignal): Promise<unknown> {
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeoutMs + 2_000);
+		const forwardAbort = () => controller.abort();
+		if (signal) {
+			if (signal.aborted) controller.abort();
+			else signal.addEventListener("abort", forwardAbort, { once: true });
+		}
+		try {
+			const response = await fetch(`${this.url}/command`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ action, params, timeoutMs }),
+				signal: controller.signal,
+			});
+			const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; result?: unknown; error?: string };
+			if (response.status === 404) {
+				throw new Error(
+					"A running Pi session owns the Chrome bridge but is using an older pi-chrome without multi-session support. Restart that Pi session after `pi update`, then retry.",
+				);
+			}
+			if (!response.ok || !payload.ok) throw new Error(payload.error ?? `Chrome bridge owner HTTP ${response.status}`);
+			return payload.result;
+		} catch (error) {
+			if ((error as Error).name === "AbortError") {
+				if (signal?.aborted) throw new Error("Chrome command aborted");
+				throw new Error(`Timed out waiting for shared Chrome bridge owner after ${timeoutMs}ms`);
+			}
+			// `fetch failed` / ECONNREFUSED means the Pi session that owned the bridge port is gone.
+			// Try to take over the port ourselves and re-run the command locally instead of staying
+			// stuck as a client pointed at a dead owner.
+			if (this.isOwnerUnreachable(error)) {
+				const promoted = await this.tryPromoteToServer().catch(() => false);
+				if (promoted) return this.sendLocal(action, params, timeoutMs, signal);
+				throw new Error(
+					"The Pi session that owned the Chrome bridge is unreachable and this session could not take over the bridge port. Restart this Pi session.",
+				);
+			}
+			throw error;
+		} finally {
+			clearTimeout(timer);
+			if (signal) signal.removeEventListener("abort", forwardAbort);
+		}
+	}
+
+	private isOwnerUnreachable(error: unknown): boolean {
+		const message = (error as Error)?.message ?? "";
+		const code = (error as NodeJS.ErrnoException)?.code ?? "";
+		const cause = (error as { cause?: NodeJS.ErrnoException })?.cause;
+		const causeCode = cause?.code ?? "";
+		return (
+			/fetch failed|ECONNREFUSED|ECONNRESET|other side closed|socket hang up/i.test(message) ||
+			code === "ECONNREFUSED" ||
+			causeCode === "ECONNREFUSED" ||
+			causeCode === "ECONNRESET"
+		);
+	}
+
+	private enqueue(command: BridgeCommand): void {
+		const waiter = this.waiters.shift();
+		if (waiter) waiter(command);
+		else this.queue.push(command);
+	}
+
+	private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+		const url = new URL(request.url ?? "/", this.url);
+		const corsHeaders = corsHeadersFor(request);
+		if (request.method === "OPTIONS") {
+			if (!isBrowserOriginAllowed(request)) {
+				sendJson(response, 403, { ok: false, error: "browser origin not allowed" });
+				return;
+			}
+			sendJson(response, 200, { ok: true }, corsHeaders);
+			return;
+		}
+		if (request.method === "GET" && url.pathname === "/status") {
+			sendJson(response, 200, this.status());
+			return;
+		}
+		if (request.method === "POST" && url.pathname === "/command") {
+			if (!isLocalProcessRequest(request)) {
+				sendJson(response, 403, { ok: false, error: "Chrome commands are accepted only from local Pi processes" });
+				return;
+			}
+			const body = JSON.parse(await readRequestBody(request)) as {
+				action?: string;
+				params?: Record<string, unknown>;
+				timeoutMs?: number;
+			};
+			if (!body.action) {
+				sendJson(response, 400, { ok: false, error: "Missing command action" });
+				return;
+			}
+			try {
+				const result = await this.sendLocal(body.action, body.params ?? {}, body.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+				sendJson(response, 200, { ok: true, result });
+			} catch (error) {
+				sendJson(response, 504, { ok: false, error: (error as Error).message });
+			}
+			return;
+		}
+		if (request.method === "GET" && url.pathname === "/next") {
+			if (!isBrowserOriginAllowed(request)) {
+				sendJson(response, 403, { ok: false, error: "browser origin not allowed" });
+				return;
+			}
+			this.lastSeenAt = Date.now();
+			this.clientName = url.searchParams.get("name") ?? undefined;
+			let aborted = false;
+			let activeWaiter: ((command: BridgeCommand | undefined) => void) | undefined;
+			request.once("close", () => {
+				aborted = true;
+				if (activeWaiter) this.waiters = this.waiters.filter((entry) => entry !== activeWaiter);
+			});
+			let command = this.queue.shift();
+			if (!command) {
+				command = await this.waitForCommand(25_000, (waiter) => {
+					activeWaiter = waiter;
+				});
+			}
+			if (aborted) {
+				// Long-poll connection died before we could deliver. Requeue any command we pulled
+				// so the next live /next picks it up instead of dropping it on the floor.
+				if (command) this.queue.unshift(command);
+				return;
+			}
+			// Mark the command as delivered so a later timeout can distinguish "extension never
+			// picked it up" from "extension is running it / failed to post a result".
+			if (command) {
+				const entry = this.pending.get(command.id);
+				if (entry) entry.deliveredAt = Date.now();
+			}
+			// Re-read version on every /next so bumping package.json takes effect without pi restart.
+			const currentVersion = readPiChromeVersion();
+			sendJson(
+				response,
+				200,
+				command
+					? { type: "command", command, expectedExtensionVersion: currentVersion }
+					: { type: "none", expectedExtensionVersion: currentVersion },
+				{ ...corsHeaders, "x-pi-chrome-version": currentVersion },
+			);
+			return;
+		}
+		if (request.method === "POST" && url.pathname === "/result") {
+			if (!isBrowserOriginAllowed(request)) {
+				sendJson(response, 403, { ok: false, error: "browser origin not allowed" });
+				return;
+			}
+			this.lastSeenAt = Date.now();
+			const result = JSON.parse(await readRequestBody(request)) as BridgeResult;
+			const pending = this.pending.get(result.id);
+			if (!pending) {
+				sendJson(response, 404, { ok: false, error: "unknown command id" }, corsHeaders);
+				return;
+			}
+			clearTimeout(pending.timer);
+			this.pending.delete(result.id);
+			if (result.ok) pending.resolve(result.result);
+			else pending.reject(new Error(result.error ?? "Chrome extension command failed"));
+			sendJson(response, 200, { ok: true }, corsHeaders);
+			return;
+		}
+		sendJson(response, 404, { error: "not found" });
+	}
+
+	private waitForCommand(
+		timeoutMs: number,
+		registerWaiter?: (waiter: (command: BridgeCommand | undefined) => void) => void,
+	): Promise<BridgeCommand | undefined> {
+		return new Promise((resolveWait) => {
+			let settled = false;
+			const waiter = (command: BridgeCommand | undefined) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timer);
+				this.waiters = this.waiters.filter((entry) => entry !== waiter);
+				resolveWait(command);
+			};
+			const timer = setTimeout(() => waiter(undefined), timeoutMs);
+			this.waiters.push(waiter);
+			registerWaiter?.(waiter);
+		});
+	}
+}
+
+export default function (pi: ExtensionAPI): void {
+	const instanceToken = Symbol("pi-chrome-instance");
+	const currentRoot = extensionRoot();
+	const globalState = globalThis as typeof globalThis & {
+		[PI_CHROME_GLOBAL_KEY]?: { version: string; root: string; token?: symbol };
+	};
+	const alreadyLoaded = globalState[PI_CHROME_GLOBAL_KEY];
+	if (alreadyLoaded?.token || (alreadyLoaded && alreadyLoaded.root !== currentRoot)) {
+		console.warn(
+			`pi-chrome already loaded from ${alreadyLoaded.root} (v${alreadyLoaded.version}); skipping duplicate from ${currentRoot}.`,
+		);
+		return;
+	}
+	// pi-chrome <=0.15.19 set the singleton flag but did not clear it on reload.
+	// If the stale flag points at this same extension root, replace it instead of
+	// skipping the freshly reloaded extension.
+	globalState[PI_CHROME_GLOBAL_KEY] = { version: PI_CHROME_VERSION, root: currentRoot, token: instanceToken };
+
+	const bridge = new ChromeProfileBridge(DEFAULT_HOST, DEFAULT_PORT);
+	let statusTicker: NodeJS.Timeout | undefined;
+	// Remembered so session-scoped sends can tag tabs with this session's group even when ctx isn't handy.
+	let sessionCtx: ExtensionContext | undefined;
+
+	// Stable per-session key the service worker uses to scope its dedicated automation tab/window
+	// to *this* session (one extension brokers all sessions). The session id is stable across
+	// /reload, so the automation target is reused rather than orphaned. Returns undefined only
+	// before session_start, in which case the worker uses its default bucket.
+	const sessionKeyFor = (ctx: ExtensionContext | undefined): string | undefined => {
+		const id = ctx?.sessionManager?.getSessionId?.();
+		return typeof id === "string" && id ? `session:${id}` : undefined;
+	};
+
+	// Close THIS session's dedicated automation window/tab. Fire-and-forget and best-effort: it
+	// must never block /quit, /reload, or session end, and the service-worker side only ever
+	// closes targets this session created itself (never user tabs/windows, never another
+	// session's target). Errors (bridge down, target already closed) are intentionally swallowed.
+	const cleanupAutomationTargetBestEffort = (): void => {
+		const sessionKey = sessionKeyFor(sessionCtx);
+		void bridge.send("automation.cleanup", sessionKey !== undefined ? { sessionKey } : {}, 3_000).catch(() => undefined);
+	};
+
+	// Drives the ●/○ connection status indicator. The chrome_* capability itself is loaded
+	// on-demand via the `chrome` skill (see ~/.pi/agent/skills/chrome/SKILL.md), so there are
+	// no tools to enable/disable here.
+	const refreshChromeStatus = async (ctx: ExtensionContext): Promise<void> => {
+		if (await bridge.probeConnected()) {
+			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("success", "●") + ctx.ui.theme.fg("dim", " chrome"));
+		} else {
+			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("dim", "○ chrome"));
+		}
+	};
+
+	pi.on("session_start", async (_event, ctx) => {
+		sessionCtx = ctx;
+		await bridge.start();
+		await refreshChromeStatus(ctx);
+		// Refresh the status indicator every 10 s (the companion extension polls the bridge
+		// every second; connected = polled within the last 60 s).
+		clearInterval(statusTicker);
+		statusTicker = setInterval(() => void refreshChromeStatus(ctx), 10_000);
+	});
+
+	// Official skill registration: contribute the bundled `chrome` skill so pi handles
+	// everything automatically — discovery, listing in the system prompt, and on-demand
+	// loading (the agent `read`s the SKILL.md only when a Chrome task matches). This also
+	// exposes the standard /skill:chrome command, exactly like every other skill.
+	pi.on("resources_discover", (_event) => {
+		return { skillPaths: [join(extensionRoot(), "skill")] };
+	});
+
+	pi.on("session_shutdown", (event) => {
+		clearInterval(statusTicker);
+		// Tidy up this session's dedicated automation window on real session end, but NOT on
+		// "reload": /reload tears down and re-evaluates this module while the *same* session
+		// (same sessionKey) continues, so we keep the window so it is reused, not churned. The
+		// call is fire-and-forget and runs before bridge.stop() so it never blocks shutdown.
+		// (Owner-session quit may not deliver in time since stop() closes the bridge server;
+		// that only ever leaves a clearly pi-chrome window for the user to close — never a user
+		// tab.)
+		if (event?.reason !== "reload") cleanupAutomationTargetBestEffort();
+		bridge.stop();
+		if (globalState[PI_CHROME_GLOBAL_KEY]?.token === instanceToken) {
+			delete globalState[PI_CHROME_GLOBAL_KEY];
+		}
+	});
+}
