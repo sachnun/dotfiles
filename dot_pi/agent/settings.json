@@ -6,9 +6,7 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [
-    "npm:pi-chrome"
-  ],
+  "packages": [],
   "terminal": {
     "showTerminalProgress": true
   },

@@ -14,7 +14,7 @@ Commands:
 - Never run build/test unless asked.
 - If you create or modify a test file, run it and iterate on test or implementation until it passes.
 - For ad-hoc scripts, write them to a temp file (e.g. /tmp), run, edit if needed, remove when done. Don't embed multi-line scripts in bash commands.
-- IMPORTANT: Don't use `find` and slow tools, use `rg` instead.
+- IMPORTANT: Don't use `find` and old tools, use `rg` instead.
 
 Git:
 - Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
