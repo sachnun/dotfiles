@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.1",
-  "defaultProvider": "mistral",
-  "defaultModel": "mistral-large-latest",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash-free",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -33,8 +33,6 @@
     "opencode/deepseek-v4-flash-free"
   ],
   "retry": {
-    "enabled": true,
-    "maxRetries": 10,
     "baseDelayMs": 0
   }
 }
