@@ -1495,7 +1495,7 @@ export default function (pi: ExtensionAPI) {
 
 			if (role === undefined) {
 				// Token saved but not connected → connect directly, no confirmation.
-				ctx.ui.notify("Connecting ...", "info");
+				ctx.ui.notify("Connecting..", "info");
 				const outcome = await connectBridge(ctx);
 				ctx.ui.notify(
 					outcome === "leader"
