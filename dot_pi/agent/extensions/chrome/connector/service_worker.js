@@ -1,8 +1,10 @@
 const BRIDGE_URL = "http://127.0.0.1:17318";
 const CLIENT_NAME = `Pi ${chrome.runtime.id}`;
 const POLL_ERROR_BACKOFF_MS = 2000;
-const COMMAND_TIMEOUT_MS = 25_000;
-const CDP_COMMAND_TIMEOUT_MS = 5_000;
+// Safety-net fallback only: page.cdp always receives an explicit timeoutMs from pi. Generous so
+// legacy/direct bridge users aren't killed mid-script; a stuck command still detaches at this
+// cap.
+const COMMAND_TIMEOUT_MS = 10 * 60_000;
 const ATTACH_TIMEOUT_MS = 3_000;
 const INPUT_IDLE_DETACH_MS = 15_000;
 const CDP_VERSION = "1.3";
@@ -132,6 +134,9 @@ const attachedTabs = new Map(); // tabId -> { detachAt: number, debuggee }
 // CSS.forcePseudoState). CDP clears these overrides when the debugger detaches (same as closing
 // DevTools), so we hold the debugger attached while any override is active.
 const emulatedTabs = new Set();
+// Tabs with an in-flight CDP command. The idle auto-detach must never fire mid-command, or the
+// running command dies with "Detached while handling command".
+const busyTabs = new Set();
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -266,6 +271,7 @@ if (chrome.debugger && chrome.debugger.onDetach) {
     if (tabId !== undefined) {
       attachedTabs.delete(tabId);
       emulatedTabs.delete(tabId);
+      busyTabs.delete(tabId);
     }
     if (reason === "canceled_by_user") {
       console.warn(`[pi-chrome] debugger canceled by user on tab ${tabId}; Chrome will reattach on next call`);
@@ -276,8 +282,9 @@ if (chrome.debugger && chrome.debugger.onDetach) {
 setInterval(() => {
   const now = Date.now();
   for (const [tabId, entry] of attachedTabs) {
-    // Never auto-detach a tab with active emulation: CDP clears the override on detach.
-    if (entry.detachAt && entry.detachAt < now && !emulatedTabs.has(tabId)) {
+    // Never auto-detach a tab with active emulation (CDP clears the override on detach) or an
+    // in-flight CDP command (it would die with "Detached while handling command").
+    if (entry.detachAt && entry.detachAt < now && !emulatedTabs.has(tabId) && !busyTabs.has(tabId)) {
       void detachDebugger(tabId);
     }
   }
@@ -294,16 +301,22 @@ function holdEmulation(tabId, hold) {
   }
 }
 
+// No per-command timeout here: legit CDP commands (a long Runtime.evaluate with awaitPromise,
+// page waits) can run for minutes. The command-level timeout in handleCommand bounds the whole
+// dispatch and detaches on expiry, so a hung debugger still recovers — just not mid-command.
 function cdpRaw(tabId, method, params) {
   const debuggee = attachedTabs.get(tabId)?.debuggee || { tabId };
-  return withTimeout(new Promise((resolve, reject) => {
+  busyTabs.add(tabId);
+  return new Promise((resolve, reject) => {
     chrome.debugger.sendCommand(debuggee, method, params || {}, (result) => {
       if (chrome.runtime.lastError) reject(new Error(`${method}: ${chrome.runtime.lastError.message}`));
       else resolve(result);
     });
-  }), CDP_COMMAND_TIMEOUT_MS, `CDP ${method}`, async () => {
-    attachedTabs.delete(tabId);
-    try { await chrome.debugger.detach(debuggee); } catch {}
+  }).finally(() => {
+    busyTabs.delete(tabId);
+    // Refresh the idle-detach clock: activity just happened, so detach 15 s after it ends.
+    const entry = attachedTabs.get(tabId);
+    if (entry) entry.detachAt = Date.now() + INPUT_IDLE_DETACH_MS;
   });
 }
 
@@ -625,9 +638,16 @@ async function pollLoop() {
 
 async function handleCommand(command) {
   try {
+    // Long-running CDP commands (scroll-and-collect, page waits) legitimately take minutes; the
+    // pi side forwards its own timeout, so a short internal cap can't kill them. Fall back to
+    // COMMAND_TIMEOUT_MS only for actions that don't carry a timeout (e.g. automation.cleanup).
+    const timeoutMs =
+      typeof command.params?.timeoutMs === "number" && command.params.timeoutMs > 0
+        ? command.params.timeoutMs
+        : COMMAND_TIMEOUT_MS;
     const result = await withTimeout(
       dispatch(command.action, command.params ?? {}),
-      COMMAND_TIMEOUT_MS,
+      timeoutMs,
       command.action || "Chrome command",
       () => detachAll(),
     );

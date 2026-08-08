@@ -59,7 +59,11 @@ const PI_CHROME_VERSION = readPiChromeVersion();
 const PI_CHROME_GLOBAL_KEY = "__piChromeProfileBridgeLoaded__";
 const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
 const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
-const DEFAULT_TIMEOUT_MS = 30_000;
+// Effective timeout for one chrome command. Generous on purpose: long-running scripts
+// (scroll-and-collect, page waits) must work without an explicit timeoutMs. The fast-fail
+// probeConnected() check still errors immediately when the extension is dead, and the tool's
+// abort signal cancels a stuck command early.
+const DEFAULT_TIMEOUT_MS = 10 * 60_000;
 const MAX_TEXT_CHARS = 15_000;
 // Extension long-poll wait: lower = fresher lastSeenAt, so the ● indicator recovers sooner
 // after the extension reconnects.
@@ -646,12 +650,12 @@ export default function (pi: ExtensionAPI): void {
 			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, emulate)",
 		parameters: Type.Object({
 			commands: Type.Optional(Type.String({ description: "CDP script: JSON array (or single object) of {method, params?, save?} run sequentially on one tab, stops on first CDP error; {target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd)" })),
-			timeoutMs: Type.Optional(Type.Number({ description: "Command timeout in ms (default 30000)" })),
+			timeoutMs: Type.Optional(Type.Number({ description: "Command timeout in ms (default 600000)" })),
 		}),
-		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 			await bridge.start();
 			const script = parseScript(params.commands);
-			// Fast-fail on a dead connection instead of burning the full command timeout: if the
+			// Fast-fail on a dead connection instead of burning the command timeout: if the
 			// extension isn't polling, error immediately; the timeout below only applies once
 			// the connection is confirmed. Same STATUS_STALE_MS window as the status indicator,
 			// so the two never disagree.
@@ -660,10 +664,17 @@ export default function (pi: ExtensionAPI): void {
 					"Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions.",
 				);
 			}
+			// One effective timeout for the whole call: the wait below and the connector's
+			// execution cap share it. timeoutMs stays optional — the default covers long
+			// scripts; pass it to tighten or extend, and the abort signal cancels early.
+			const timeoutMs = params.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 			const result = (await bridge.send(
 				"page.cdp",
-				{ commands: script },
-				params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+				// Forward the tool's timeout so the connector's execution cap matches the wait
+				// instead of an internal default killing long-running scripts.
+				{ commands: script, timeoutMs },
+				timeoutMs,
+				signal,
 			)) as { method?: string; results?: Array<{ method?: string; result?: unknown; error?: string }> };
 			const results = result?.results;
 			if (!Array.isArray(results)) {
@@ -796,7 +807,7 @@ export default function (pi: ExtensionAPI): void {
 	// closes targets this session created itself (never user tabs/windows, never another
 	// session's target). Errors (bridge down, target already closed) are intentionally swallowed.
 	const cleanupAutomationTargetBestEffort = (): void => {
-		void bridge.send("automation.cleanup", currentSessionKey !== undefined ? { sessionKey: currentSessionKey } : {}, 3_000).catch(() => undefined);
+		void bridge.send("automation.cleanup", { sessionKey: currentSessionKey, timeoutMs: 3_000 }, 3_000).catch(() => undefined);
 	};
 
 	// Drives the ●/○ connection status indicator. The chrome capability itself is the native
