@@ -21,9 +21,9 @@ import { dirname, resolve } from "node:path";
  * The model gets ONE native tool (`chrome`): a raw Chrome DevTools Protocol passthrough
  * (action `page.cdp` in the companion extension). The tool schema is small and always active;
  * there is no skill and no CLI — the agent figures out the details from the CDP reference.
- * This file also runs the bridge + the ●/○ connection status indicator. Every chrome_* call
- * probes the extension first and fails fast with a red error when it is not connected,
- * so the command timeout only applies once the connection is confirmed.
+ * This file also runs the bridge + the ●/○ connection status indicator. Every `chrome` tool
+ * call probes the extension first and fails fast when it is not connected, so the command
+ * timeout only applies once the connection is confirmed.
  */
 
 type BridgeCommand = {
@@ -74,101 +74,20 @@ const STATUS_STALE_MS = 15_000;
 
 type ScriptCommand = { method: string; params?: Record<string, unknown>; save?: string; pick?: string } | { target: Record<string, unknown> };
 
-// Repair LLM-style line-wrapped JSON: models often break long `commands` strings across lines,
-// inserting literal newlines INSIDE JSON string values (invalid per spec — newlines must be
-// escaped as \n). A literal newline in a string is always a mistake, so fixing it can never
-// corrupt valid input. Rules inside string literals:
-//   - a whitespace run containing a newline collapses to a single space ("var\n els" -> "var els")
-//   - a lone newline (no surrounding space) is removed                    ("val\nue" -> "value")
-// Escaped sequences (\" \\ \n as backslash-n) are preserved unchanged.
-function repairJsonStringNewlines(raw: string): string {
-	let out = "";
-	let inString = false;
-	let i = 0;
-	while (i < raw.length) {
-		const ch = raw[i];
-		if (inString) {
-			if (ch === "\\") {
-				out += ch + (raw[i + 1] ?? "");
-				i += 2;
-				continue;
-			}
-			if (ch === '"') {
-				out += ch;
-				inString = false;
-				i += 1;
-				continue;
-			}
-			if (ch === "\n" || ch === "\r") {
-				let j = i;
-				while (j < raw.length && /\s/.test(raw[j])) j += 1;
-				const run = raw.slice(i, j);
-				let hadSpace = /[ \t]/.test(run);
-				// Include spaces/tabs already emitted just before the newline (e.g. "var \nels=").
-				while (out.length > 0 && (out[out.length - 1] === " " || out[out.length - 1] === "\t")) {
-					out = out.slice(0, -1);
-					hadSpace = true;
-				}
-				out += hadSpace ? " " : "";
-				i = j;
-				continue;
-			}
-			out += ch;
-			i += 1;
-			continue;
-		}
-		if (ch === '"') {
-			inString = true;
-			out += ch;
-			i += 1;
-			continue;
-		}
-		out += ch;
-		i += 1;
-	}
-	return out;
-}
-
-// Parse the `commands` script: a JSON array (or single object) of {method, params?, save?} CDP
-// calls plus optional {target:{urlIncludes|titleIncludes|targetId}} entries that switch the
-// working tab for subsequent commands (like `cd` in bash).
-function parseScript(raw: unknown): ScriptCommand[] {
-	if (typeof raw !== "string" || !raw) {
+// Validate the `commands` script: a native array of {method, params?, save?, pick?} CDP calls
+// plus optional {target:{urlIncludes|titleIncludes|targetId}} entries that switch the working
+// tab for subsequent commands (like `cd` in bash). Shape-checked here rather than in the
+// Typebox schema so the schema stays provider-safe and error messages stay precise.
+function parseScript(commands: unknown): ScriptCommand[] {
+	if (!Array.isArray(commands)) {
 		throw new Error(
-			"chrome requires commands: a JSON array (or single object) of {method, params?} — e.g. '[{\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}}]'",
+			"chrome requires commands: an array of {method, params?, save?, pick?} — e.g. [{method:'Page.navigate',params:{url:'https://example.com'}}]",
 		);
 	}
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(raw);
-	} catch {
-		// Model-generated commands often wrap long string values across lines, producing literal
-		// newlines inside JSON strings. Repair that specific breakage, then retry once.
-		try {
-			parsed = JSON.parse(repairJsonStringNewlines(raw));
-		} catch (jsonError) {
-			// Give the model a precise diagnostic so it can fix the script itself: V8's parse
-			// error with the position and a short context window from the repaired text.
-			const message = (jsonError as Error).message ?? "";
-			const posMatch = /position (\d+)/.exec(message);
-			let hint = "";
-			if (posMatch) {
-				const pos = Math.max(0, Number(posMatch[1]) - 1);
-				const repaired = repairJsonStringNewlines(raw);
-				const window = JSON.stringify(repaired.slice(Math.max(0, pos - 40), pos + 40));
-				hint = ` — JSON.parse: ${message} near ...${window}...`;
-			}
-			throw new Error(
-				"commands must be valid JSON — an array (or single object) of {method, params?} commands" + hint,
-			);
-		}
-	}
-
-	const list = Array.isArray(parsed) ? parsed : [parsed];
 	const script: ScriptCommand[] = [];
-	for (const item of list) {
+	for (const item of commands) {
 		if (!item || typeof item !== "object" || Array.isArray(item)) {
-			throw new Error("each command must be an object {method, params?} or {target:{...}}");
+			throw new Error("each command must be an object {method, params?, save?, pick?} or {target:{...}}");
 		}
 		const cmd = item as Record<string, unknown>;
 		if (cmd.target !== undefined) {
@@ -709,23 +628,23 @@ export default function (pi: ExtensionAPI): void {
 	// the bridge starts on demand. Description is intentionally concise — no skill, no CLI.
 	// renderCall/renderResult follow the built-in-tool-renderer.ts example: compact header,
 	// summary when collapsed, full output when expanded (ctrl+o / click).
+
 	pi.registerTool({
 		name: "chrome",
 		label: "Chrome",
 		description:
-			"Control the user's real Chrome via a CDP script. commands: JSON array or single object of " +
-			"{method, params?, save?}, run sequentially on one tab, stop at first CDP error. " +
+			"Control the user's real Chrome via CDP. commands: array of {method, params?, save?, pick?}, " +
+			"run sequentially on one tab, stop at first CDP error. " +
 			"{target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd). " +
 			"save:path writes binary (PDF/MHTML). pick:'dot.path' returns only that subtree " +
-			"(full result if path misses). Output: single-line JSON. Write commands as " +
-			"single-line JSON: never wrap a string value across lines. " +
+			"(full result if path misses). Output: single-line JSON. " +
 			"Examples: read a page (trimmed): " +
-			"'[{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.body.innerText.slice(0,3000)\",\"returnByValue\":true},\"pick\":\"result.value\"}]'; " +
-			"batch: '[{\"target\":{\"urlIncludes\":\"example.com\"}},{\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}},{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.title\",\"returnByValue\":true}}]'.",
+			"[{method:'Runtime.evaluate',params:{expression:'document.body.innerText.slice(0,3000)',returnByValue:true},pick:'result.value'}]; " +
+			"batch: [{target:{urlIncludes:'example.com'}},{method:'Page.navigate',params:{url:'https://example.com'}},{method:'Runtime.evaluate',params:{expression:'document.title'}}].",
 		promptSnippet:
 			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, emulate)",
 		parameters: Type.Object({
-			commands: Type.Optional(Type.String({ description: "CDP script: JSON array (or single object) of {method, params?, save?} run sequentially on one tab, stops on first CDP error; {target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd)" })),
+			commands: Type.Optional(Type.Array(Type.Record(Type.String(), Type.Unknown()), { description: "CDP script: array of {method, params?, save?, pick?} run sequentially on one tab, stops on first CDP error; {target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd)" })),
 			timeoutMs: Type.Optional(Type.Number({ description: "Command timeout in ms (default 600000)" })),
 		}),
 		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
@@ -813,16 +732,14 @@ export default function (pi: ExtensionAPI): void {
 			const header = theme.fg("toolTitle", theme.bold("chrome "));
 			if (!context.expanded) {
 				let text = header;
-				if (typeof args.commands === "string" && args.commands) {
-					const snippet = args.commands.length > 40 ? `${args.commands.slice(0, 37)}...` : args.commands;
+				if (Array.isArray(args.commands) && args.commands.length > 0) {
+					const json = JSON.stringify(args.commands);
+					const snippet = json.length > 40 ? `${json.slice(0, 37)}...` : json;
 					text += theme.fg("dim", ` ${snippet}`);
 				}
 				return new Text(text, 0, 0);
 			}
-			let scriptText = typeof args.commands === "string" && args.commands ? args.commands : "{}";
-			try {
-				scriptText = JSON.stringify(JSON.parse(scriptText), null, 2);
-			} catch {}
+			const scriptText = JSON.stringify(args.commands ?? [], null, 2);
 			const lines = scriptText.split("\n");
 			let text = `${header}\n`;
 			for (const line of lines.slice(0, 30)) text += `${theme.fg("dim", line)}\n`;

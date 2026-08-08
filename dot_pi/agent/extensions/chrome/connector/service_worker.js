@@ -18,7 +18,7 @@ let polling = false;
 // `sessionKey` (forwarded on the wire), so concurrent Pi sessions each get their own window.
 // State is mirrored to chrome.storage.session so an MV3 service-worker restart re-hydrates
 // ownership instead of orphaning the window it already created.
-const automationTargets = new Map(); // sessionKey -> { windowId?: number, tabId: number }
+const automationTargets = new Map(); // sessionKey -> tabId
 const DEFAULT_SESSION_KEY = "__default__";
 const AUTOMATION_STORAGE_KEY = "piChromeAutomationTargets";
 let automationHydrated = false;
@@ -38,10 +38,7 @@ async function hydrateAutomationTargets() {
     if (saved && typeof saved === "object") {
       for (const [key, value] of Object.entries(saved)) {
         if (value && typeof value.tabId === "number") {
-          automationTargets.set(key, {
-            windowId: typeof value.windowId === "number" ? value.windowId : undefined,
-            tabId: value.tabId,
-          });
+          automationTargets.set(key, value.tabId);
         }
       }
     }
@@ -53,8 +50,8 @@ async function hydrateAutomationTargets() {
 async function persistAutomationTargets() {
   try {
     const obj = {};
-    for (const [key, value] of automationTargets) {
-      obj[key] = { windowId: typeof value.windowId === "number" ? value.windowId : null, tabId: value.tabId };
+    for (const [key, tabId] of automationTargets) {
+      obj[key] = { tabId };
     }
     await chrome.storage?.session?.set?.({ [AUTOMATION_STORAGE_KEY]: obj });
   } catch {
@@ -63,11 +60,10 @@ async function persistAutomationTargets() {
 }
 
 // Create a fresh automation target for `sessionKey`: a dedicated background tab in an EXISTING
-// window — never a new Chrome window. windowId stays unset so cleanup closes only our tab,
-// never the user's window. No tab groups.
+// window — never a new Chrome window, so cleanup closes only our tab, never the user's window.
 async function createAutomationTarget(sessionKey) {
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
-  automationTargets.set(sessionKey, { windowId: undefined, tabId: typeof tab.id === "number" ? tab.id : undefined });
+  automationTargets.set(sessionKey, typeof tab.id === "number" ? tab.id : undefined);
   await persistAutomationTargets();
   return tab;
 }
@@ -76,9 +72,9 @@ async function createAutomationTarget(sessionKey) {
 // (or Chrome) having closed it: a stale entry is forgotten so callers can recreate cleanly.
 async function resolveOwnedAutomationTarget(sessionKey) {
   await hydrateAutomationTargets();
-  const t = automationTargets.get(sessionKey);
-  if (!t || typeof t.tabId !== "number") return null;
-  const existing = await chrome.tabs.get(t.tabId).catch(() => null);
+  const tabId = automationTargets.get(sessionKey);
+  if (typeof tabId !== "number") return null;
+  const existing = await chrome.tabs.get(tabId).catch(() => null);
   if (existing && typeof existing.id === "number") return existing;
   automationTargets.delete(sessionKey);
   await persistAutomationTargets();
@@ -89,30 +85,20 @@ async function getOrCreateAutomationTarget(sessionKey) {
   return (await resolveOwnedAutomationTarget(sessionKey)) || createAutomationTarget(sessionKey);
 }
 
-// Close only the session's pi-chrome-owned window/tab, and only if it still exists. Never touches
-// user tabs/windows or other sessions' targets. Safe to call repeatedly and when nothing exists.
+// Close only the session's pi-chrome-owned tab, and only if it still exists. Never touches user
+// tabs/windows or other sessions' targets. Safe to call repeatedly and when nothing exists.
 async function cleanupAutomationTarget(sessionKey) {
   await hydrateAutomationTargets();
-  const t = automationTargets.get(sessionKey);
+  const tabId = automationTargets.get(sessionKey);
   automationTargets.delete(sessionKey);
   await persistAutomationTargets();
-  if (!t) return { closedWindowId: null, closedTabId: null };
-  const { windowId, tabId } = t;
-  if (typeof windowId === "number" && chrome.windows && typeof chrome.windows.remove === "function") {
-    const win = await chrome.windows.get(windowId).catch(() => null);
-    if (win) {
-      await chrome.windows.remove(windowId).catch(() => {});
-      return { closedWindowId: windowId, closedTabId: typeof tabId === "number" ? tabId : null };
-    }
+  if (typeof tabId !== "number") return { closedTabId: null };
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (tab) {
+    await chrome.tabs.remove(tabId).catch(() => {});
+    return { closedTabId: tabId };
   }
-  if (typeof tabId === "number") {
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    if (tab) {
-      await chrome.tabs.remove(tabId).catch(() => {});
-      return { closedWindowId: null, closedTabId: tabId };
-    }
-  }
-  return { closedWindowId: null, closedTabId: null };
+  return { closedTabId: null };
 }
 
 function withTimeout(promise, ms, label, onTimeout) {
@@ -414,7 +400,7 @@ async function getTabByParams(params) {
         .join("\n");
       throw new Error(
         `No Chrome tab with id ${id} (it was likely closed or replaced). ` +
-        `Re-target with cdp --target-id, or pass --url-includes/--title-includes instead.\n` +
+        `Re-target with targetId, or pass urlIncludes/titleIncludes instead.\n` +
         `Current tabs:\n${listed || "  (none)"}`,
       );
     }
@@ -438,7 +424,7 @@ async function getTabByParams(params) {
     // Our own automation target stuck on a protected URL (e.g. chrome://newtab) cannot be
     // debugger-attached at all. Repair it by pointing it at about:blank via the tabs API.
     // User tabs on protected URLs are never touched — they keep failing fast.
-    const isOurs = tab.id === automationTargets.get(sessionKeyOf(params))?.tabId;
+    const isOurs = tab.id === automationTargets.get(sessionKeyOf(params));
     if (isOurs) {
       await chrome.tabs.update(tab.id, { url: "about:blank" });
       await sleep(150);
@@ -454,7 +440,14 @@ async function getTabByParams(params) {
 // single-method and batch (params.commands) paths.
 async function runCdpMethod(params, method, cdpParams) {
   if (method === "Target.createTarget") {
-    const url = typeof cdpParams.url === "string" && cdpParams.url ? cdpParams.url : "about:blank";
+    const url = typeof cdpParams.url === "string" && cdpParams.url ? cdpParams.url : "";
+    // Blank-tab requests (no url / about:blank) reuse this session's dedicated automation tab
+    // instead of cluttering the user's browser with new empty tabs. Non-blank urls still open
+    // a real tab.
+    if (!url || url === "about:blank") {
+      const tab = await getOrCreateAutomationTarget(sessionKeyOf(params));
+      return { result: { targetId: String(tab.id) } };
+    }
     const tab = await chrome.tabs.create({ url, active: cdpParams.background !== true });
     return { result: { targetId: String(tab.id) } };
   }
@@ -509,70 +502,39 @@ async function runCdpMethod(params, method, cdpParams) {
 // =================== Commands ===================
 async function dispatch(action, params) {
   switch (action) {
-    case "tab.version":
-      return {
-        extensionId: chrome.runtime.id,
-        extensionVersion: chrome.runtime.getManifest().version,
-        bridgeUrl: BRIDGE_URL,
-        userAgent: navigator.userAgent,
-      };
     case "page.cdp": {
-      // Script mode: params.commands = array of {method, params?, save?} and/or
+      // Script mode: params.commands = array of {method, params?, save?, pick?} and/or
       // {target:{urlIncludes|titleIncludes|targetId}} entries. {target} switches the working tab
       // for subsequent commands (like `cd` in bash); default is the session automation tab.
       // Runs sequentially, stops at the first CDP error (bash `&&` semantics).
       const script = Array.isArray(params.commands) && params.commands.length > 0 ? params.commands : null;
-      if (script) {
-        const results = [];
-        let targetParams = {};
-        for (const cmd of script) {
-          if (cmd && typeof cmd === "object" && !Array.isArray(cmd) && cmd.target && typeof cmd.target === "object" && !Array.isArray(cmd.target)) {
-            targetParams = { ...targetParams, ...cmd.target };
-            results.push({ target: cmd.target });
-            continue;
-          }
-          const method = String(cmd?.method ?? "");
-          if (!/^[A-Za-z]+\.[A-Za-z]+$/.test(method)) {
-            results.push({ method, error: "invalid method" });
-            break;
-          }
-          const cdpParams = cmd.params && typeof cmd.params === "object" && !Array.isArray(cmd.params) ? cmd.params : {};
-          try {
-            const out = await runCdpMethod(targetParams, method, cdpParams);
-            results.push({ method, result: out.result });
-          } catch (error) {
-            results.push({ method, error: error?.message ?? String(error) });
-            break;
-          }
+      if (!script) throw new Error("cdp requires commands: an array of {method, params?, save?, pick?} entries");
+      const results = [];
+      let targetParams = {};
+      for (const cmd of script) {
+        if (cmd && typeof cmd === "object" && !Array.isArray(cmd) && cmd.target && typeof cmd.target === "object" && !Array.isArray(cmd.target)) {
+          targetParams = { ...targetParams, ...cmd.target };
+          results.push({ target: cmd.target });
+          continue;
         }
-        return { method: "cdp.batch", results };
+        const method = String(cmd?.method ?? "");
+        if (!/^[A-Za-z]+\.[A-Za-z]+$/.test(method)) {
+          results.push({ method, error: "invalid method" });
+          break;
+        }
+        const cdpParams = cmd.params && typeof cmd.params === "object" && !Array.isArray(cmd.params) ? cmd.params : {};
+        try {
+          const out = await runCdpMethod(targetParams, method, cdpParams);
+          results.push({ method, result: out.result });
+        } catch (error) {
+          results.push({ method, error: error?.message ?? String(error) });
+          break;
+        }
       }
-      // Legacy single-method path (direct bridge use): top-level method/cdpParams/target fields.
-      const method = String(params.method ?? "");
-      if (!/^[A-Za-z]+\.[A-Za-z]+$/.test(method)) throw new Error("cdp requires --method <Domain.method> (e.g. Emulation.setDeviceMetricsOverride)");
-      const cdpParams = params.cdpParams && typeof params.cdpParams === "object" && !Array.isArray(params.cdpParams) ? params.cdpParams : {};
-      const out = await runCdpMethod(params, method, cdpParams);
-      return { method, result: out.result };
-    }
-    case "tab.close": {
-      // Explicit opt-in added on user request: close a specific tab (by targetId/urlIncludes/
-      // titleIncludes) via the chrome.tabs API. Only ever closes the one resolved tab.
-      const tab = await getTabByParams(params);
-      await chrome.tabs.remove(tab.id);
-      return { closedTabId: tab.id, url: tab.url, title: tab.title };
-    }
-    case "extension.reload":
-      // Restart the companion extension service worker. Equivalent to the reload button at
-      // chrome://extensions; used to pick up connector changes without restarting Chrome.
-      setTimeout(() => chrome.runtime.reload(), 50);
-      return { reloading: true, extensionId: chrome.runtime.id };
-    case "automation.status": {
-      await hydrateAutomationTargets();
-      const t = automationTargets.get(sessionKeyOf(params));
-      return { windowId: t?.windowId ?? null, tabId: t?.tabId ?? null };
+      return { method: "cdp.batch", results };
     }
     case "automation.cleanup":
-      // Close only THIS session's pi-chrome-owned window/tab. Never touches user tabs/windows or
+      // Close only THIS session's pi-chrome-owned tab. Never touches user tabs/windows or
       // another Pi session's target.
       return cleanupAutomationTarget(sessionKeyOf(params));
     default:
