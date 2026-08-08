@@ -19,12 +19,16 @@
  *     waits, and verifies it was not overwritten; the active leader
  *     re-checks every few seconds and steps down when another device takes
  *     over.
- *   - same device, many sessions: one session per device polls (leader),
- *     the rest are standby children (local leader.json with pid in tmp/).
- *     When the leader disconnects or dies, a child takes over automatically
- *     (unless another device holds the bio marker).
+ *   - same device, many sessions: one session per device polls (leader);
+ *     every session gets its own thread. The leader routes messages in the
+ *     other sessions' threads to their inboxes; a child drains its inbox
+ *     and answers in its own thread. Local leader.json + pid in tmp/
+ *     arbitrates; when the leader disconnects or dies, a child takes over
+ *     automatically (unless another device holds the bio marker).
  *   - the device that wrote last wins; the previous leader fully disconnects
  *     (deletes its session thread, stays off until /telegram is run again).
+ *   - the marker also records the leader's thread id, so the next leader
+ *     deletes the stale thread on connect (crash orphans auto-cleaned).
  *   - no cross-device file sync: token, pairing, offset and the device id
  *     are all local to each device; set up each device with /telegram.
  *
@@ -59,7 +63,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -90,6 +94,10 @@ const INSTANCE_ID = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`; 
 const LEADER_FILE = join(TMP_DIR, "leader.json"); // local leader record (same-device only)
 const LOCAL_CLAIM_CONFIRM_MS = 1500; // local leader-slot claim confirm (no CAS)
 const CHILD_POLL_INTERVAL_MS = 2000; // how often children check for takeover
+// Per-session threads + routing (only the leader polls; children process
+// messages routed to their own thread via an inbox file).
+const THREADS_DIR = join(TMP_DIR, "threads"); // one <threadId>.json per session
+const INBOX_DIR = join(TMP_DIR, "inbox"); // routed updates per session
 // Thinking streaming limits (same as upstream llblab/pi-telegram):
 // rolling window of the latest chars + "… [N earlier chars omitted]" header.
 const REASONING_BUFFER_MAX_CHARS = 1200;
@@ -374,13 +382,10 @@ export default function (pi: ExtensionAPI) {
 
 	function updateStatus(): void {
 		if (!sessionCtx) return;
-		if (role === "child") {
-			sessionCtx.ui.setStatus("telegram", "standby");
-			return;
-		}
-		// Show only when a session thread exists (lowercase label). While
-		// loading, unpaired, or on error there is nothing meaningful to show,
-		// so the status entry stays hidden instead of a placeholder label.
+		// Show the session thread name (lowercase label) for both leader and
+		// child — every session has its own thread. While loading, unpaired,
+		// or on error there is nothing meaningful to show, so the status
+		// entry stays hidden instead of a placeholder label.
 		if (!state.threadName) {
 			sessionCtx.ui.setStatus("telegram", undefined);
 			return;
@@ -423,6 +428,7 @@ export default function (pi: ExtensionAPI) {
 			const topic = await getClient().createForumTopic(t.chatId, name);
 			state.threadId = topic.message_thread_id;
 			state.threadName = name;
+			await registerThread(state.threadId, name);
 			return topic.message_thread_id;
 		} catch {
 			// Threaded Mode off or API failure → fall back to the existing
@@ -537,6 +543,17 @@ export default function (pi: ExtensionAPI) {
 	async function handleUpdate(u: TgUpdate): Promise<void> {
 		const m = u.message;
 		if (!m || m.chat.type !== "private") return;
+
+		// Routing: a message in another live session's thread is forwarded to
+		// that session's inbox; each session answers in its own thread. Only
+		// the leader polls, so it does the routing.
+		if (m.message_thread_id && m.message_thread_id !== state.threadId) {
+			const owner = await lookupThreadOwner(m.message_thread_id);
+			if (owner && owner !== INSTANCE_ID) {
+				await routeToInstance(owner, u);
+				return;
+			}
+		}
 
 		// Reply-to only makes sense when the message arrived in the session
 		// thread; cross-thread replies would be rejected by the API.
@@ -1021,6 +1038,7 @@ export default function (pi: ExtensionAPI) {
 		client = undefined;
 		role = undefined;
 		stopChild();
+		inboxProcessed = 0;
 		updateStatus(); // no thread yet → status hidden
 		// No auto-connect: run /telegram to connect.
 	});
@@ -1066,21 +1084,40 @@ export default function (pi: ExtensionAPI) {
 		return `${LEADER_PREFIX}${deviceId}`;
 	}
 
+	/** Full marker value: device id, plus the session thread id once it exists
+	 *  (the next leader reads it and deletes the stale thread). */
+	function leaderMarker(threadId?: number): string {
+		return threadId === undefined ? leaderValue() : `${leaderValue()}:${threadId}`;
+	}
+
+	/** Does this marker belong to this device (thread id ignored)? */
+	function isOurMarker(marker: string): boolean {
+		return marker.startsWith(leaderValue());
+	}
+
+	/** Extract the thread id recorded in a leader marker, if any. */
+	function markerThreadId(marker: string): number | undefined {
+		const rest = marker.startsWith(LEADER_PREFIX) ? marker.slice(LEADER_PREFIX.length) : "";
+		const [, thread] = rest.split(":");
+		if (thread === undefined || !/^\d+$/.test(thread)) return undefined;
+		return Number(thread);
+	}
+
 	/** Write our marker, wait, and confirm nobody overwrote it (the Bot API
 	 *  has no compare-and-swap — this is the closest thing to an atomic
 	 *  acquire: the last writer wins). Fast path when the marker is already
 	 *  ours (same-device takeover). */
 	async function acquireLeadership(): Promise<boolean> {
 		const current = await getClient().getMyShortDescription().catch(() => undefined);
-		if (current === leaderValue()) return true;
+		if (current !== undefined && isOurMarker(current)) return true;
 		try {
-			await getClient().setMyShortDescription(leaderValue());
+			await getClient().setMyShortDescription(leaderMarker());
 		} catch {
 			return false;
 		}
 		await sleep(LEADER_CONFIRM_MS);
-		const after = await getClient().getMyShortDescription().catch(() => leaderValue());
-		return after === leaderValue();
+		const after = await getClient().getMyShortDescription().catch(() => leaderMarker());
+		return after === leaderMarker();
 	}
 
 	/** Clear our marker — clean disconnect/quit only, never on being kicked
@@ -1093,7 +1130,7 @@ export default function (pi: ExtensionAPI) {
 	 *  down fully (delete session thread, stay off until /telegram again). */
 	async function checkLeadership(): Promise<void> {
 		const current = await getClient().getMyShortDescription().catch(() => undefined);
-		if (current === undefined || current === leaderValue()) return;
+		if (current === undefined || isOurMarker(current)) return;
 		stopPolling();
 		void handleKicked();
 	}
@@ -1138,6 +1175,59 @@ export default function (pi: ExtensionAPI) {
 		await rm(LEADER_FILE, { force: true }).catch(() => {});
 	}
 
+	// -----------------------------------------------------------------------
+	// Thread routing: every session has its own thread. The leader forwards
+	// updates for another live session's thread to that session's inbox; the
+	// child drains its inbox and answers in its own thread.
+	// -----------------------------------------------------------------------
+
+	async function registerThread(threadId: number, threadName: string): Promise<void> {
+		await mkdir(THREADS_DIR, { recursive: true });
+		const file = join(THREADS_DIR, `${threadId}.json`);
+		const tmp = `${file}.tmp`;
+		await writeFile(tmp, JSON.stringify({ instanceId: INSTANCE_ID, pid: process.pid, threadName }), { mode: 0o600 });
+		await rename(tmp, file);
+	}
+
+	async function unregisterThread(threadId: number): Promise<void> {
+		await rm(join(THREADS_DIR, `${threadId}.json`), { force: true }).catch(() => {});
+	}
+
+	/** Live instance owning a thread, or undefined when unbound/stale. */
+	async function lookupThreadOwner(threadId: number): Promise<string | undefined> {
+		try {
+			const reg = JSON.parse(await readFile(join(THREADS_DIR, `${threadId}.json`), "utf8")) as { instanceId: string; pid: number };
+			if (pidAlive(reg.pid)) return reg.instanceId;
+			await unregisterThread(threadId); // stale registration → clean up
+			return undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	/** Forward a raw update to another session's inbox. */
+	async function routeToInstance(instanceId: string, update: TgUpdate): Promise<void> {
+		await mkdir(INBOX_DIR, { recursive: true });
+		await appendFile(join(INBOX_DIR, `${instanceId}.jsonl`), JSON.stringify(update) + "\n");
+	}
+
+	/** Drain our routed inbox (messages sent in OUR thread while we're a
+	 *  standby child — only the leader polls). */
+	let inboxProcessed = 0;
+	async function drainInbox(): Promise<void> {
+		const inboxFile = join(INBOX_DIR, `${INSTANCE_ID}.jsonl`);
+		const content = await readFile(inboxFile, "utf8").catch(() => "");
+		const lines = content.split("\n").filter((l) => l.trim().length > 0);
+		while (inboxProcessed < lines.length) {
+			try {
+				await handleUpdate(JSON.parse(lines[inboxProcessed]) as TgUpdate);
+			} catch {
+				// Malformed line — skip.
+			}
+			inboxProcessed++;
+		}
+	}
+
 	/** Is another LIVE session on this device the local leader? */
 	async function localLeaderAlive(): Promise<boolean> {
 		const rec = await readLeader();
@@ -1154,17 +1244,31 @@ export default function (pi: ExtensionAPI) {
 		return rec?.instanceId === INSTANCE_ID;
 	}
 
-	/** Become the active leader: create this session's thread (when paired),
-	 *  start polling, notify the owner. */
-	async function promoteToLeader(): Promise<void> {
+	/** Become the active leader: keep or create this session's thread, record
+	 *  it in the bio marker, delete the previous leader's stale thread (crash
+	 *  orphan / device switch), then start polling. */
+	async function promoteToLeader(oldThreadId?: number): Promise<void> {
 		role = "leader";
 		stopChild();
 		offset = await loadOffset();
-		if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
-			await createSessionThread();
+		// Keep the thread we already have (child promotion); only create one
+		// when connecting fresh.
+		let ownThreadId = state.threadId;
+		if (ownThreadId === undefined && cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+			ownThreadId = await createSessionThread();
+		}
+		if (ownThreadId !== undefined) {
+			await getClient().setMyShortDescription(leaderMarker(ownThreadId)).catch(() => {});
 		}
 		updateStatus();
 		startPolling();
+		// Clean the previous leader's stale thread, if any.
+		if (oldThreadId !== undefined && oldThreadId !== ownThreadId) {
+			const t = target();
+			if (t?.chatId) {
+				await getClient().deleteForumTopic(t.chatId, oldThreadId).catch(() => {});
+			}
+		}
 		if (state.threadId !== undefined) {
 			sendPlain("This session took over as the active device.").catch(() => {});
 		}
@@ -1182,10 +1286,12 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	/** Child tick: when the local leader dies or disconnects, race to take
-	 *  over. Never fights another device's live leader (bio gate). */
+	/** Child tick: drain our routed inbox, then check for takeover when the
+	 *  local leader dies or disconnects. Never fights another device's live
+	 *  leader (bio gate). */
 	async function childTick(): Promise<void> {
 		if (role !== "child") return;
+		await drainInbox();
 		if (await localLeaderAlive()) return; // leader still alive
 		if (!(await claimLocalLeader())) return; // another session claimed first
 		const marker = await getClient().getMyShortDescription().catch(() => undefined);
@@ -1193,12 +1299,13 @@ export default function (pi: ExtensionAPI) {
 			await removeLeader(); // transient read failure → back off
 			return;
 		}
-		if (marker === leaderValue()) {
-			await promoteToLeader(); // marker is already ours (leader crashed)
+		const oldThreadId = markerThreadId(marker);
+		if (isOurMarker(marker)) {
+			await promoteToLeader(oldThreadId); // marker is already ours (leader crashed)
 			return;
 		}
 		if (marker === "" && (await acquireLeadership())) {
-			await promoteToLeader(); // leader released cleanly
+			await promoteToLeader(oldThreadId); // leader released cleanly
 			return;
 		}
 		await removeLeader(); // another device is the active leader → stay off
@@ -1221,33 +1328,55 @@ export default function (pi: ExtensionAPI) {
 		deviceId = await loadDeviceId();
 		if (await localLeaderAlive()) {
 			role = "child";
+			inboxProcessed = 0;
+			// Every session gets its own thread; messages there are routed to
+			// our inbox and answered here.
+			if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+				await createSessionThread();
+			}
 			updateStatus();
 			startChild();
 			return "child";
 		}
 		if (!(await claimLocalLeader())) {
 			role = "child";
+			inboxProcessed = 0;
+			if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+				await createSessionThread();
+			}
 			updateStatus();
 			startChild();
 			return "child";
 		}
+		// Capture the previous leader's marker before overwriting it, so the
+		// stale thread it recorded can be deleted after we take over.
+		const oldMarker = await getClient().getMyShortDescription().catch(() => "");
 		if (!(await acquireLeadership())) {
 			await removeLeader(); // another device is the active leader
 			role = undefined;
 			updateStatus();
 			return "off";
 		}
-		await promoteToLeader();
+		await promoteToLeader(markerThreadId(oldMarker));
 		return "leader";
 	}
 
 	/** Disconnect: stop polling, release the local leader slot and the bio
-	 *  marker, delete this session's thread (best-effort). Children just stop
-	 *  waiting. */
+	 *  marker, delete this session's thread (best-effort). Children delete
+	 *  their own thread too and stop draining. */
 	async function disconnectBridge(): Promise<void> {
 		if (role === "child") {
 			stopChild();
+			const t = target();
+			if (t?.threadId) {
+				await Promise.race([
+					getClient().deleteForumTopic(t.chatId, t.threadId),
+					sleep(2500),
+				]).catch(() => {});
+				await unregisterThread(t.threadId).catch(() => {});
+			}
 			role = undefined;
+			state = {};
 			updateStatus();
 			return;
 		}
@@ -1260,6 +1389,7 @@ export default function (pi: ExtensionAPI) {
 				getClient().deleteForumTopic(t.chatId, t.threadId),
 				sleep(2500),
 			]).catch(() => {});
+			await unregisterThread(t.threadId).catch(() => {});
 		}
 		role = undefined;
 		state = {};
@@ -1281,6 +1411,7 @@ export default function (pi: ExtensionAPI) {
 				getClient().deleteForumTopic(t.chatId, t.threadId),
 				sleep(2500),
 			]).catch(() => {});
+			await unregisterThread(t.threadId).catch(() => {});
 		}
 		lastUserMsgId = undefined;
 		role = undefined;
