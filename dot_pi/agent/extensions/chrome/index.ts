@@ -63,6 +63,11 @@ const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
 const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TEXT_CHARS = 15_000;
+// Extension long-poll wait: lower = fresher lastSeenAt and snappier SSE status events.
+const POLL_WAIT_MS = 5_000;
+// How stale lastSeenAt must be before the statusbar flips to disconnected (healthy polls
+// arrive every ~5s, so 15s is a safe no-flap window).
+const STATUS_STALE_MS = 15_000;
 
 type ScriptCommand = { method: string; params?: Record<string, unknown>; save?: string; pick?: string } | { target: Record<string, unknown> };
 
@@ -219,6 +224,9 @@ class ChromeProfileBridge {
 	private lastSeenAt: number | undefined;
 	private clientName: string | undefined;
 	private mode: "server" | "client" | undefined;
+	private sseClients = new Set<ServerResponse>();
+	private sseState: "connected" | "disconnected" | undefined;
+	private stalenessTimer: NodeJS.Timeout | undefined;
 
 	constructor(
 		private readonly host: string,
@@ -265,6 +273,34 @@ class ChromeProfileBridge {
 		}
 	}
 
+	// ---- Real-time status (SSE) ----
+	// Status events are pushed to local pi processes via GET /events, so the statusbar updates
+	// the moment the extension polls (connected) or stops polling (disconnected) — no polling.
+	private onExtensionSeen(): void {
+		if (this.sseState !== "connected") {
+			this.sseState = "connected";
+			this.emitStatus();
+		}
+	}
+	private checkStaleness(): void {
+		const state =
+			this.lastSeenAt !== undefined && Date.now() - this.lastSeenAt <= STATUS_STALE_MS ? "connected" : "disconnected";
+		if (this.sseState !== state) {
+			this.sseState = state;
+			this.emitStatus();
+		}
+	}
+	private emitStatus(): void {
+		const frame = `data: ${JSON.stringify({ connected: this.sseState === "connected", lastSeenAt: this.lastSeenAt ?? null })}\n\n`;
+		for (const client of this.sseClients) {
+			try {
+				client.write(frame);
+			} catch {
+				this.sseClients.delete(client);
+			}
+		}
+	}
+
 	status(): Record<string, unknown> {
 		return {
 			url: this.url,
@@ -280,6 +316,10 @@ class ChromeProfileBridge {
 	async start(): Promise<void> {
 		if (this.server || this.mode === "client") return;
 		await this.bindServerOrClient();
+		if (this.mode === "server") {
+			this.stalenessTimer = setInterval(() => this.checkStaleness(), 2_000);
+			this.stalenessTimer.unref?.();
+		}
 	}
 
 	// Try to own the bridge port. On success we are the server; on EADDRINUSE another Pi
@@ -335,6 +375,7 @@ class ChromeProfileBridge {
 			this.mode = undefined;
 			return;
 		}
+		clearInterval(this.stalenessTimer);
 		for (const pending of this.pending.values()) {
 			clearTimeout(pending.timer);
 			pending.reject(new Error("Chrome profile bridge stopped"));
@@ -511,6 +552,7 @@ class ChromeProfileBridge {
 				return;
 			}
 			this.lastSeenAt = Date.now();
+			this.onExtensionSeen();
 			this.clientName = url.searchParams.get("name") ?? undefined;
 			let aborted = false;
 			let activeWaiter: ((command: BridgeCommand | undefined) => void) | undefined;
@@ -520,7 +562,7 @@ class ChromeProfileBridge {
 			});
 			let command = this.queue.shift();
 			if (!command) {
-				command = await this.waitForCommand(25_000, (waiter) => {
+				command = await this.waitForCommand(POLL_WAIT_MS, (waiter) => {
 					activeWaiter = waiter;
 				});
 			}
@@ -554,6 +596,7 @@ class ChromeProfileBridge {
 				return;
 			}
 			this.lastSeenAt = Date.now();
+			this.onExtensionSeen();
 			const result = JSON.parse(await readRequestBody(request)) as BridgeResult;
 			const pending = this.pending.get(result.id);
 			if (!pending) {
@@ -565,6 +608,26 @@ class ChromeProfileBridge {
 			if (result.ok) pending.resolve(result.result);
 			else pending.reject(new Error(result.error ?? "Chrome extension command failed"));
 			sendJson(response, 200, { ok: true }, corsHeaders);
+			return;
+		}
+		if (request.method === "GET" && url.pathname === "/events") {
+			if (!isLocalProcessRequest(request)) {
+				sendJson(response, 403, { ok: false, error: "not allowed" });
+				return;
+			}
+			if (this.mode !== "server") {
+				sendJson(response, 409, { ok: false, error: "not the bridge owner" });
+				return;
+			}
+			response.writeHead(200, {
+				"content-type": "text/event-stream",
+				"cache-control": "no-store",
+				"connection": "keep-alive",
+			});
+			this.checkStaleness();
+			response.write(`data: ${JSON.stringify({ connected: this.sseState === "connected", lastSeenAt: this.lastSeenAt ?? null })}\n\n`);
+			this.sseClients.add(response);
+			request.on("close", () => this.sseClients.delete(response));
 			return;
 		}
 		sendJson(response, 404, { error: "not found" });
@@ -609,7 +672,6 @@ export default function (pi: ExtensionAPI): void {
 	globalState[PI_CHROME_GLOBAL_KEY] = { version: PI_CHROME_VERSION, root: currentRoot, token: instanceToken };
 
 	const bridge = new ChromeProfileBridge(DEFAULT_HOST, DEFAULT_PORT);
-	let statusTicker: NodeJS.Timeout | undefined;
 	// Remembered so session-scoped sends can tag tabs with this session's group even when ctx isn't handy.
 	let sessionCtx: ExtensionContext | undefined;
 
@@ -792,20 +854,63 @@ export default function (pi: ExtensionAPI): void {
 			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("dim", "○ chrome"));
 		}
 	};
+	const setStatusConnected = (ctx: ExtensionContext, connected: boolean): void => {
+		ctx.ui.setStatus(
+			"chrome",
+			connected
+				? ctx.ui.theme.fg("success", "●") + ctx.ui.theme.fg("dim", " chrome")
+				: ctx.ui.theme.fg("dim", "○ chrome"),
+		);
+	};
+	// Real-time status: subscribe to the bridge's SSE stream so the indicator flips the moment
+	// the extension polls or stops polling — no polling. In client mode the same port is owned
+	// by the bridge-owner session, so /events hits its server and still works; on any drop the
+	// watcher resubscribes (and self-heals if we promote to server).
+	let statusWatchStopped = false;
+	const watchBridgeStatus = async (ctx: ExtensionContext): Promise<void> => {
+		while (!statusWatchStopped) {
+			try {
+				const res = await fetch(`${bridge.url}/events`, { cache: "no-store" });
+				if (!res.ok || !res.body) throw new Error(`SSE HTTP ${res.status}`);
+				const reader = res.body.getReader();
+				const decoder = new TextDecoder();
+				let buffer = "";
+				for (;;) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					buffer += decoder.decode(value, { stream: true });
+					let sep: number;
+					while ((sep = buffer.indexOf("\n\n")) >= 0) {
+						const frame = buffer.slice(0, sep);
+						buffer = buffer.slice(sep + 2);
+						for (const line of frame.split("\n")) {
+							if (line.startsWith("data: ")) {
+								try {
+									const payload = JSON.parse(line.slice(6)) as { connected?: boolean };
+									setStatusConnected(ctx, payload.connected === true);
+								} catch {}
+							}
+						}
+					}
+				}
+			} catch {
+				setStatusConnected(ctx, false);
+			}
+			await new Promise((r) => setTimeout(r, 3_000));
+		}
+	};
 
 	pi.on("session_start", async (_event, ctx) => {
 		sessionCtx = ctx;
 		await bridge.start();
 		await refreshChromeStatus(ctx);
-		// Refresh the status indicator every 10 s (the companion extension polls the bridge
-		// every second; connected = polled within the last 60 s).
-		clearInterval(statusTicker);
-		statusTicker = setInterval(() => void refreshChromeStatus(ctx), 10_000);
+		// Realtime status via SSE push — no polling.
+		void watchBridgeStatus(ctx);
 	});
 
 	// No skill registration: the `chrome` tool above is the only model-facing surface.
 	pi.on("session_shutdown", (event) => {
-		clearInterval(statusTicker);
+		statusWatchStopped = true;
 		// Tidy up this session's dedicated automation window on real session end, but NOT on
 		// "reload": /reload tears down and re-evaluates this module while the *same* session
 		// (same sessionKey) continues, so we keep the window so it is reused, not churned. The
