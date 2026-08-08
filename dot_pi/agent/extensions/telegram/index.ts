@@ -1402,8 +1402,14 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 		stopPolling();
-		await removeLeader();
+		// Release the bio marker FIRST while leader.json still guards the local
+		// slot. The reverse order has a same-device handover race: a standby
+		// child can promote between removeLeader() and releaseLeadership(),
+		// writing its own marker — and this instance would then clear that
+		// marker (same device prefix), kicking the freshly promoted child on
+		// its next ownership check.
 		await releaseLeadership();
+		await removeLeader();
 		const t = target();
 		if (t?.threadId) {
 			await Promise.race([
@@ -1471,7 +1477,7 @@ export default function (pi: ExtensionAPI) {
 					await saveOffset(offset).catch(() => {});
 					client = undefined;
 					botUsername = `@${me.username ?? me.id}`;
-					ctx.ui.notify("Connecting ...", "info");
+					ctx.ui.notify("Connecting..", "info");
 					const outcome = await connectBridge(ctx);
 					ctx.ui.notify(
 						outcome === "leader"
