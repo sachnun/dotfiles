@@ -20,7 +20,9 @@ import { dirname, resolve } from "node:path";
  * The model gets ONE native tool (`chrome`): a raw Chrome DevTools Protocol passthrough
  * (action `page.cdp` in the companion extension). The tool schema is small and always active;
  * there is no skill and no CLI — the agent figures out the details from the CDP reference.
- * This file also runs the bridge + the ●/○ connection status indicator.
+ * This file also runs the bridge + the ●/○ connection status indicator. Every chrome_* call
+ * probes the extension first and fails fast with a red error when it is not connected,
+ * so the command timeout only applies once the connection is confirmed.
  */
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -559,7 +561,7 @@ export default function (pi: ExtensionAPI): void {
 			"DevTools feature: navigate, run JS, click/type, screenshot, viewport/media/network " +
 			"emulation, cookies, tabs, storage. method: any CDP method, e.g. Page.navigate, " +
 			"Runtime.evaluate, Input.dispatchMouseEvent, Page.captureScreenshot, " +
-			"Emulation.setDeviceMetricsOverride (or \"status\" to check the bridge). params: JSON " +
+			"Emulation.setDeviceMetricsOverride. params: JSON " +
 			"string of the method's arguments, e.g. '{\"url\":\"https://example.com\"}'. save: optional " +
 			"path to write binary results (screenshots/MHTML/PDF) to a file. targetId | urlIncludes | " +
 			"titleIncludes: optional, act on a specific existing tab — without them, commands run on " +
@@ -572,7 +574,7 @@ export default function (pi: ExtensionAPI): void {
 		promptSnippet:
 			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, screenshot, emulate)",
 		parameters: Type.Object({
-			method: Type.String({ description: "CDP method, e.g. Page.navigate, Runtime.evaluate, Input.dispatchMouseEvent, or \"status\"" }),
+			method: Type.String({ description: "CDP method, e.g. Page.navigate, Runtime.evaluate, Input.dispatchMouseEvent" }),
 			params: Type.Optional(Type.String({ description: "JSON object string of the method's arguments, e.g. '{\"width\":375}'" })),
 			save: Type.Optional(Type.String({ description: "Write binary result (screenshot/MHTML/PDF base64) to this path" })),
 			targetId: Type.Optional(Type.Number({ description: "Act on a specific existing Chrome tab id" })),
@@ -583,23 +585,17 @@ export default function (pi: ExtensionAPI): void {
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			await bridge.start();
 			const method = String(params.method ?? "");
-			if (method === "status") {
-				const connected = await bridge.probeConnected();
-				return {
-					content: [
-						{
-							type: "text",
-							text: connected
-								? "Chrome connected."
-								: "Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions, then retry.",
-						},
-					],
-					details: { method: "status", kind: "text" },
-				};
-			}
 			if (!method) {
 				throw new Error(
 					"chrome requires method (CDP method, e.g. Page.navigate). Full reference: https://chromedevtools.github.io/devtools-protocol/",
+				);
+			}
+			// Fast-fail on a dead connection instead of burning the full command timeout: if the
+			// extension isn't polling, error immediately; the timeout below only applies once
+			// the connection is confirmed.
+			if (!(await bridge.probeConnected())) {
+				throw new Error(
+					"Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions.",
 				);
 			}
 			let cdpParams: Record<string, unknown> = {};

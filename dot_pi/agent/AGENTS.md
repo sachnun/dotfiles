@@ -1,3 +1,9 @@
+Style:
+- Be short, direct, technical. No emojis or fluff.
+- When the user asks a question, answer it first before making edits or running implementation commands.
+- When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
+- Always write code, tools and documentation in English.
+
 Quality:
 - Read files in full before wide-ranging changes, before editing files you have not fully inspected, and when asked to investigate or audit. Do not rely on search snippets for broad changes.
 - Inline single-line helpers that have only one call site.
@@ -14,7 +20,7 @@ Commands:
 - Never run build/test unless asked.
 - If you create or modify a test file, run it and iterate on test or implementation until it passes.
 - For ad-hoc scripts, write them to a temp file (e.g. /tmp), run, edit if needed, remove when done. Don't embed multi-line scripts in bash commands.
-- IMPORTANT: Don't use `find` and old tools, use `rg` instead.
+- Use `rg` instead of `find` or other slow tools.
 
 Git:
 - Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
