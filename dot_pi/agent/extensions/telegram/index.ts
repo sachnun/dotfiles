@@ -1300,32 +1300,51 @@ export default function (pi: ExtensionAPI) {
 
 	/** Child tick: drain our routed inbox, then check for takeover when the
 	 *  local leader dies or disconnects. Never fights another device's live
-	 *  leader (bio gate). */
+	 *  leader (bio gate).
+	 *
+	 *  Re-entry guard: one takeover cycle (claim 1.5s + acquire confirm 5s)
+	 *  is longer than the 2s tick interval. Without the guard a second tick
+	 *  would overlap the first: it sees the marker our acquire wrote
+	 *  (`pi:leader:<device>`, no thread yet), promotes immediately, and then
+	 *  the first tick's acquire confirm fails — kicking the freshly promoted
+	 *  leader seconds later. */
+	let childBusy = false;
 	async function childTick(): Promise<void> {
-		if (role !== "child") return;
-		await drainInbox();
-		if (await localLeaderAlive()) return; // leader still alive
-		if (!(await claimLocalLeader())) return; // another session claimed first
-		const marker = await getClient().getMyShortDescription().catch(() => undefined);
-		if (marker === undefined) {
-			await removeLeader(); // transient read failure → back off
-			return;
+		if (role !== "child" || childBusy) return;
+		childBusy = true;
+		try {
+			await drainInbox();
+			if (await localLeaderAlive()) return; // leader still alive
+			if (!(await claimLocalLeader())) return; // another session claimed first
+			const marker = await getClient().getMyShortDescription().catch(() => undefined);
+			if (marker === undefined) {
+				await removeLeader(); // transient read failure → back off
+				return;
+			}
+			const oldThreadId = markerThreadId(marker);
+			if (isOurMarker(marker)) {
+				await promoteToLeader(oldThreadId); // marker is already ours (leader crashed)
+				return;
+			}
+			if (marker === "" && (await acquireLeadership())) {
+				await promoteToLeader(oldThreadId); // leader released cleanly
+				return;
+			}
+			// Acquire lost or the marker is foreign. Re-check who holds it now:
+			// a same-device session that won the race → stay a standby child;
+			// another device → this device was kicked (strict single-device:
+			// the device that wrote last wins). Delete the thread and stay off
+			// until /telegram is run again — no follower mode.
+			const after = await getClient().getMyShortDescription().catch(() => undefined);
+			if (after !== undefined && isOurMarker(after)) {
+				await removeLeader();
+				return;
+			}
+			await removeLeader();
+			void handleKicked();
+		} finally {
+			childBusy = false;
 		}
-		const oldThreadId = markerThreadId(marker);
-		if (isOurMarker(marker)) {
-			await promoteToLeader(oldThreadId); // marker is already ours (leader crashed)
-			return;
-		}
-		if (marker === "" && (await acquireLeadership())) {
-			await promoteToLeader(oldThreadId); // leader released cleanly
-			return;
-		}
-		// Another device is the active leader → this device was kicked (strict
-		// single-device: the device that wrote last wins). The child must fully
-		// disconnect too — delete its thread and stay off until /telegram is
-		// run again — not linger as a standby that keeps answering.
-		await removeLeader();
-		void handleKicked();
 	}
 
 	// -----------------------------------------------------------------------
