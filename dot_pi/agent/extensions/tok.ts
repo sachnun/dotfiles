@@ -2,8 +2,9 @@
  * pi-token-speed — live token throughput indicator.
  *
  * Counts token deltas from the assistant stream (text, thinking, toolcall)
- * and renders a smoothed "XXtok/s" rate in the status bar every 50ms.
- * Auto-hides when the agent is idle. Dim styling, no color.
+ * and shows a smoothed "XX tok/s" rate in place of the "Working ..." loader
+ * message while the agent is streaming. Restores the default message
+ * when the agent is idle.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -14,7 +15,7 @@ const WINDOW_MS = 1000; // sliding window used to smooth the rate
 export default function (pi: ExtensionAPI) {
 	let timer: ReturnType<typeof setInterval> | undefined;
 	let pendingTokens = 0; // tokens streamed since the last tick
-	let lastText: string | undefined; // last rendered status, to skip redundant renders
+	let lastText: string | undefined; // last rendered message, to skip redundant renders
 	const samples: Array<{ t: number; tokens: number }> = [];
 
 	// Real-time token counting straight from the stream deltas.
@@ -27,17 +28,16 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		clearInterval(timer);
-		const theme = ctx.ui.theme;
 		samples.length = 0;
 		pendingTokens = 0;
 
 		timer = setInterval(() => {
-			// Hide the indicator when the agent is idle.
+			// Restore the default message when the agent is idle.
 			if (ctx.isIdle()) {
 				samples.length = 0;
 				pendingTokens = 0;
 				if (lastText !== undefined) {
-					ctx.ui.setStatus("tok", undefined);
+					ctx.ui.setWorkingMessage();
 					lastText = undefined;
 				}
 				return;
@@ -54,9 +54,9 @@ export default function (pi: ExtensionAPI) {
 			const rate = span > 0 ? (total / span) * 1000 : 0;
 
 			// Render only when the value actually changed; keeps the window building.
-			const text = rate > 0 ? theme.fg("dim", `${Math.round(rate)}tok/s`) : undefined;
+			const text = rate > 0 ? `${Math.round(rate)} tok/s` : undefined;
 			if (text !== lastText) {
-				ctx.ui.setStatus("tok", text);
+				ctx.ui.setWorkingMessage(text);
 				lastText = text;
 			}
 		}, INTERVAL_MS);
