@@ -242,32 +242,36 @@ class ChromeProfileBridge {
 		// alive, and a 30 s keepalive alarm wakes a suspended worker. So a live extension always
 		// polls within ~30 s; treat a poll older than 60 s as disconnected (e.g. extension
 		// disabled, Chrome closed). Real chrome_* tool calls are the end-to-end health check.
-		return this.lastSeenAt !== undefined && Date.now() - this.lastSeenAt < 60_000;
+		return this.isFresh(60_000);
+	}
+
+	private isFresh(staleMs: number): boolean {
+		return this.lastSeenAt !== undefined && Date.now() - this.lastSeenAt < staleMs;
 	}
 
 	// True when the Chrome companion extension is actively polling the bridge. In server mode
 	// that is our own lastSeenAt. In client mode (another Pi session owns the port, so the
-	// extension never talks to us) we ask the owner for its lastSeenAt and apply our own
+	// extension never talks to us) we ask the owner for its lastSeenAt and apply the same
 	// staleness window — independent of the owner's code version.
-	async probeConnected(): Promise<boolean> {
-		if (this.mode !== "client") return this.connected;
-		if (await this.probeOwner()) return true;
+	async probeConnected(staleMs = 60_000): Promise<boolean> {
+		if (this.mode !== "client") return this.isFresh(staleMs);
+		if (await this.probeOwner(staleMs)) return true;
 		// Owner unreachable (its Pi session closed, or it just lost the port). Self-heal here
 		// instead of waiting for a chrome_* command: grab the now-free port and become the
 		// server so the extension reconnects to us and the ● indicator recovers on its own.
 		// Only one client wins the bind; losers stay clients and probe whoever won.
 		const promoted = await this.tryPromoteToServer().catch(() => false);
-		if (promoted) return this.connected;
+		if (promoted) return this.isFresh(staleMs);
 		// Another client won the race mid-probe; re-check against the new owner.
-		return this.probeOwner();
+		return this.probeOwner(staleMs);
 	}
 
-	private async probeOwner(): Promise<boolean> {
+	private async probeOwner(staleMs = 60_000): Promise<boolean> {
 		try {
 			const response = await fetch(`${this.url}/status`, { cache: "no-store", signal: AbortSignal.timeout(3_000) });
 			if (!response.ok) return false;
 			const status = (await response.json()) as { lastSeenAt?: number };
-			return typeof status.lastSeenAt === "number" && Date.now() - status.lastSeenAt < 60_000;
+			return typeof status.lastSeenAt === "number" && Date.now() - status.lastSeenAt < staleMs;
 		} catch {
 			return false;
 		}
@@ -384,6 +388,21 @@ class ChromeProfileBridge {
 		this.queue = [];
 		for (const waiter of this.waiters) waiter(undefined);
 		this.waiters = [];
+		// Close live SSE status streams so watchers unblock promptly instead of hanging on a
+		// dead connection (server.close() alone leaves keep-alive responses open).
+		for (const client of this.sseClients) {
+			try {
+				client.end();
+			} catch {}
+		}
+		this.sseClients.clear();
+		// Destroy ALL existing connections, not just the listener. server.close() only closes
+		// connections that were idle at close-time; a keep-alive connection that was mid-poll
+		// (the connector long-polls /next) stays open and the OLD handler keeps serving it. The
+		// connector would then keep polling the dead bridge on its pooled connection forever
+		// and never reach the next session's bridge on the same port. RST-ing everything forces
+		// the connector's next poll onto a fresh connection that hits the new bridge.
+		this.server?.closeAllConnections?.();
 		this.server?.close();
 		this.server = undefined;
 		this.mode = undefined;
@@ -660,20 +679,19 @@ export default function (pi: ExtensionAPI): void {
 		[PI_CHROME_GLOBAL_KEY]?: { version: string; root: string; token?: symbol };
 	};
 	const alreadyLoaded = globalState[PI_CHROME_GLOBAL_KEY];
-	if (alreadyLoaded?.token || (alreadyLoaded && alreadyLoaded.root !== currentRoot)) {
+	// Skip only a genuinely different pi-chrome copy (loaded from another extension root). A
+	// stale flag pointing at this same root (e.g. left by pi-chrome <=0.15.19, which never
+	// cleared it on reload) must not suppress the freshly reloaded instance — replace it
+	// instead of skipping.
+	if (alreadyLoaded && alreadyLoaded.root !== currentRoot) {
 		console.warn(
 			`pi-chrome already loaded from ${alreadyLoaded.root} (v${alreadyLoaded.version}); skipping duplicate from ${currentRoot}.`,
 		);
 		return;
 	}
-	// pi-chrome <=0.15.19 set the singleton flag but did not clear it on reload.
-	// If the stale flag points at this same extension root, replace it instead of
-	// skipping the freshly reloaded extension.
 	globalState[PI_CHROME_GLOBAL_KEY] = { version: PI_CHROME_VERSION, root: currentRoot, token: instanceToken };
 
 	const bridge = new ChromeProfileBridge(DEFAULT_HOST, DEFAULT_PORT);
-	// Remembered so session-scoped sends can tag tabs with this session's group even when ctx isn't handy.
-	let sessionCtx: ExtensionContext | undefined;
 
 	// The one native tool: raw Chrome DevTools Protocol passthrough. Registered once at load;
 	// the bridge starts on demand. Description is intentionally concise — no skill, no CLI.
@@ -702,8 +720,9 @@ export default function (pi: ExtensionAPI): void {
 			const script = parseScript(params.commands);
 			// Fast-fail on a dead connection instead of burning the full command timeout: if the
 			// extension isn't polling, error immediately; the timeout below only applies once
-			// the connection is confirmed.
-			if (!(await bridge.probeConnected())) {
+			// the connection is confirmed. Same STATUS_STALE_MS window as the status indicator,
+			// so the two never disagree.
+			if (!(await bridge.probeConnected(STATUS_STALE_MS))) {
 				throw new Error(
 					"Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions.",
 				);
@@ -829,32 +848,41 @@ export default function (pi: ExtensionAPI): void {
 
 	// Stable per-session key the service worker uses to scope its dedicated automation tab/window
 	// to *this* session (one extension brokers all sessions). The session id is stable across
-	// /reload, so the automation target is reused rather than orphaned. Returns undefined only
-	// before session_start, in which case the worker uses its default bucket.
-	const sessionKeyFor = (ctx: ExtensionContext | undefined): string | undefined => {
-		const id = ctx?.sessionManager?.getSessionId?.();
+	// /reload, so the automation target is reused rather than orphaned. Undefined only before
+	// session_start, in which case the worker uses its default bucket.
+	const sessionKeyFor = (ctx: ExtensionContext): string | undefined => {
+		const id = ctx.sessionManager?.getSessionId?.();
 		return typeof id === "string" && id ? `session:${id}` : undefined;
 	};
+	// Current session's automation bucket, captured as plain data (never a ctx) so shutdown
+	// cleanup never touches a ctx that may already be invalidated by session replacement.
+	let currentSessionKey: string | undefined;
 
 	// Close THIS session's dedicated automation window/tab. Fire-and-forget and best-effort: it
 	// must never block /quit, /reload, or session end, and the service-worker side only ever
 	// closes targets this session created itself (never user tabs/windows, never another
 	// session's target). Errors (bridge down, target already closed) are intentionally swallowed.
 	const cleanupAutomationTargetBestEffort = (): void => {
-		const sessionKey = sessionKeyFor(sessionCtx);
-		void bridge.send("automation.cleanup", sessionKey !== undefined ? { sessionKey } : {}, 3_000).catch(() => undefined);
+		void bridge.send("automation.cleanup", currentSessionKey !== undefined ? { sessionKey: currentSessionKey } : {}, 3_000).catch(() => undefined);
 	};
 
 	// Drives the ●/○ connection status indicator. The chrome capability itself is the native
 	// `chrome` tool registered above — no skill, no CLI.
-	const refreshChromeStatus = async (ctx: ExtensionContext): Promise<void> => {
-		if (await bridge.probeConnected()) {
-			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("success", "●") + ctx.ui.theme.fg("dim", " chrome"));
-		} else {
-			ctx.ui.setStatus("chrome", ctx.ui.theme.fg("dim", "○ chrome"));
-		}
-	};
-	const setStatusConnected = (ctx: ExtensionContext, connected: boolean): void => {
+	// The indicator watches the BRIDGE PORT with a lightweight /status probe every couple of
+	// seconds. A raw TCP connect alone is not enough: the port stays up while any Pi session
+	// runs, even when the Chrome extension is disabled — only the bridge's lastSeenAt (fed by
+	// the extension's /next polls) reflects whether the extension is actually connected. One
+	// /status request covers both: port down → fetch fails instantly; port up but extension
+	// silent for STATUS_STALE_MS → ○. probeConnected() also handles client mode (owner probe)
+	// and self-heal promotion.
+	// The probe never captures a ctx — it reads a current-ctx slot that session_start sets and
+	// session_shutdown clears, so a probe still in flight during shutdown becomes a no-op
+	// instead of touching a stale ctx (which throws after session replacement).
+	let statusCtx: ExtensionContext | undefined;
+	let statusTimer: NodeJS.Timeout | undefined;
+	const setStatusConnected = (connected: boolean): void => {
+		const ctx = statusCtx;
+		if (!ctx) return;
 		ctx.ui.setStatus(
 			"chrome",
 			connected
@@ -862,55 +890,35 @@ export default function (pi: ExtensionAPI): void {
 				: ctx.ui.theme.fg("dim", "○ chrome"),
 		);
 	};
-	// Real-time status: subscribe to the bridge's SSE stream so the indicator flips the moment
-	// the extension polls or stops polling — no polling. In client mode the same port is owned
-	// by the bridge-owner session, so /events hits its server and still works; on any drop the
-	// watcher resubscribes (and self-heals if we promote to server).
-	let statusWatchStopped = false;
-	const watchBridgeStatus = async (ctx: ExtensionContext): Promise<void> => {
-		while (!statusWatchStopped) {
-			try {
-				const res = await fetch(`${bridge.url}/events`, { cache: "no-store" });
-				if (!res.ok || !res.body) throw new Error(`SSE HTTP ${res.status}`);
-				const reader = res.body.getReader();
-				const decoder = new TextDecoder();
-				let buffer = "";
-				for (;;) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					let sep: number;
-					while ((sep = buffer.indexOf("\n\n")) >= 0) {
-						const frame = buffer.slice(0, sep);
-						buffer = buffer.slice(sep + 2);
-						for (const line of frame.split("\n")) {
-							if (line.startsWith("data: ")) {
-								try {
-									const payload = JSON.parse(line.slice(6)) as { connected?: boolean };
-									setStatusConnected(ctx, payload.connected === true);
-								} catch {}
-							}
-						}
-					}
-				}
-			} catch {
-				setStatusConnected(ctx, false);
-			}
-			await new Promise((r) => setTimeout(r, 3_000));
+	const probeStatus = async (): Promise<void> => {
+		try {
+			setStatusConnected(await bridge.probeConnected(STATUS_STALE_MS));
+		} catch {
+			setStatusConnected(false);
 		}
 	};
 
 	pi.on("session_start", async (_event, ctx) => {
-		sessionCtx = ctx;
+		currentSessionKey = sessionKeyFor(ctx);
+		statusCtx = ctx;
 		await bridge.start();
-		await refreshChromeStatus(ctx);
-		// Realtime status via SSE push — no polling.
-		void watchBridgeStatus(ctx);
+		// Initial status from a live probe; the port watcher keeps it fresh.
+		await probeStatus();
+		if (!statusTimer) {
+			statusTimer = setInterval(() => void probeStatus(), 2_000);
+			statusTimer.unref?.();
+		}
 	});
 
 	// No skill registration: the `chrome` tool above is the only model-facing surface.
 	pi.on("session_shutdown", (event) => {
-		statusWatchStopped = true;
+		// Stop the port watcher and invalidate its ctx slot *first*, so a probe still in flight
+		// becomes a no-op instead of touching a stale ctx and crashing pi.
+		if (statusTimer) {
+			clearInterval(statusTimer);
+			statusTimer = undefined;
+		}
+		statusCtx = undefined;
 		// Tidy up this session's dedicated automation window on real session end, but NOT on
 		// "reload": /reload tears down and re-evaluates this module while the *same* session
 		// (same sessionKey) continues, so we keep the window so it is reused, not churned. The
