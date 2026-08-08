@@ -99,36 +99,56 @@ function fetchStatus(signal?: AbortSignal): Promise<StatusResponse> {
 	return fetchJson(`${BASE_URL.replace(/\/v1\/?$/, "")}/api/status`, signal) as Promise<StatusResponse>;
 }
 
-function formatDuration(totalSeconds: number): string {
-	const minutes = Math.max(1, Math.round(totalSeconds / 60));
-	return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+const BAR_WIDTH = 8;
+
+function asciiBar(fraction: number, width = BAR_WIDTH): string {
+	const clamped = Math.max(0, Math.min(1, fraction));
+	const filled = Math.round(clamped * width);
+	return "[" + "#".repeat(filled) + "-".repeat(width - filled) + "]";
 }
+
+const STATE_ASCII: Record<string, string> = {
+	idle: "[........]",
+	cooling: "[++++----]",
+	expired: "[--------]",
+	banned: "[xxxxxxxx]",
+	offline: "[????????]",
+};
+
+// Total sesi saat API tidak memberikan data kuota.
+const SESSION_DURATION_SECS = 60 * 60;
 
 function formatStatus(data: StatusResponse, modelId: string): string | undefined {
 	const token = data.token_state?.find((t) => t.session_model === modelId);
-	if (!token) return "idle";
+	if (!token) return STATE_ASCII.idle;
 
 	const state = token.state ?? token.session_status;
-	if (state !== "active") return state === "cooling_down" ? "cooling" : (state ?? "idle");
+	if (state !== "active") {
+		const key = state === "cooling_down" ? "cooling" : (state ?? "idle");
+		return STATE_ASCII[key];
+	}
 
 	const expires = token.session_expires_at ? Date.parse(token.session_expires_at) : Number.NaN;
 	const secs = Number.isFinite(expires) ? Math.round((expires - Date.now()) / 1000) : undefined;
 
-	// Quota per model (hours), older API shape: session_quota.
 	const quota = token.quota_by_model?.[modelId] ?? token.session_quota;
-	const quotaLimit = typeof quota?.limit === "number" && quota.limit > 0 ? quota.limit : 0;
-	const quotaRemaining = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) : 0;
+	const quotaTotal = typeof quota?.limit === "number" && quota.limit > 0 ? quota.limit * 3600 : 0;
+	const quotaLeft = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) * 3600 : Number.POSITIVE_INFINITY;
 
-	// Total waktu: sisa kuota (jam) + sisa sesi (menit).
-	if (quotaLimit > 0 && quotaRemaining > 0) {
-		const totalMinutes = quotaRemaining * 60 + Math.max(0, Math.round((secs ?? 0) / 60));
-		const hours = Math.floor(totalMinutes / 60);
-		const minutes = totalMinutes % 60;
-		return `active ${minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`}`;
+	if (secs === undefined) return undefined;
+	if (secs <= 0) return STATE_ASCII.expired;
+
+	let fraction: number;
+	if (quotaTotal > 0) {
+		// Total sesi = kuota (jam); sisa efektif = yang habis lebih dulu
+		// antara sisa sesi dan sisa kuota.
+		fraction = Math.min(secs, quotaLeft) / quotaTotal;
+	} else {
+		// Tanpa data kuota: total sesi diasumsikan 60 menit.
+		fraction = secs / SESSION_DURATION_SECS;
 	}
 
-	if (secs === undefined) return "active";
-	return secs <= 0 ? "expired" : `active ${formatDuration(secs)}`;
+	return asciiBar(Math.max(0, Math.min(1, fraction)));
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -180,10 +200,10 @@ export default async function (pi: ExtensionAPI) {
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
-			const color: "dim" | "error" = text === "banned" ? "error" : "dim";
+			const color: "dim" | "error" = text === STATE_ASCII.banned ? "error" : "dim";
 			ui.setStatus(STATUS_KEY, text ? theme.fg(color, text) : undefined);
 		} catch {
-			ui.setStatus(STATUS_KEY, theme.fg("warning", "offline"));
+			ui.setStatus(STATUS_KEY, theme.fg("warning", STATE_ASCII.offline));
 		} finally {
 			statusInFlight = false;
 		}
