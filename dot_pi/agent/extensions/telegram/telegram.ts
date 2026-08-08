@@ -248,6 +248,16 @@ export class TgClient {
 		return this.call<boolean>("setMyCommands", { commands }, signal);
 	}
 
+	/** Bot bio (profile short description) — used as the shared leader marker. */
+	setMyShortDescription(description: string, signal?: AbortSignal): Promise<boolean> {
+		return this.call<boolean>("setMyShortDescription", { short_description: description }, signal);
+	}
+
+	async getMyShortDescription(signal?: AbortSignal): Promise<string> {
+		const res = await this.call<{ short_description: string }>("getMyShortDescription", {}, signal);
+		return res.short_description ?? "";
+	}
+
 	getFile(fileId: string, signal?: AbortSignal): Promise<TgFileInfo> {
 		return this.call<TgFileInfo>("getFile", { file_id: fileId }, signal);
 	}
