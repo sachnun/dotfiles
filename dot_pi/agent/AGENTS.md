@@ -25,4 +25,4 @@ Commands:
 Git:
 - Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
 - Subject line only, max 32 chars, imperative mood.
-- Keep `README.md` simple, clean, and minimal — no tree.
+- Keep `README.md` simple, clean, and minimalize — no structure, tech.
