@@ -1343,10 +1343,10 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 		if (state.threadId !== undefined) {
-			sendPlain(wasChild || !botUsername ? "🜲 Connected." : `🜲 Connected to ${botUsername}.`).catch(() => {});
+			sendPlain("Connected.").catch(() => {});
 		}
 		if (wasChild) {
-			sessionCtx?.ui.notify("🜲 Connected.", "info");
+			sessionCtx?.ui.notify("Connected.", "info");
 		}
 	}
 
@@ -1588,7 +1588,7 @@ export default function (pi: ExtensionAPI) {
 					const outcome = await connectBridge(ctx);
 					ctx.ui.notify(
 						outcome === "leader"
-							? `🜲 Connected to ${botUsername}.`
+							? "Connected."
 							: outcome === "child"
 								? "Connected."
 								: "Another device is the active leader.",
@@ -1606,9 +1606,7 @@ export default function (pi: ExtensionAPI) {
 				const outcome = await connectBridge(ctx);
 				ctx.ui.notify(
 					outcome === "leader"
-						? botUsername
-							? `🜲 Connected to ${botUsername}.`
-							: "🜲 Connected."
+						? "Connected."
 						: outcome === "child"
 							? "Connected."
 							: "Another device is the active leader.",
