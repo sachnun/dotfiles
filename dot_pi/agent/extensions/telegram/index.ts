@@ -26,7 +26,9 @@
  *     arbitrates; when the leader disconnects or dies, a child takes over
  *     automatically (unless another device holds the bio marker).
  *   - the device that wrote last wins; the previous leader fully disconnects
- *     (deletes its session thread, stays off until /telegram is run again).
+ *     (deletes its session thread, stays off until /telegram is run again),
+ *     and its standby children are kicked the same way — another device's
+ *     marker means this device is out entirely, no follower mode.
  *   - the marker also records the leader's thread id, so the next leader
  *     deletes the stale thread on connect (crash orphans auto-cleaned).
  *   - no cross-device file sync: token, pairing, offset and the device id
@@ -1308,7 +1310,12 @@ export default function (pi: ExtensionAPI) {
 			await promoteToLeader(oldThreadId); // leader released cleanly
 			return;
 		}
-		await removeLeader(); // another device is the active leader → stay off
+		// Another device is the active leader → this device was kicked (strict
+		// single-device: the device that wrote last wins). The child must fully
+		// disconnect too — delete its thread and stay off until /telegram is
+		// run again — not linger as a standby that keeps answering.
+		await removeLeader();
+		void handleKicked();
 	}
 
 	// -----------------------------------------------------------------------
