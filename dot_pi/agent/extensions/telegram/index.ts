@@ -9,7 +9,8 @@
  * palette, like upstream):
  *   - session_start (startup) → status stays hidden; connect via /telegram
  *   - session_shutdown (quit) → delete that thread via deleteForumTopic
- *     (session replacements like /new, /reload, /resume keep the thread)
+ *     (session replacements like /new, /reload, /resume, /fork keep the
+ *     thread AND auto-resume the bridge with the same thread)
  *   - the pi status bar shows "<threadName> · <state>" (e.g. "Timber · idle")
  *
  * Single-device model (strict, no file sync):
@@ -38,7 +39,8 @@
  *
  * pi command:
  *   /telegram  → login (set token), connect directly, or disconnect/logout
- *     (no auto-connect — connection is manual via /telegram)
+ *     (fresh pi starts are manual via /telegram; session replacements
+ *     /new, /reload, /resume, /fork auto-reconnect with the same thread)
  *
  * Telegram commands (owner only):
  *   /start  → pair owner (first user) + status
@@ -96,6 +98,10 @@ const LEADER_CHECK_INTERVAL_MS = 3000; // how often the leader re-verifies owner
 // standby children that take over when the leader disconnects or dies.
 const INSTANCE_ID = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`; // per process/session
 const LEADER_FILE = join(TMP_DIR, "leader.json"); // local leader record (same-device only)
+// Last connected state (role + thread). Survives session replacements
+// (/new, /reload, /resume, /fork) so the new session resumes the bridge with
+// the SAME thread instead of leaving the bot offline. Removed on disconnect/quit/kick.
+const BRIDGE_FILE = join(TMP_DIR, "bridge.json");
 const LOCAL_CLAIM_CONFIRM_MS = 1500; // local leader-slot claim confirm (no CAS)
 const CHILD_POLL_INTERVAL_MS = 2000; // how often children check for takeover
 // Per-session threads + routing (only the leader polls; children process
@@ -1030,7 +1036,7 @@ export default function (pi: ExtensionAPI) {
 	// Lifecycle: auto connect / disconnect
 	// -----------------------------------------------------------------------
 
-	pi.on("session_start", async (_event, ctx) => {
+	pi.on("session_start", async (event, ctx) => {
 		sessionCtx = ctx;
 		aborted = false;
 		lastUserMsgId = undefined;
@@ -1044,7 +1050,15 @@ export default function (pi: ExtensionAPI) {
 		stopChild();
 		inboxProcessed = 0;
 		updateStatus(); // no thread yet → status hidden
-		// No auto-connect: run /telegram to connect.
+		// Session replacements (/new, /reload, /resume, /fork) resume the
+		// bridge with the SAME thread — the bot must not disappear on /new or
+		// /reload. Fresh startup stays manual: run /telegram to connect.
+		if (event.reason !== "startup" && cfg.botToken) {
+			const saved = await loadBridgeState();
+			if (saved) {
+				await connectBridge(ctx, saved);
+			}
+		}
 	});
 
 	pi.on("session_shutdown", async (event) => {
@@ -1155,6 +1169,35 @@ export default function (pi: ExtensionAPI) {
 		updatedAt: number;
 	}
 
+	// Bridge state: survives session replacements (/new, /reload, /resume,
+	// /fork) so the new session resumes with the same thread. Removed on
+	// disconnect/quit/kick so fresh pi starts stay manual (/telegram).
+	interface BridgeState {
+		role: "leader" | "child";
+		threadId: number;
+		threadName: string;
+		updatedAt: number;
+	}
+
+	async function loadBridgeState(): Promise<BridgeState | undefined> {
+		try {
+			return JSON.parse(await readFile(BRIDGE_FILE, "utf8")) as BridgeState;
+		} catch {
+			return undefined;
+		}
+	}
+
+	async function saveBridgeState(saved: BridgeState): Promise<void> {
+		await mkdir(TMP_DIR, { recursive: true });
+		const tmp = `${BRIDGE_FILE}.tmp`;
+		await writeFile(tmp, JSON.stringify(saved) + "\n", { mode: 0o600 });
+		await rename(tmp, BRIDGE_FILE);
+	}
+
+	async function removeBridgeState(): Promise<void> {
+		await rm(BRIDGE_FILE, { force: true }).catch(() => {});
+	}
+
 	function pidAlive(pid: number): boolean {
 		try {
 			process.kill(pid, 0);
@@ -1205,6 +1248,12 @@ export default function (pi: ExtensionAPI) {
 	async function lookupThreadOwner(threadId: number): Promise<string | undefined> {
 		try {
 			const reg = JSON.parse(await readFile(join(THREADS_DIR, `${threadId}.json`), "utf8")) as { instanceId: string; pid: number };
+			// Same process, different instance id → stale registration left by a
+			// reloaded (/reload) extension instance; that session is gone.
+			if (reg.pid === process.pid && reg.instanceId !== INSTANCE_ID) {
+				await unregisterThread(threadId);
+				return undefined;
+			}
 			if (pidAlive(reg.pid)) return reg.instanceId;
 			await unregisterThread(threadId); // stale registration → clean up
 			return undefined;
@@ -1240,6 +1289,11 @@ export default function (pi: ExtensionAPI) {
 	async function localLeaderAlive(): Promise<boolean> {
 		const rec = await readLeader();
 		if (!rec || rec.instanceId === INSTANCE_ID) return false;
+		// Same pid, different instance id → the previous extension instance was
+		// replaced in place (/reload). Its leader slot is dead even though the
+		// process is alive — otherwise the reloaded session would wait forever
+		// as a standby child for a leader that no longer exists.
+		if (rec.pid === process.pid) return false;
 		return pidAlive(rec.pid);
 	}
 
@@ -1265,9 +1319,19 @@ export default function (pi: ExtensionAPI) {
 		let ownThreadId = state.threadId;
 		if (ownThreadId === undefined && cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
 			ownThreadId = await createSessionThread();
+		} else if (ownThreadId !== undefined) {
+			// Re-adopted thread (reconnect after /new, /reload…) — re-register it
+			// with this instance so routing keeps working.
+			await registerThread(ownThreadId, state.threadName ?? "Pi");
 		}
 		if (ownThreadId !== undefined) {
 			await getClient().setMyShortDescription(leaderMarker(ownThreadId)).catch(() => {});
+			await saveBridgeState({
+				role: "leader",
+				threadId: ownThreadId,
+				threadName: state.threadName ?? "Pi",
+				updatedAt: Date.now(),
+			});
 		}
 		updateStatus();
 		startPolling();
@@ -1351,12 +1415,33 @@ export default function (pi: ExtensionAPI) {
 	// Connect / disconnect helpers
 	// -----------------------------------------------------------------------
 
+	/** Ensure this session has a bound thread (create or re-adopt) and record it as a child. */
+	async function ensureChildThread(): Promise<void> {
+		if (state.threadId === undefined) {
+			if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
+				await createSessionThread();
+			}
+		} else {
+			// Re-adopted thread (reconnect after /new, /reload…) — re-register it.
+			await registerThread(state.threadId, state.threadName ?? "Pi");
+		}
+		if (state.threadId !== undefined) {
+			await saveBridgeState({
+				role: "child",
+				threadId: state.threadId,
+				threadName: state.threadName ?? "Pi",
+				updatedAt: Date.now(),
+			});
+		}
+	}
+
 	/** Connect: run the same-device election, then acquire the cross-device
 	 *  bio marker, then become leader — or become a standby child when
-	 *  another session on this device is the leader. */
-	async function connectBridge(ctx: ExtensionContext): Promise<"leader" | "child" | "off"> {
+	 *  another session on this device is the leader. `adopt` re-uses a
+	 *  previous session's thread (session replacements: /new, /reload). */
+	async function connectBridge(ctx: ExtensionContext, adopt?: BridgeState): Promise<"leader" | "child" | "off"> {
 		cfg = await loadConfig();
-		state = {};
+		state = adopt && adopt.threadId ? { threadId: adopt.threadId, threadName: adopt.threadName } : {};
 		offset = await loadOffset();
 		sessionCtx = ctx;
 		client = undefined;
@@ -1367,9 +1452,7 @@ export default function (pi: ExtensionAPI) {
 			inboxProcessed = 0;
 			// Every session gets its own thread; messages there are routed to
 			// our inbox and answered here.
-			if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
-				await createSessionThread();
-			}
+			await ensureChildThread();
 			updateStatus();
 			startChild();
 			return "child";
@@ -1377,9 +1460,7 @@ export default function (pi: ExtensionAPI) {
 		if (!(await claimLocalLeader())) {
 			role = "child";
 			inboxProcessed = 0;
-			if (cfg.allowedUserId !== undefined && cfg.chatId !== undefined) {
-				await createSessionThread();
-			}
+			await ensureChildThread();
 			updateStatus();
 			startChild();
 			return "child";
@@ -1389,6 +1470,10 @@ export default function (pi: ExtensionAPI) {
 		const oldMarker = await getClient().getMyShortDescription().catch(() => "");
 		if (!(await acquireLeadership())) {
 			await removeLeader(); // another device is the active leader
+			await removeBridgeState();
+			if (state.threadId !== undefined) {
+				sendPlain("Disconnected.").catch(() => {});
+			}
 			role = undefined;
 			updateStatus();
 			return "off";
@@ -1415,6 +1500,7 @@ export default function (pi: ExtensionAPI) {
 				]).catch(() => {});
 				await unregisterThread(t.threadId).catch(() => {});
 			}
+			await removeBridgeState();
 			role = undefined;
 			state = {};
 			updateStatus();
@@ -1429,6 +1515,7 @@ export default function (pi: ExtensionAPI) {
 		// its next ownership check.
 		await releaseLeadership();
 		await removeLeader();
+		await removeBridgeState();
 		const t = target();
 		if (t?.threadId) {
 			await Promise.race([
@@ -1448,6 +1535,7 @@ export default function (pi: ExtensionAPI) {
 	async function handleKicked(): Promise<void> {
 		stopChild();
 		await removeLeader();
+		await removeBridgeState();
 		const t = target();
 		if (t?.threadId !== undefined) {
 			await sendPlain("Disconnected.");

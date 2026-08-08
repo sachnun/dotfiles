@@ -74,6 +74,61 @@ const STATUS_STALE_MS = 15_000;
 
 type ScriptCommand = { method: string; params?: Record<string, unknown>; save?: string; pick?: string } | { target: Record<string, unknown> };
 
+// Repair LLM-style line-wrapped JSON: models often break long `commands` strings across lines,
+// inserting literal newlines INSIDE JSON string values (invalid per spec — newlines must be
+// escaped as \n). A literal newline in a string is always a mistake, so fixing it can never
+// corrupt valid input. Rules inside string literals:
+//   - a whitespace run containing a newline collapses to a single space ("var\n els" -> "var els")
+//   - a lone newline (no surrounding space) is removed                    ("val\nue" -> "value")
+// Escaped sequences (\" \\ \n as backslash-n) are preserved unchanged.
+function repairJsonStringNewlines(raw: string): string {
+	let out = "";
+	let inString = false;
+	let i = 0;
+	while (i < raw.length) {
+		const ch = raw[i];
+		if (inString) {
+			if (ch === "\\") {
+				out += ch + (raw[i + 1] ?? "");
+				i += 2;
+				continue;
+			}
+			if (ch === '"') {
+				out += ch;
+				inString = false;
+				i += 1;
+				continue;
+			}
+			if (ch === "\n" || ch === "\r") {
+				let j = i;
+				while (j < raw.length && /\s/.test(raw[j])) j += 1;
+				const run = raw.slice(i, j);
+				let hadSpace = /[ \t]/.test(run);
+				// Include spaces/tabs already emitted just before the newline (e.g. "var \nels=").
+				while (out.length > 0 && (out[out.length - 1] === " " || out[out.length - 1] === "\t")) {
+					out = out.slice(0, -1);
+					hadSpace = true;
+				}
+				out += hadSpace ? " " : "";
+				i = j;
+				continue;
+			}
+			out += ch;
+			i += 1;
+			continue;
+		}
+		if (ch === '"') {
+			inString = true;
+			out += ch;
+			i += 1;
+			continue;
+		}
+		out += ch;
+		i += 1;
+	}
+	return out;
+}
+
 // Parse the `commands` script: a JSON array (or single object) of {method, params?, save?} CDP
 // calls plus optional {target:{urlIncludes|titleIncludes|targetId}} entries that switch the
 // working tab for subsequent commands (like `cd` in bash).
@@ -87,8 +142,28 @@ function parseScript(raw: unknown): ScriptCommand[] {
 	try {
 		parsed = JSON.parse(raw);
 	} catch {
-		throw new Error("commands must be valid JSON — an array (or single object) of {method, params?} commands");
+		// Model-generated commands often wrap long string values across lines, producing literal
+		// newlines inside JSON strings. Repair that specific breakage, then retry once.
+		try {
+			parsed = JSON.parse(repairJsonStringNewlines(raw));
+		} catch (jsonError) {
+			// Give the model a precise diagnostic so it can fix the script itself: V8's parse
+			// error with the position and a short context window from the repaired text.
+			const message = (jsonError as Error).message ?? "";
+			const posMatch = /position (\d+)/.exec(message);
+			let hint = "";
+			if (posMatch) {
+				const pos = Math.max(0, Number(posMatch[1]) - 1);
+				const repaired = repairJsonStringNewlines(raw);
+				const window = JSON.stringify(repaired.slice(Math.max(0, pos - 40), pos + 40));
+				hint = ` — JSON.parse: ${message} near ...${window}...`;
+			}
+			throw new Error(
+				"commands must be valid JSON — an array (or single object) of {method, params?} commands" + hint,
+			);
+		}
 	}
+
 	const list = Array.isArray(parsed) ? parsed : [parsed];
 	const script: ScriptCommand[] = [];
 	for (const item of list) {
@@ -642,7 +717,8 @@ export default function (pi: ExtensionAPI): void {
 			"{method, params?, save?}, run sequentially on one tab, stop at first CDP error. " +
 			"{target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd). " +
 			"save:path writes binary (PDF/MHTML). pick:'dot.path' returns only that subtree " +
-			"(full result if path misses). Output: single-line JSON. " +
+			"(full result if path misses). Output: single-line JSON. Write commands as " +
+			"single-line JSON: never wrap a string value across lines. " +
 			"Examples: read a page (trimmed): " +
 			"'[{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.body.innerText.slice(0,3000)\",\"returnByValue\":true},\"pick\":\"result.value\"}]'; " +
 			"batch: '[{\"target\":{\"urlIncludes\":\"example.com\"}},{\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}},{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.title\",\"returnByValue\":true}}]'.",
