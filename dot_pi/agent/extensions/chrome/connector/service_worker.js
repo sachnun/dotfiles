@@ -142,14 +142,13 @@ function recordAttachEvent(entry) {
   if (attachDebugLog.length > 20) attachDebugLog.shift();
 }
 
-function normalPageTarget(target, tabId) {
-  const url = String(target?.url || "");
-  return target?.tabId === tabId && target?.type === "page" && !url.startsWith("chrome://") && !url.startsWith("chrome-extension://") && !url.startsWith("devtools://");
-}
-
 async function pageDebuggeeForTab(tabId) {
   const targets = await new Promise((resolve) => chrome.debugger.getTargets((t) => resolve(t || []))).catch(() => []);
-  const target = targets.find((t) => normalPageTarget(t, tabId));
+  // A page target for this tab, excluding protected chrome:// / extension / devtools URLs.
+  const target = targets.find((t) => {
+    const url = String(t?.url || "");
+    return t?.tabId === tabId && t?.type === "page" && !url.startsWith("chrome://") && !url.startsWith("chrome-extension://") && !url.startsWith("devtools://");
+  });
   return target?.id ? { targetId: target.id } : { tabId };
 }
 
@@ -227,7 +226,7 @@ async function attachDebugger(tabId) {
       if (err) {
         recordAttachEvent({ kind: "attach-retry2-failed", tabId, message: String(err.message || err), tabUrl: tabSnapshot?.url });
         const meta = await describeInputTarget(tabId);
-        throw new Error(`Chrome debugger attach failed for tab ${tabId}: ${String(err.message || err)}${targetMetaSuffix(meta)}`);
+        throw new Error(`Chrome debugger attach failed for tab ${tabId}: ${String(err.message || err)}\nTarget metadata: ${JSON.stringify(meta).slice(0, 4000)}`);
       }
     }
   }
@@ -248,10 +247,6 @@ async function describeInputTarget(tabId) {
     attachedTabs: Array.from(attachedTabs.keys()),
     cdpTargets: targets.map((t) => ({ id: t.id, tabId: t.tabId, type: t.type, url: t.url, attached: t.attached, extensionId: t.extensionId })),
   };
-}
-
-function targetMetaSuffix(meta) {
-  return `\nTarget metadata: ${JSON.stringify(meta).slice(0, 4000)}`;
 }
 
 async function detachDebugger(tabId) {

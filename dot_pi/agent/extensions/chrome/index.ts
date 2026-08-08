@@ -26,8 +26,6 @@ import { dirname, resolve } from "node:path";
  * so the command timeout only applies once the connection is confirmed.
  */
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-
 type BridgeCommand = {
 	id: string;
 	action: string;
@@ -63,7 +61,8 @@ const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
 const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TEXT_CHARS = 15_000;
-// Extension long-poll wait: lower = fresher lastSeenAt and snappier SSE status events.
+// Extension long-poll wait: lower = fresher lastSeenAt, so the ● indicator recovers sooner
+// after the extension reconnects.
 const POLL_WAIT_MS = 5_000;
 // How stale lastSeenAt must be before the statusbar flips to disconnected (healthy polls
 // arrive every ~5s, so 15s is a safe no-flap window).
@@ -224,9 +223,6 @@ class ChromeProfileBridge {
 	private lastSeenAt: number | undefined;
 	private clientName: string | undefined;
 	private mode: "server" | "client" | undefined;
-	private sseClients = new Set<ServerResponse>();
-	private sseState: "connected" | "disconnected" | undefined;
-	private stalenessTimer: NodeJS.Timeout | undefined;
 
 	constructor(
 		private readonly host: string,
@@ -253,7 +249,7 @@ class ChromeProfileBridge {
 	// that is our own lastSeenAt. In client mode (another Pi session owns the port, so the
 	// extension never talks to us) we ask the owner for its lastSeenAt and apply the same
 	// staleness window — independent of the owner's code version.
-	async probeConnected(staleMs = 60_000): Promise<boolean> {
+	async probeConnected(staleMs: number): Promise<boolean> {
 		if (this.mode !== "client") return this.isFresh(staleMs);
 		if (await this.probeOwner(staleMs)) return true;
 		// Owner unreachable (its Pi session closed, or it just lost the port). Self-heal here
@@ -266,7 +262,7 @@ class ChromeProfileBridge {
 		return this.probeOwner(staleMs);
 	}
 
-	private async probeOwner(staleMs = 60_000): Promise<boolean> {
+	private async probeOwner(staleMs: number): Promise<boolean> {
 		try {
 			const response = await fetch(`${this.url}/status`, { cache: "no-store", signal: AbortSignal.timeout(3_000) });
 			if (!response.ok) return false;
@@ -274,34 +270,6 @@ class ChromeProfileBridge {
 			return typeof status.lastSeenAt === "number" && Date.now() - status.lastSeenAt < staleMs;
 		} catch {
 			return false;
-		}
-	}
-
-	// ---- Real-time status (SSE) ----
-	// Status events are pushed to local pi processes via GET /events, so the statusbar updates
-	// the moment the extension polls (connected) or stops polling (disconnected) — no polling.
-	private onExtensionSeen(): void {
-		if (this.sseState !== "connected") {
-			this.sseState = "connected";
-			this.emitStatus();
-		}
-	}
-	private checkStaleness(): void {
-		const state =
-			this.lastSeenAt !== undefined && Date.now() - this.lastSeenAt <= STATUS_STALE_MS ? "connected" : "disconnected";
-		if (this.sseState !== state) {
-			this.sseState = state;
-			this.emitStatus();
-		}
-	}
-	private emitStatus(): void {
-		const frame = `data: ${JSON.stringify({ connected: this.sseState === "connected", lastSeenAt: this.lastSeenAt ?? null })}\n\n`;
-		for (const client of this.sseClients) {
-			try {
-				client.write(frame);
-			} catch {
-				this.sseClients.delete(client);
-			}
 		}
 	}
 
@@ -320,10 +288,6 @@ class ChromeProfileBridge {
 	async start(): Promise<void> {
 		if (this.server || this.mode === "client") return;
 		await this.bindServerOrClient();
-		if (this.mode === "server") {
-			this.stalenessTimer = setInterval(() => this.checkStaleness(), 2_000);
-			this.stalenessTimer.unref?.();
-		}
 	}
 
 	// Try to own the bridge port. On success we are the server; on EADDRINUSE another Pi
@@ -379,7 +343,6 @@ class ChromeProfileBridge {
 			this.mode = undefined;
 			return;
 		}
-		clearInterval(this.stalenessTimer);
 		for (const pending of this.pending.values()) {
 			clearTimeout(pending.timer);
 			pending.reject(new Error("Chrome profile bridge stopped"));
@@ -388,14 +351,6 @@ class ChromeProfileBridge {
 		this.queue = [];
 		for (const waiter of this.waiters) waiter(undefined);
 		this.waiters = [];
-		// Close live SSE status streams so watchers unblock promptly instead of hanging on a
-		// dead connection (server.close() alone leaves keep-alive responses open).
-		for (const client of this.sseClients) {
-			try {
-				client.end();
-			} catch {}
-		}
-		this.sseClients.clear();
 		// Destroy ALL existing connections, not just the listener. server.close() only closes
 		// connections that were idle at close-time; a keep-alive connection that was mid-poll
 		// (the connector long-polls /next) stays open and the OLD handler keeps serving it. The
@@ -571,7 +526,6 @@ class ChromeProfileBridge {
 				return;
 			}
 			this.lastSeenAt = Date.now();
-			this.onExtensionSeen();
 			this.clientName = url.searchParams.get("name") ?? undefined;
 			let aborted = false;
 			let activeWaiter: ((command: BridgeCommand | undefined) => void) | undefined;
@@ -615,7 +569,6 @@ class ChromeProfileBridge {
 				return;
 			}
 			this.lastSeenAt = Date.now();
-			this.onExtensionSeen();
 			const result = JSON.parse(await readRequestBody(request)) as BridgeResult;
 			const pending = this.pending.get(result.id);
 			if (!pending) {
@@ -627,26 +580,6 @@ class ChromeProfileBridge {
 			if (result.ok) pending.resolve(result.result);
 			else pending.reject(new Error(result.error ?? "Chrome extension command failed"));
 			sendJson(response, 200, { ok: true }, corsHeaders);
-			return;
-		}
-		if (request.method === "GET" && url.pathname === "/events") {
-			if (!isLocalProcessRequest(request)) {
-				sendJson(response, 403, { ok: false, error: "not allowed" });
-				return;
-			}
-			if (this.mode !== "server") {
-				sendJson(response, 409, { ok: false, error: "not the bridge owner" });
-				return;
-			}
-			response.writeHead(200, {
-				"content-type": "text/event-stream",
-				"cache-control": "no-store",
-				"connection": "keep-alive",
-			});
-			this.checkStaleness();
-			response.write(`data: ${JSON.stringify({ connected: this.sseState === "connected", lastSeenAt: this.lastSeenAt ?? null })}\n\n`);
-			this.sseClients.add(response);
-			request.on("close", () => this.sseClients.delete(response));
 			return;
 		}
 		sendJson(response, 404, { error: "not found" });
