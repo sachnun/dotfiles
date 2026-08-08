@@ -1,4 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { highlightCode } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { readFileSync } from "node:fs";
@@ -62,6 +63,69 @@ const DEFAULT_HOST = process.env.PI_CHROME_BRIDGE_HOST ?? "127.0.0.1";
 const DEFAULT_PORT = Number(process.env.PI_CHROME_BRIDGE_PORT ?? "17318");
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TEXT_CHARS = 15_000;
+
+type ScriptCommand = { method: string; params?: Record<string, unknown>; save?: string; pick?: string } | { target: Record<string, unknown> };
+
+// Parse the `commands` script: a JSON array (or single object) of {method, params?, save?} CDP
+// calls plus optional {target:{urlIncludes|titleIncludes|targetId}} entries that switch the
+// working tab for subsequent commands (like `cd` in bash).
+function parseScript(raw: unknown): ScriptCommand[] {
+	if (typeof raw !== "string" || !raw) {
+		throw new Error(
+			"chrome requires commands: a JSON array (or single object) of {method, params?} — e.g. '[{\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}}]'",
+		);
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		throw new Error("commands must be valid JSON — an array (or single object) of {method, params?} commands");
+	}
+	const list = Array.isArray(parsed) ? parsed : [parsed];
+	const script: ScriptCommand[] = [];
+	for (const item of list) {
+		if (!item || typeof item !== "object" || Array.isArray(item)) {
+			throw new Error("each command must be an object {method, params?} or {target:{...}}");
+		}
+		const cmd = item as Record<string, unknown>;
+		if (cmd.target !== undefined) {
+			if (!cmd.target || typeof cmd.target !== "object" || Array.isArray(cmd.target)) {
+				throw new Error("{target} must be an object with urlIncludes | titleIncludes | targetId");
+			}
+			script.push({ target: cmd.target as Record<string, unknown> });
+		} else {
+			if (typeof cmd.method !== "string" || !/^[A-Za-z]+\.[A-Za-z]+$/.test(cmd.method)) {
+				throw new Error(`invalid CDP method: ${String(cmd.method)}`);
+			}
+			script.push({
+				method: cmd.method,
+				params: cmd.params && typeof cmd.params === "object" && !Array.isArray(cmd.params) ? (cmd.params as Record<string, unknown>) : {},
+				save: typeof cmd.save === "string" && cmd.save ? cmd.save : undefined,
+				pick: typeof cmd.pick === "string" && cmd.pick ? cmd.pick : undefined,
+			});
+		}
+	}
+	return script;
+}
+
+// Extract a dot-path subtree from a value, e.g. "result.result.value" or "results.0.url".
+// Array indices are numeric path segments; a missing segment yields undefined.
+function applyPick(value: unknown, path: string): unknown {
+	let current = value;
+	for (const segment of path.split(".")) {
+		if (current === null || current === undefined) return undefined;
+		if (Array.isArray(current)) {
+			const index = Number(segment);
+			if (!Number.isInteger(index)) return undefined;
+			current = current[index];
+		} else if (typeof current === "object") {
+			current = (current as Record<string, unknown>)[segment];
+		} else {
+			return undefined;
+		}
+	}
+	return current;
+}
 
 function truncateText(text: unknown, maxChars = MAX_TEXT_CHARS): string {
   const value = String(text ?? "");
@@ -557,39 +621,23 @@ export default function (pi: ExtensionAPI): void {
 		name: "chrome",
 		label: "Chrome",
 		description:
-			"Control the user's real Chrome via raw Chrome DevTools Protocol (CDP). One tool for every " +
-			"DevTools feature: navigate, run JS, click/type, screenshot, viewport/media/network " +
-			"emulation, cookies, tabs, storage. method: any CDP method, e.g. Page.navigate, " +
-			"Runtime.evaluate, Input.dispatchMouseEvent, Page.captureScreenshot, " +
-			"Emulation.setDeviceMetricsOverride. params: JSON " +
-			"string of the method's arguments, e.g. '{\"url\":\"https://example.com\"}'. save: optional " +
-			"path to write binary results (screenshots/MHTML/PDF) to a file. targetId | urlIncludes | " +
-			"titleIncludes: optional, act on a specific existing tab — without them, commands run on " +
-			"pi-chrome's own automation window, never the user's active tab. Key recipes: read a page: " +
-			"Runtime.evaluate {\"expression\":\"document.body.innerText.slice(0,3000)\",\"returnByValue\":true}; " +
-			"click: Input.dispatchMouseEvent mousePressed then mouseReleased " +
-			"({\"x\":N,\"y\":N,\"button\":\"left\",\"clickCount\":1}); screenshot: Page.captureScreenshot + save. " +
-			"Text results are truncated to ~15K chars. Full CDP reference: " +
-			"https://chromedevtools.github.io/devtools-protocol/",
+			"Control the user's real Chrome via a CDP script. commands: JSON array or single object of " +
+			"{method, params?, save?}, run sequentially on one tab, stop at first CDP error. " +
+			"{target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd). " +
+			"save:path writes binary (PDF/MHTML). pick:'dot.path' returns only that subtree " +
+			"(full result if path misses). Output: single-line JSON. " +
+			"Examples: read a page (trimmed): " +
+			"'[{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.body.innerText.slice(0,3000)\",\"returnByValue\":true},\"pick\":\"result.value\"}]'; " +
+			"batch: '[{\"target\":{\"urlIncludes\":\"example.com\"}},{\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}},{\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"document.title\",\"returnByValue\":true}}]'.",
 		promptSnippet:
-			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, screenshot, emulate)",
+			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, emulate)",
 		parameters: Type.Object({
-			method: Type.String({ description: "CDP method, e.g. Page.navigate, Runtime.evaluate, Input.dispatchMouseEvent" }),
-			params: Type.Optional(Type.String({ description: "JSON object string of the method's arguments, e.g. '{\"width\":375}'" })),
-			save: Type.Optional(Type.String({ description: "Write binary result (screenshot/MHTML/PDF base64) to this path" })),
-			targetId: Type.Optional(Type.Number({ description: "Act on a specific existing Chrome tab id" })),
-			urlIncludes: Type.Optional(Type.String({ description: "Act on the tab whose URL contains this string" })),
-			titleIncludes: Type.Optional(Type.String({ description: "Act on the tab whose title contains this string" })),
+			commands: Type.Optional(Type.String({ description: "CDP script: JSON array (or single object) of {method, params?, save?} run sequentially on one tab, stops on first CDP error; {target:{urlIncludes|titleIncludes|targetId}} switches the working tab (like cd)" })),
 			timeoutMs: Type.Optional(Type.Number({ description: "Command timeout in ms (default 30000)" })),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			await bridge.start();
-			const method = String(params.method ?? "");
-			if (!method) {
-				throw new Error(
-					"chrome requires method (CDP method, e.g. Page.navigate). Full reference: https://chromedevtools.github.io/devtools-protocol/",
-				);
-			}
+			const script = parseScript(params.commands);
 			// Fast-fail on a dead connection instead of burning the full command timeout: if the
 			// extension isn't polling, error immediately; the timeout below only applies once
 			// the connection is confirmed.
@@ -598,76 +646,121 @@ export default function (pi: ExtensionAPI): void {
 					"Chrome NOT connected — open Chrome and enable the 'Pi' extension at chrome://extensions.",
 				);
 			}
-			let cdpParams: Record<string, unknown> = {};
-			if (typeof params.params === "string" && params.params) {
-				try {
-					cdpParams = JSON.parse(params.params) as Record<string, unknown>;
-				} catch {
-					throw new Error("params must be a JSON object string, e.g. '{\"width\":375}'");
-				}
-				if (!cdpParams || typeof cdpParams !== "object" || Array.isArray(cdpParams)) {
-					throw new Error("params must be a JSON object, e.g. '{\"width\":375}'");
-				}
-			}
 			const result = (await bridge.send(
 				"page.cdp",
-				{
-					method,
-					cdpParams,
-					targetId: params.targetId,
-					urlIncludes: params.urlIncludes,
-					titleIncludes: params.titleIncludes,
-				},
+				{ commands: script },
 				params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-			)) as { result?: unknown };
-			const value = result?.result;
-			if (typeof params.save === "string" && params.save) {
-				const blob = findSaveableBlob(value);
-				if (!blob) throw new Error(`chrome: no saveable data in ${method} result (expected base64 binary or MHTML)`);
-				const outputPath = resolve(ctx.cwd, params.save);
-				await mkdir(dirname(outputPath), { recursive: true });
-				const buf =
-					blob.encoding === "base64"
-						? Buffer.from(blob.data.replace(/\s+/g, ""), "base64")
-						: Buffer.from(blob.data, "utf8");
-				await writeFile(outputPath, buf);
-				const text = `Saved ${method} binary (${Math.round(buf.length / 1024)} KB) to ${outputPath}`;
-				return { content: [{ type: "text", text }], details: { method, kind: "file", size: buf.length } };
+			)) as { method?: string; results?: Array<{ method?: string; result?: unknown; error?: string }> };
+			const results = result?.results;
+			if (!Array.isArray(results)) {
+				throw new Error(`chrome: unexpected bridge result ${JSON.stringify(result).slice(0, 500)}`);
 			}
-			const outputText = `CDP ${method}:\n${truncateText(JSON.stringify(value, null, 2))}`;
-			return { content: [{ type: "text", text: outputText }], details: { method, kind: "text" } };
+			// Per-command save: zip script entries with results (same order and length).
+			const saved: string[] = [];
+			for (let i = 0; i < results.length; i++) {
+				const cmd = script[i];
+				const res = results[i];
+				if (cmd && "save" in cmd && typeof cmd.save === "string" && cmd.save && res && !res.error) {
+					const blob = findSaveableBlob(res.result);
+					if (!blob) {
+						throw new Error(`chrome: no saveable data for ${res.method ?? `command ${i + 1}`} result (expected base64 binary or MHTML)`);
+					}
+					const outputPath = resolve(ctx.cwd, cmd.save);
+					await mkdir(dirname(outputPath), { recursive: true });
+					const buf =
+						blob.encoding === "base64"
+							? Buffer.from(blob.data.replace(/\s+/g, ""), "base64")
+							: Buffer.from(blob.data, "utf8");
+					await writeFile(outputPath, buf);
+					saved.push(`Saved ${res.method ?? `command ${i + 1}`} binary (${Math.round(buf.length / 1024)} KB) to ${outputPath}`);
+				}
+			}
+			if (saved.length > 0) {
+				return { content: [{ type: "text", text: saved.join("\n") }], details: { method: "cdp", kind: "file" } };
+			}
+			// Response trimming: output is always single-line JSON (token saver). pick = dot-path
+			// subtree to return instead of the full result (optional, per command).
+			const pickedValue = (res: { result?: unknown }, index: number): unknown => {
+				const cmd = script[index];
+				if (cmd && "pick" in cmd && cmd.pick) {
+					// Safe pick: a missing path falls back to the full result instead of null.
+					const picked = applyPick(res.result, cmd.pick);
+					return picked === undefined ? res.result : picked;
+				}
+				return res.result;
+			};
+			// Single-command scripts render like a classic single call; multi-command as a batch.
+			if (results.length === 1 && results[0].method) {
+				if (results[0].error) throw new Error(`${results[0].method}: ${results[0].error}`);
+				return {
+					content: [{ type: "text", text: `CDP ${results[0].method}:\n${truncateText(JSON.stringify(pickedValue(results[0], 0)))}` }],
+					details: { method: results[0].method, kind: "text" },
+				};
+			}
+			const displayed = results.map((res, i) =>
+				res && res.method && !res.error ? { method: res.method, result: pickedValue(res, i) } : res,
+			);
+			return {
+				content: [{ type: "text", text: `CDP cdp.batch:\n${truncateText(JSON.stringify({ results: displayed }))}` }],
+				details: { method: "cdp", kind: "text" },
+			};
 		},
 
-		// Compact header: chrome <method> <params-snippet>.
-		renderCall(args, theme, _context) {
-			let text = theme.fg("toolTitle", theme.bold("chrome "));
-			text += theme.fg("accent", typeof args.method === "string" ? args.method : "?");
-			if (typeof args.params === "string" && args.params) {
-				const snippet = args.params.length > 40 ? `${args.params.slice(0, 37)}...` : args.params;
-				text += theme.fg("dim", ` ${snippet}`);
+		// 1-line header when collapsed; when expanded (ctrl+o / click), show the full input in
+		// the same multi-line dim format as the expanded output.
+		renderCall(args, theme, context) {
+			const header = theme.fg("toolTitle", theme.bold("chrome "));
+			if (!context.expanded) {
+				let text = header;
+				if (typeof args.commands === "string" && args.commands) {
+					const snippet = args.commands.length > 40 ? `${args.commands.slice(0, 37)}...` : args.commands;
+					text += theme.fg("dim", ` ${snippet}`);
+				}
+				return new Text(text, 0, 0);
 			}
+			let scriptText = typeof args.commands === "string" && args.commands ? args.commands : "{}";
+			try {
+				scriptText = JSON.stringify(JSON.parse(scriptText), null, 2);
+			} catch {}
+			const lines = scriptText.split("\n");
+			let text = `${header}\n`;
+			for (const line of lines.slice(0, 30)) text += `${theme.fg("dim", line)}\n`;
+			if (lines.length > 30) text += theme.fg("muted", `... ${lines.length - 30} more lines`);
 			return new Text(text, 0, 0);
 		},
 
 		// No summary label when collapsed (the header already shows chrome <method>);
 		// full output only when expanded (ctrl+o / click), like built-in tools.
-		renderResult(result, { expanded, isPartial }, theme, _context) {
+		renderResult(result, { expanded, isPartial }, theme, context) {
 			if (isPartial) return new Text(theme.fg("warning", "Running..."), 0, 0);
 			const content = result.content[0];
 			const output = content?.type === "text" ? content.text : "";
 			const details = result.details as { method?: string; kind?: string } | undefined;
-			if (result.isError || output.startsWith("chrome:") || output.startsWith("Error")) {
+			if (context?.isError || output.startsWith("chrome:") || output.startsWith("Error")) {
 				return new Text(theme.fg("error", output.split("\n")[0].slice(0, 120)), 0, 0);
 			}
 			const method = details?.method ?? "CDP";
 			if (details?.kind === "file") {
 				return new Text(theme.fg("success", `${method} → ${output}`), 0, 0);
 			}
-			if (!expanded) return new Container(0, 0);
+			if (!expanded) return new Container();
+			// The model-facing text is compact (single-line JSON); re-pretty-print and syntax-highlight
+			// it for the TUI so expanded output stays readable for humans.
 			const lines = output.split("\n");
-			let text = "";
-			for (const line of lines.slice(0, 30)) text += `${theme.fg("dim", line)}\n`;
-			if (lines.length > 30) text += theme.fg("muted", `... ${lines.length - 30} more lines`);
+			const header = lines[0] ?? "";
+			const truncated = /\[truncated \d+ characters\]/.test(output);
+			const body = lines.slice(1).join("\n").replace(/\n\n\[truncated \d+ characters\]$/, "");
+			let prettyBody: string | null = null;
+			try {
+				prettyBody = JSON.stringify(JSON.parse(body), null, 2);
+			} catch {
+				prettyBody = null;
+			}
+			const highlighted = highlightCode(prettyBody ?? body, "json");
+			let text = `${theme.fg("dim", header)}\n`;
+			for (const line of highlighted.slice(0, 30)) text += `${line}\n`;
+			if (highlighted.length > 30) text += theme.fg("muted", `... ${highlighted.length - 30} more lines`);
+			if (truncated) text += theme.fg("muted", "\n[truncated output — see tool result for full data]");
 			return new Text(text, 0, 0);
 		},
 	});

@@ -60,24 +60,10 @@ async function persistAutomationTargets() {
   }
 }
 
-// Create a fresh automation target for `sessionKey`: an isolated window first (so the user's
-// windows are never touched), falling back to a dedicated tab in a shared window. No tab groups.
+// Create a fresh automation target for `sessionKey`: a dedicated background tab in an EXISTING
+// window — never a new Chrome window. windowId stays unset so cleanup closes only our tab,
+// never the user's window. No tab groups.
 async function createAutomationTarget(sessionKey) {
-  if (chrome.windows && typeof chrome.windows.create === "function") {
-    try {
-      const win = await chrome.windows.create({ url: "about:blank", focused: false });
-      const created = win && Array.isArray(win.tabs) ? win.tabs[0] : undefined;
-      if (created && typeof created.id === "number") {
-        automationTargets.set(sessionKey, { windowId: typeof win.id === "number" ? win.id : undefined, tabId: created.id });
-        await persistAutomationTargets();
-        return created;
-      }
-    } catch {
-      // Window creation can fail (policy, headless, etc.); fall back to a dedicated tab below.
-    }
-  }
-  // Tab fallback: the tab lives in a pre-existing (user/shared) window we did NOT create, so we
-  // must leave windowId unset — cleanup then closes only our tab, never the user's window.
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
   automationTargets.set(sessionKey, { windowId: undefined, tabId: typeof tab.id === "number" ? tab.id : undefined });
   await persistAutomationTargets();
@@ -441,9 +427,75 @@ async function getTabByParams(params) {
   if (!tab?.id) throw new Error("No matching Chrome tab found");
   const url = tab.url || "";
   if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("devtools://")) {
+    // Our own automation target stuck on a protected URL (e.g. chrome://newtab) cannot be
+    // debugger-attached at all. Repair it by pointing it at about:blank via the tabs API.
+    // User tabs on protected URLs are never touched — they keep failing fast.
+    const isOurs = tab.id === automationTargets.get(sessionKeyOf(params))?.tabId;
+    if (isOurs) {
+      await chrome.tabs.update(tab.id, { url: "about:blank" });
+      await sleep(150);
+      return { id: tab.id, url: "about:blank", title: "" };
+    }
     throw new Error(`Chrome blocks extension automation on protected URL: tab=${tab.id} url=${url}`);
   }
   return tab;
+}
+
+// Run one CDP method against the tab resolved from `params`, or a tabs-API translation for the
+// two browser-level Target.* methods extensions can't send to a page debuggee. Shared by the
+// single-method and batch (params.commands) paths.
+async function runCdpMethod(params, method, cdpParams) {
+  if (method === "Target.createTarget") {
+    const url = typeof cdpParams.url === "string" && cdpParams.url ? cdpParams.url : "about:blank";
+    const tab = await chrome.tabs.create({ url, active: cdpParams.background !== true });
+    return { result: { targetId: String(tab.id) } };
+  }
+  if (method === "Target.getTargets") {
+    const [tabs, targets] = await Promise.all([
+      chrome.tabs.query({}),
+      new Promise((resolve) => chrome.debugger.getTargets((t) => resolve(t || []))).catch(() => []),
+    ]);
+    const attached = new Set(targets.filter((t) => t.attached).map((t) => t.tabId));
+    return {
+      result: {
+        targetInfos: tabs
+          .filter((tab) => tab.id !== undefined)
+          .map((tab) => ({
+            targetId: String(tab.id),
+            type: "page",
+            title: tab.title || "",
+            url: tab.url || "",
+            attached: attached.has(tab.id),
+            tabId: tab.id,
+            windowId: tab.windowId,
+            active: tab.active,
+          })),
+      },
+    };
+  }
+  if (method === "Target.closeTarget") {
+    const tab = await getTabByParams(params);
+    await chrome.tabs.remove(tab.id);
+    return { result: { closedTabId: tab.id, url: tab.url, title: tab.title } };
+  }
+  const tab = await getTabByParams(params);
+  // Always focus the tab pi-chrome is working on so the user can watch the automation live.
+  await chrome.tabs.update(tab.id, { active: true });
+  await attachDebugger(tab.id);
+  const result = await cdp(tab.id, method, cdpParams);
+  // Session-scoped overrides die on detach (like closing DevTools), so hold the debugger
+  // while an emulation override is active and release it on the matching clear.
+  const holds =
+    /^Emulation\.set/.test(method) ||
+    /^Network\.emulateNetworkConditions$/.test(method) ||
+    /^CSS\.forcePseudoState$/.test(method);
+  const releases =
+    /^Emulation\.clear/.test(method) ||
+    (method === "Network.emulateNetworkConditions" && cdpParams.offline === false && cdpParams.downloadThroughput === -1) ||
+    (method === "CSS.forcePseudoState" && Array.isArray(cdpParams.forcedPseudoClasses) && cdpParams.forcedPseudoClasses.length === 0);
+  if (holds) holdEmulation(tab.id, true);
+  else if (releases) holdEmulation(tab.id, false);
+  return { result };
 }
 
 // =================== Commands ===================
@@ -457,34 +509,49 @@ async function dispatch(action, params) {
         userAgent: navigator.userAgent,
       };
     case "page.cdp": {
-      // Generic DevTools Protocol passthrough — the one "superpower" command. Any CDP method on
-      // the target tab: Emulation.*, Page.*, Network.*, CSS.*, DOM.*, Storage.*, Performance.*,
-      // Input.*, Target.*, ... Full reference: https://chromedevtools.github.io/devtools-protocol/
+      // Script mode: params.commands = array of {method, params?, save?} and/or
+      // {target:{urlIncludes|titleIncludes|targetId}} entries. {target} switches the working tab
+      // for subsequent commands (like `cd` in bash); default is the session automation tab.
+      // Runs sequentially, stops at the first CDP error (bash `&&` semantics).
+      const script = Array.isArray(params.commands) && params.commands.length > 0 ? params.commands : null;
+      if (script) {
+        const results = [];
+        let targetParams = {};
+        for (const cmd of script) {
+          if (cmd && typeof cmd === "object" && !Array.isArray(cmd) && cmd.target && typeof cmd.target === "object" && !Array.isArray(cmd.target)) {
+            targetParams = { ...targetParams, ...cmd.target };
+            results.push({ target: cmd.target });
+            continue;
+          }
+          const method = String(cmd?.method ?? "");
+          if (!/^[A-Za-z]+\.[A-Za-z]+$/.test(method)) {
+            results.push({ method, error: "invalid method" });
+            break;
+          }
+          const cdpParams = cmd.params && typeof cmd.params === "object" && !Array.isArray(cmd.params) ? cmd.params : {};
+          try {
+            const out = await runCdpMethod(targetParams, method, cdpParams);
+            results.push({ method, result: out.result });
+          } catch (error) {
+            results.push({ method, error: error?.message ?? String(error) });
+            break;
+          }
+        }
+        return { method: "cdp.batch", results };
+      }
+      // Legacy single-method path (direct bridge use): top-level method/cdpParams/target fields.
       const method = String(params.method ?? "");
       if (!/^[A-Za-z]+\.[A-Za-z]+$/.test(method)) throw new Error("cdp requires --method <Domain.method> (e.g. Emulation.setDeviceMetricsOverride)");
-      // Only browser/tab-destroying methods are blocked; everything else is allowed.
-      const CDP_DENIED = new Set([
-        "Browser.close", "Browser.crash", "Browser.crashGpuProcess", "Browser.executeBrowserCommand",
-        "Page.crash", "Page.close", "Target.closeTarget", "Target.crashTarget",
-      ]);
-      if (CDP_DENIED.has(method)) throw new Error(`cdp: ${method} is blocked (it would close or crash the browser/a tab)`);
-      const tab = await getTabByParams(params);
       const cdpParams = params.cdpParams && typeof params.cdpParams === "object" && !Array.isArray(params.cdpParams) ? params.cdpParams : {};
-      await attachDebugger(tab.id);
-      const result = await cdp(tab.id, method, cdpParams);
-      // Session-scoped overrides die on detach (like closing DevTools), so hold the debugger
-      // while an emulation override is active and release it on the matching clear.
-      const holds =
-        /^Emulation\.set/.test(method) ||
-        /^Network\.emulateNetworkConditions$/.test(method) ||
-        /^CSS\.forcePseudoState$/.test(method);
-      const releases =
-        /^Emulation\.clear/.test(method) ||
-        (method === "Network.emulateNetworkConditions" && cdpParams.offline === false && cdpParams.downloadThroughput === -1) ||
-        (method === "CSS.forcePseudoState" && Array.isArray(cdpParams.forcedPseudoClasses) && cdpParams.forcedPseudoClasses.length === 0);
-      if (holds) holdEmulation(tab.id, true);
-      else if (releases) holdEmulation(tab.id, false);
-      return { method, result };
+      const out = await runCdpMethod(params, method, cdpParams);
+      return { method, result: out.result };
+    }
+    case "tab.close": {
+      // Explicit opt-in added on user request: close a specific tab (by targetId/urlIncludes/
+      // titleIncludes) via the chrome.tabs API. Only ever closes the one resolved tab.
+      const tab = await getTabByParams(params);
+      await chrome.tabs.remove(tab.id);
+      return { closedTabId: tab.id, url: tab.url, title: tab.title };
     }
     case "extension.reload":
       // Restart the companion extension service worker. Equivalent to the reload button at
