@@ -1256,6 +1256,7 @@ export default function (pi: ExtensionAPI) {
 	 *  it in the bio marker, delete the previous leader's stale thread (crash
 	 *  orphan / device switch), then start polling. */
 	async function promoteToLeader(oldThreadId?: number): Promise<void> {
+		const wasChild = role === "child";
 		role = "leader";
 		stopChild();
 		offset = await loadOffset();
@@ -1278,7 +1279,10 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 		if (state.threadId !== undefined) {
-			sendPlain("This session took over as the active device.").catch(() => {});
+			sendPlain(wasChild || !botUsername ? "🜲 Connected." : `🜲 Connected to ${botUsername}.`).catch(() => {});
+		}
+		if (wasChild) {
+			sessionCtx?.ui.notify("🜲 Connected.", "info");
 		}
 	}
 
@@ -1421,9 +1425,7 @@ export default function (pi: ExtensionAPI) {
 		await removeLeader();
 		const t = target();
 		if (t?.threadId !== undefined) {
-			await sendPlain(
-				"Another device connected — this device was disconnected. This session's thread was deleted. Run /telegram to reconnect here.",
-			);
+			await sendPlain("Disconnected.");
 			await Promise.race([
 				getClient().deleteForumTopic(t.chatId, t.threadId),
 				sleep(2500),
@@ -1434,6 +1436,7 @@ export default function (pi: ExtensionAPI) {
 		role = undefined;
 		state = {};
 		updateStatus();
+		sessionCtx?.ui.notify("Disconnected.", "info");
 	}
 
 	// -----------------------------------------------------------------------
@@ -1467,14 +1470,15 @@ export default function (pi: ExtensionAPI) {
 					offset = {};
 					await saveOffset(offset).catch(() => {});
 					client = undefined;
-					botUsername = `@${me.username ?? ""}`;
+					botUsername = `@${me.username ?? me.id}`;
+					ctx.ui.notify("Connecting ...", "info");
 					const outcome = await connectBridge(ctx);
 					ctx.ui.notify(
 						outcome === "leader"
-							? `Connected as @${me.username ?? me.id}. Open the bot DM and send /start (Threaded Mode must be enabled in BotFather).`
+							? `🜲 Connected to ${botUsername}.`
 							: outcome === "child"
-								? "Standby — another session on this device is the leader; this session takes over automatically when it disconnects."
-								: "Another device is the active leader — bridge not connected here.",
+								? "Connected."
+								: "Another device is the active leader.",
 						outcome === "off" ? "warning" : "info",
 					);
 				} catch (err) {
@@ -1485,13 +1489,16 @@ export default function (pi: ExtensionAPI) {
 
 			if (role === undefined) {
 				// Token saved but not connected → connect directly, no confirmation.
+				ctx.ui.notify("Connecting ...", "info");
 				const outcome = await connectBridge(ctx);
 				ctx.ui.notify(
 					outcome === "leader"
-						? `Connected${botUsername ? ` as ${botUsername}` : ""}${cfg.allowedUserId !== undefined ? "" : " — waiting for /start pairing"}.`
+						? botUsername
+							? `🜲 Connected to ${botUsername}.`
+							: "🜲 Connected."
 						: outcome === "child"
-							? "Standby — another session on this device is the leader; this session takes over automatically when it disconnects."
-							: "Another device is the active leader — bridge not connected here.",
+							? "Connected."
+							: "Another device is the active leader.",
 					outcome === "off" ? "warning" : "info",
 				);
 				return;
@@ -1501,7 +1508,7 @@ export default function (pi: ExtensionAPI) {
 			const choice = await ctx.ui.select("Telegram bridge", ["Disconnect", "Logout", "Cancel"]);
 			if (choice === "Disconnect") {
 				await disconnectBridge();
-				ctx.ui.notify("Disconnected. Run /telegram to connect again.", "info");
+				ctx.ui.notify("Disconnected.", "info");
 			} else if (choice === "Logout") {
 				await disconnectBridge();
 				client = undefined;
@@ -1509,7 +1516,7 @@ export default function (pi: ExtensionAPI) {
 				await persistCfg({ botToken: "", allowedUserId: undefined, chatId: undefined });
 				offset = {};
 				await saveOffset(offset).catch(() => {});
-				ctx.ui.notify("Logged out. Run /telegram to log in again.", "info");
+				ctx.ui.notify("Logged out.", "info");
 			}
 			// Cancel → nothing.
 		},
