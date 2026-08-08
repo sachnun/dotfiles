@@ -555,22 +555,30 @@ export default function (pi: ExtensionAPI): void {
 		name: "chrome",
 		label: "Chrome",
 		description:
-			"Control the user's real Chrome via raw Chrome DevTools Protocol (CDP): any method, any feature " +
-			"(navigate, JS, input, screenshot, device/media/network emulation, cookies, storage). " +
-			"method = CDP method, or \"status\" to check connectivity. params = arguments as JSON string or " +
-			"object. save = optional output path for binary/MHTML results. Runs on pi's own automation " +
-			"window unless targetId/urlIncludes/titleIncludes picks a real tab — never the user's active " +
-			"tab. Destructive methods blocked; output truncated ~15K. Reference: " +
+			"Control the user's real Chrome via raw Chrome DevTools Protocol (CDP). One tool for every " +
+			"DevTools feature: navigate, run JS, click/type, screenshot, viewport/media/network " +
+			"emulation, cookies, tabs, storage. method: any CDP method, e.g. Page.navigate, " +
+			"Runtime.evaluate, Input.dispatchMouseEvent, Page.captureScreenshot, " +
+			"Emulation.setDeviceMetricsOverride (or \"status\" to check the bridge). params: JSON " +
+			"string of the method's arguments, e.g. '{\"url\":\"https://example.com\"}'. save: optional " +
+			"path to write binary results (screenshots/MHTML/PDF) to a file. targetId | urlIncludes | " +
+			"titleIncludes: optional, act on a specific existing tab — without them, commands run on " +
+			"pi-chrome's own automation window, never the user's active tab. Key recipes: read a page: " +
+			"Runtime.evaluate {\"expression\":\"document.body.innerText.slice(0,3000)\",\"returnByValue\":true}; " +
+			"click: Input.dispatchMouseEvent mousePressed then mouseReleased " +
+			"({\"x\":N,\"y\":N,\"button\":\"left\",\"clickCount\":1}); screenshot: Page.captureScreenshot + save. " +
+			"Text results are truncated to ~15K chars. Full CDP reference: " +
 			"https://chromedevtools.github.io/devtools-protocol/",
-		promptSnippet: "Drive the user's Chrome via raw CDP",
+		promptSnippet:
+			"Drive the user's Chrome via raw CDP (navigate, read/run JS, click, type, screenshot, emulate)",
 		parameters: Type.Object({
-			method: Type.String({ description: "CDP method or \"status\"" }),
-			params: Type.Optional(Type.Unknown({ description: "JSON args (string or object)" })),
-			save: Type.Optional(Type.String({ description: "write result to this path" })),
-			targetId: Type.Optional(Type.Number({ description: "existing tab id" })),
-			urlIncludes: Type.Optional(Type.String({ description: "tab URL contains" })),
-			titleIncludes: Type.Optional(Type.String({ description: "tab title contains" })),
-			timeoutMs: Type.Optional(Type.Number({ description: "ms (default 30000)" })),
+			method: Type.String({ description: "CDP method, e.g. Page.navigate, Runtime.evaluate, Input.dispatchMouseEvent, or \"status\"" }),
+			params: Type.Optional(Type.String({ description: "JSON object string of the method's arguments, e.g. '{\"width\":375}'" })),
+			save: Type.Optional(Type.String({ description: "Write binary result (screenshot/MHTML/PDF base64) to this path" })),
+			targetId: Type.Optional(Type.Number({ description: "Act on a specific existing Chrome tab id" })),
+			urlIncludes: Type.Optional(Type.String({ description: "Act on the tab whose URL contains this string" })),
+			titleIncludes: Type.Optional(Type.String({ description: "Act on the tab whose title contains this string" })),
+			timeoutMs: Type.Optional(Type.Number({ description: "Command timeout in ms (default 30000)" })),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			await bridge.start();
@@ -595,17 +603,11 @@ export default function (pi: ExtensionAPI): void {
 				);
 			}
 			let cdpParams: Record<string, unknown> = {};
-			if (params.params !== undefined && params.params !== null && params.params !== "") {
-				if (typeof params.params === "string") {
-					try {
-						cdpParams = JSON.parse(params.params) as Record<string, unknown>;
-					} catch {
-						throw new Error("params must be a JSON object string, e.g. '{\"width\":375}'");
-					}
-				} else if (typeof params.params === "object") {
-					cdpParams = params.params as Record<string, unknown>;
-				} else {
-					throw new Error("params must be a JSON object string or object");
+			if (typeof params.params === "string" && params.params) {
+				try {
+					cdpParams = JSON.parse(params.params) as Record<string, unknown>;
+				} catch {
+					throw new Error("params must be a JSON object string, e.g. '{\"width\":375}'");
 				}
 				if (!cdpParams || typeof cdpParams !== "object" || Array.isArray(cdpParams)) {
 					throw new Error("params must be a JSON object, e.g. '{\"width\":375}'");
