@@ -28,7 +28,9 @@
  *   - the device that wrote last wins; the previous leader fully disconnects
  *     (deletes its session thread, stays off until /telegram is run again),
  *     and its standby children are kicked the same way — another device's
- *     marker means this device is out entirely, no follower mode.
+ *     marker means this device is out entirely, no follower mode. The marker
+ *     is only cleared by the device that owns it: a device that never
+ *     connected, or was already kicked, never wipes it on quit.
  *   - the marker also records the leader's thread id, so the next leader
  *     deletes the stale thread on connect (crash orphans auto-cleaned).
  *   - no cross-device file sync: token, pairing, offset and the device id
@@ -1122,9 +1124,13 @@ export default function (pi: ExtensionAPI) {
 		return after === leaderMarker();
 	}
 
-	/** Clear our marker — clean disconnect/quit only, never on being kicked
-	 *  (the new leader owns the marker then). */
+	/** Clear our marker — clean disconnect/quit only, and only while we still
+	 *  own it. Never clear a foreign or empty marker: the device holding it is
+	 *  the active leader, and a device that never connected (or was already
+	 *  kicked) must not be able to wipe it on exit. */
 	async function releaseLeadership(): Promise<void> {
+		const current = await getClient().getMyShortDescription().catch(() => undefined);
+		if (current === undefined || !isOurMarker(current)) return;
 		await getClient().setMyShortDescription("").catch(() => {});
 	}
 
@@ -1370,8 +1376,12 @@ export default function (pi: ExtensionAPI) {
 
 	/** Disconnect: stop polling, release the local leader slot and the bio
 	 *  marker, delete this session's thread (best-effort). Children delete
-	 *  their own thread too and stop draining. */
+	 *  their own thread too and stop draining. When this instance was never
+	 *  connected (or already kicked) there is nothing to release — closing
+	 *  pi on a device that isn't the active leader must not touch shared
+	 *  state (bio marker / leader.json / threads). */
 	async function disconnectBridge(): Promise<void> {
+		if (role === undefined) return; // not connected → nothing to disconnect
 		if (role === "child") {
 			stopChild();
 			const t = target();
