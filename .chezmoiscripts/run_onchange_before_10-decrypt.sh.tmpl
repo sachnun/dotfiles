@@ -2,7 +2,7 @@
 #!{{ lookPath "sh" }}
 set -eu
 
-export PATH="$HOME/.local/bin:$HOME/bin:${PREFIX:-/usr}/bin:$PATH"
+export PATH="${PREFIX:-/usr}/bin:$HOME/.local/bin:$HOME/bin:$PATH"
 
 # Ensure chezmoi is available
 if ! command -v chezmoi >/dev/null 2>&1; then
