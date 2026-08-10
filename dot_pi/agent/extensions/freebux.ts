@@ -139,10 +139,11 @@ function formatStatus(data: StatusResponse, modelId: string): string | undefined
 	if (secs <= 0) return STATE_ASCII.expired;
 
 	let fraction: number;
-	if (quotaTotal > 0) {
-		// Total sesi = kuota (jam); sisa efektif = yang habis lebih dulu
-		// antara sisa sesi dan sisa kuota.
-		fraction = Math.min(secs, quotaLeft) / quotaTotal;
+	if (quotaTotal > 0 && Number.isFinite(quotaLeft)) {
+		// Bar mencerminkan sisa kuota model (jam), bukan jendela sesi
+		// 1 jam: tiap sesi menghabiskan 1 jam dari kuota harian, jadi
+		// kuota adalah batasan yang sebenarnya.
+		fraction = quotaLeft / quotaTotal;
 	} else {
 		// Tanpa data kuota: total sesi diasumsikan 60 menit.
 		fraction = secs / SESSION_DURATION_SECS;
