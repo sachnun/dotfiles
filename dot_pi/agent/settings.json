@@ -15,7 +15,9 @@
     "-extensions/restore.ts",
     "-extensions/bash.ts",
     "-extensions/checkpoint.ts",
-    "+extensions/composio.ts"
+    "+extensions/composio.ts",
+    "-extensions/telegram/index.ts",
+    "-extensions/chrome/index.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
