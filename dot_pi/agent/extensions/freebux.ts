@@ -115,12 +115,20 @@ function asciiBar(fraction: number, width = BAR_WIDTH): string {
 	return "#".repeat(filled) + "-".repeat(width - filled);
 }
 
+// Time-only sessions (no quota data): the quota effectively never runs out,
+// so the bar keeps at least one '#' and marks the elapsed portion with '+'.
+function timeBar(fraction: number, width = BAR_WIDTH): string {
+	const clamped = Math.max(0, Math.min(1, fraction));
+	const filled = Math.max(1, Math.min(width, Math.round(clamped * width)));
+	return "#".repeat(filled) + "+".repeat(width - filled);
+}
+
 const STATE_LABEL: Record<string, string> = {
 	cooling: "++++++------",
 	expired: "------------",
 };
 
-// Total sesi saat API tidak memberikan data kuota.
+// Total session length assumed when the API provides no quota data.
 const SESSION_DURATION_SECS = 60 * 60;
 
 function formatStatus(data: StatusResponse, modelId: string): string | undefined {
@@ -147,18 +155,16 @@ function formatStatus(data: StatusResponse, modelId: string): string | undefined
 	if (secs === undefined) return undefined;
 	if (secs <= 0) return STATE_LABEL.expired;
 
-	let fraction: number;
 	if (quotaTotal > 0 && Number.isFinite(quotaLeft)) {
-		// Bar mencerminkan sisa kuota model (jam), bukan jendela sesi
-		// 1 jam: tiap sesi menghabiskan 1 jam dari kuota harian, jadi
-		// kuota adalah batasan yang sebenarnya.
-		fraction = quotaLeft / quotaTotal;
-	} else {
-		// Tanpa data kuota: total sesi diasumsikan 60 menit.
-		fraction = secs / SESSION_DURATION_SECS;
+		// Quota-based: the bar mirrors the model's remaining quota (hours), not
+		// the session window. Each session spends 1 hour of the daily quota,
+		// so quota is the actual limiting factor.
+		return asciiBar(quotaLeft / quotaTotal);
 	}
 
-	return asciiBar(Math.max(0, Math.min(1, fraction)));
+	// Time-only session: quota never runs out, so the bar never fully
+	// depletes (always at least one '#') and uses '+' for elapsed time.
+	return timeBar(secs / SESSION_DURATION_SECS);
 }
 
 export default async function (pi: ExtensionAPI) {
