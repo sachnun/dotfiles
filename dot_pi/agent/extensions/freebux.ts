@@ -82,6 +82,14 @@ function toProviderModel(model: FreebuxModel): ProviderModelConfig | undefined {
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: asPositiveNumber(model.context_window, 131_072),
 		maxTokens: asPositiveNumber(model.max_tokens, 16_384),
+		// xhigh/max only show up when thinkingLevelMap has non-null entries.
+		// OpenRouter format sends the effort value through as-is (passthrough).
+		thinkingLevelMap: reasoning
+			? {
+					xhigh: "xhigh",
+					max: "max",
+				}
+			: undefined,
 		compat: { supportsDeveloperRole: false, thinkingFormat: "openrouter" },
 	};
 }
@@ -99,20 +107,17 @@ function fetchStatus(signal?: AbortSignal): Promise<StatusResponse> {
 	return fetchJson(`${BASE_URL.replace(/\/v1\/?$/, "")}/api/status`, signal) as Promise<StatusResponse>;
 }
 
-const BAR_WIDTH = 8;
+const BAR_WIDTH = 12;
 
 function asciiBar(fraction: number, width = BAR_WIDTH): string {
 	const clamped = Math.max(0, Math.min(1, fraction));
 	const filled = Math.round(clamped * width);
-	return "[" + "#".repeat(filled) + "-".repeat(width - filled) + "]";
+	return "#".repeat(filled) + "-".repeat(width - filled);
 }
 
-const STATE_ASCII: Record<string, string> = {
-	idle: "[........]",
-	cooling: "[++++----]",
-	expired: "[--------]",
-	banned: "[xxxxxxxx]",
-	offline: "[????????]",
+const STATE_LABEL: Record<string, string> = {
+	cooling: "++++++------",
+	expired: "------------",
 };
 
 // Total sesi saat API tidak memberikan data kuota.
@@ -120,12 +125,16 @@ const SESSION_DURATION_SECS = 60 * 60;
 
 function formatStatus(data: StatusResponse, modelId: string): string | undefined {
 	const token = data.token_state?.find((t) => t.session_model === modelId);
-	if (!token) return STATE_ASCII.idle;
+	// Idle (no session token): keep the status hidden.
+	if (!token) return undefined;
 
 	const state = token.state ?? token.session_status;
 	if (state !== "active") {
-		const key = state === "cooling_down" ? "cooling" : (state ?? "idle");
-		return STATE_ASCII[key];
+		// idle/banned/offline stay hidden: idle has no session, and
+		// banned/offline are already surfaced by the API JSON.
+		if (!state || state === "idle" || state === "banned" || state === "offline") return undefined;
+		const key = state === "cooling_down" ? "cooling" : state;
+		return STATE_LABEL[key];
 	}
 
 	const expires = token.session_expires_at ? Date.parse(token.session_expires_at) : Number.NaN;
@@ -136,7 +145,7 @@ function formatStatus(data: StatusResponse, modelId: string): string | undefined
 	const quotaLeft = typeof quota?.remaining === "number" ? Math.max(0, quota.remaining) * 3600 : Number.POSITIVE_INFINITY;
 
 	if (secs === undefined) return undefined;
-	if (secs <= 0) return STATE_ASCII.expired;
+	if (secs <= 0) return STATE_LABEL.expired;
 
 	let fraction: number;
 	if (quotaTotal > 0 && Number.isFinite(quotaLeft)) {
@@ -201,10 +210,10 @@ export default async function (pi: ExtensionAPI) {
 		try {
 			const data = await fetchStatus();
 			const text = formatStatus(data, modelId);
-			const color: "dim" | "error" = text === STATE_ASCII.banned ? "error" : "dim";
-			ui.setStatus(STATUS_KEY, text ? theme.fg(color, text) : undefined);
+			ui.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
 		} catch {
-			ui.setStatus(STATUS_KEY, theme.fg("warning", STATE_ASCII.offline));
+			// Fetch failure: clear the status; banned/offline come from the API JSON.
+			ui.setStatus(STATUS_KEY, undefined);
 		} finally {
 			statusInFlight = false;
 		}
