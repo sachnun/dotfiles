@@ -3,9 +3,7 @@
         "opencode": {
             "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
             "modelOverrides": {
-                "deepseek-v4-flash-free": {
-                    "contextWindow": 1000000
-                }
+                "deepseek-v4-flash-free": { "contextWindow": 1000000 }
             }
         }
     }
