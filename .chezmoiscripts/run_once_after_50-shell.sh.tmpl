@@ -24,6 +24,10 @@ if ! command -v chsh >/dev/null 2>&1; then
   exit 0
 fi
 if [ "$current_shell" != "$fish_path" ]; then
-  chsh -s "$fish_path"
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo chsh -s "$fish_path"
+  else
+    chsh -s "$fish_path"
+  fi
 fi
 {{ end -}}

@@ -8,3 +8,17 @@ tools:
     exclude_android: true
   - name: pi
     install: curl -fsSL https://pi.dev/install.sh | sh
+  - name: fastfetch
+    exclude_android: true
+    install: |
+      if grep -qiE 'debian|ubuntu' /etc/os-release 2>/dev/null; then
+        deb_url="$(curl -fsSL https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | jq -r '.assets[].browser_download_url' | grep -E 'linux-amd64\.deb$' | head -n1)"
+        curl -fsSL -o /tmp/fastfetch.deb "$deb_url"
+        if [ "$(id -u)" -eq 0 ]; then
+          dpkg -i /tmp/fastfetch.deb
+        else
+          sudo dpkg -i /tmp/fastfetch.deb
+        fi
+      else
+        echo "fastfetch: no .deb install path for this distro; skipping."
+      fi
