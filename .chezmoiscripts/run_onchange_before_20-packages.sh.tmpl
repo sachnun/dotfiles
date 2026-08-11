@@ -24,7 +24,7 @@ apt_packages=(
 )
 export DEBIAN_FRONTEND=noninteractive
 ${SUDO} apt-get update
-${SUDO} apt-get install -y -o Dpkg::Options::="--force-confold" "${apt_packages[@]}"
+${SUDO} apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" "${apt_packages[@]}"
 
 # Latest Node.js via the NodeSource apt repo — Debian's nodejs is too old for pi (needs >= v20).
 if command -v node >/dev/null 2>&1 && [ "$(node -v | sed 's/[v.]/ /g' | awk '{print $1}')" -ge 20 ]; then
