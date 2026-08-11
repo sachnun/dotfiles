@@ -17,7 +17,8 @@ for candidate in \
   "$HOME/.local/bin/chezmoi" \
   "$HOME/bin/chezmoi" \
   "/usr/local/bin/chezmoi" \
-  "$PWD/.local/bin/chezmoi"; do
+  "$PWD/.local/bin/chezmoi" \
+  /workspaces/*/.local/bin/chezmoi; do
   if [ -n "$candidate" ] && [ -x "$candidate" ]; then
     chezmoi_bin="$candidate"
     break
