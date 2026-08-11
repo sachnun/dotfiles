@@ -14,7 +14,6 @@ Quality:
 
 Commands:
 
-- Don't use `find`; use `fd` instead.
 - After code changes: run the project's check/lint/type-check and fix all issues before committing.
 - Never commit unless asked, do once.
 - Never run build/test unless asked.
