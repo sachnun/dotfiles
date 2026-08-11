@@ -3,8 +3,8 @@ tools:
     install: sh -c "$(curl -fsLS get.chezmoi.io/lb)"
   - name: starship
     install: curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
-  - name: opencode
-    install: npm install -g @opencode-ai/cli@next
+  - name: opencode2
+    install: npm install -g --allow-scripts=@opencode-ai/cli @opencode-ai/cli@next
     exclude_android: true
   - name: pi
     install: curl -fsSL https://pi.dev/install.sh | sh
