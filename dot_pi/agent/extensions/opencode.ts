@@ -239,8 +239,18 @@ export default function (pi: ExtensionAPI) {
             streamSimple: (model, context, options) =>
                 openaiStreams.streamSimple(model, context, options),
             models: present([]),
-            refreshModels: async ({ signal, publish, allowNetwork, force }) => {
-                if (!allowNetwork || signal.aborted) return present([]);
+            refreshModels: async ({ signal, publish, allowNetwork, force, stored }) => {
+                if (signal.aborted) return present([]);
+
+                // pi-ai refreshes in two phases; the offline phase runs first, including
+                // on plain startup (the CLI passes allowNetwork: false). Restore the
+                // persisted catalog here instead of returning []: an empty return wipes
+                // the picker until a /model refresh triggers the network phase.
+                if (!allowNetwork) {
+                    return present(
+                        (stored?.models as ProviderModelConfig[] | undefined) ?? [],
+                    );
+                }
 
                 // Fresh disk cache: no network (common startup path); force re-fetches.
                 let catalog: Catalog;
