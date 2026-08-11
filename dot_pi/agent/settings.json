@@ -1,21 +1,18 @@
 {
   "lastChangelogVersion": "0.84.1",
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultProvider": "zed",
+  "defaultModel": "gpt-5.6-luna",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [],
+  "packages": [
+    "npm:@ff-labs/pi-fff"
+  ],
   "terminal": {
     "showTerminalProgress": true
   },
   "extensions": [
-    "-extensions/aihubmix.ts",
-    "-extensions/restore.ts",
-    "-extensions/bash.ts",
-    "-extensions/checkpoint.ts",
-    "+extensions/composio.ts",
     "-extensions/telegram/index.ts",
     "-extensions/chrome/index.ts",
     "+extensions/freebux.ts"
@@ -33,6 +30,7 @@
   "tuiMode": "fullscreen",
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
-    "freebux/openai/gpt-5.6-luna"
+    "freebux/openai/gpt-5.6-luna",
+    "zed/gpt-5.6-luna"
   ]
 }
