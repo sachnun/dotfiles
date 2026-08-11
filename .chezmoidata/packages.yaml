@@ -23,7 +23,6 @@ packages:
     - nodejs
     - npm
     - openssh
-    - opencode
     - python
     - ripgrep
     - rclone
