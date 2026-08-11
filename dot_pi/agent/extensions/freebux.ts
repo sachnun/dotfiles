@@ -9,6 +9,7 @@ import type { Model, Api } from "@earendil-works/pi-ai";
 const BASE_URL = "https://freebux.up.railway.app/v1";
 const TIMEOUT_MS = 15_000;
 const POLL_MS = 30_000;
+const POLL_MS_INACTIVE = 10_000;
 const STATUS_KEY = "freebux-status";
 
 interface FreebuxModel {
@@ -198,14 +199,22 @@ export default async function (pi: ExtensionAPI) {
 	});
 
 	let statusUi: ExtensionUIContext | undefined;
-	let statusTimer: ReturnType<typeof setInterval> | undefined;
+	let statusTimer: ReturnType<typeof setTimeout> | undefined;
 	let statusInFlight = false;
 	let modelId: string | undefined;
+	let lastActive = false;
+
+	// Poll faster while the session is not active (cooling, expired, idle,
+	// fetch failure) so the flip back to active is noticed sooner.
+	const scheduleNext = () => {
+		statusTimer = setTimeout(refreshStatus, lastActive ? POLL_MS : POLL_MS_INACTIVE);
+	};
 
 	const refreshStatus = async () => {
 		if (!statusUi || statusInFlight) return;
 		if (!modelId) {
 			statusUi.setStatus(STATUS_KEY, undefined);
+			scheduleNext();
 			return;
 		}
 		// Snapshot the UI context: the session may shut down (and null it)
@@ -215,13 +224,17 @@ export default async function (pi: ExtensionAPI) {
 		const theme = ui.theme;
 		try {
 			const data = await fetchStatus();
+			const token = data.token_state?.find((t) => t.session_model === modelId);
+			lastActive = (token?.state ?? token?.session_status) === "active";
 			const text = formatStatus(data, modelId);
 			ui.setStatus(STATUS_KEY, text ? theme.fg("dim", text) : undefined);
 		} catch {
 			// Fetch failure: clear the status; banned/offline come from the API JSON.
+			lastActive = false;
 			ui.setStatus(STATUS_KEY, undefined);
 		} finally {
 			statusInFlight = false;
+			scheduleNext();
 		}
 	};
 
@@ -236,8 +249,8 @@ export default async function (pi: ExtensionAPI) {
 	};
 
 	pi.on("session_start", (_event, ctx) => {
+		// bind() triggers an immediate refresh, which starts the poll chain.
 		bind(ctx);
-		statusTimer ??= setInterval(refreshStatus, POLL_MS);
 	});
 
 	pi.on("model_select", (event, ctx) => {
@@ -246,7 +259,7 @@ export default async function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", () => {
-		clearInterval(statusTimer);
+		clearTimeout(statusTimer);
 		statusTimer = undefined;
 		statusUi = undefined;
 		modelId = undefined;
