@@ -14,11 +14,12 @@ Quality:
 
 Commands:
 
+- Don't use `find`; use `fd` instead.
 - After code changes: run the project's check/lint/type-check and fix all issues before committing.
 - Never commit unless asked, do once.
 - Never run build/test unless asked.
 - If you create or modify a test file, run it and iterate on test or implementation until it passes.
-- For ad-hoc scripts, write them to a temp file (e.g. /tmp), run, edit if needed, remove when done. Don't embed multi-line scripts in bash commands.
+- For ad-hoc scripts, write them to a temp file system, run, edit if needed, remove when done. Don't embed multi-line scripts in bash commands.
 
 Git:
 
