@@ -60,6 +60,7 @@ const USER_AGENT = `Zed/${ZED_VERSION}`;
 const PROVIDER_ID = "zed";
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 const MODEL_REFRESH_MS = 30 * 60 * 1000;
+const STARTUP_MODEL_TIMEOUT_MS = 15 * 1000;
 
 // =============================================================================
 // Types
@@ -351,7 +352,6 @@ async function zedOAuthLogin(callbacks: OAuthLoginCallbacks): Promise<OAuthCrede
 	const systemId = randomUUID();
 
 	let resolveCb: ((creds: { uid: number; token: string }) => void) | undefined;
-	let rejectCb: ((err: Error) => void) | undefined;
 
 	const server = createServer((req, res) => {
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -395,7 +395,6 @@ async function zedOAuthLogin(callbacks: OAuthLoginCallbacks): Promise<OAuthCrede
 
 	const got = await new Promise<{ uid: number; token: string }>((resolve, reject) => {
 		resolveCb = resolve;
-		rejectCb = reject;
 		const timer = setTimeout(() => reject(new Error("Zed sign-in timed out (5 min)")), LOGIN_TIMEOUT_MS);
 		server.on("close", () => clearTimeout(timer));
 	});
@@ -1064,6 +1063,15 @@ function streamZed(model: Model<Api>, context: Context, options?: SimpleStreamOp
 			};
 			const finalEnvelope = (await options?.onPayload?.(envelope, model)) ?? envelope;
 
+			// Mint the JWT up front so a fresh process (empty cache) does not
+			// burn a guaranteed-401 round trip. On failure, fall through: the
+			// 401-retry below re-mints and surfaces the real error.
+			try {
+				await mintJwt(cred, options?.signal);
+			} catch {
+				// continue with whatever token (possibly none) we have
+			}
+
 			const headers: Record<string, string> = {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${jwtCache.token}`,
@@ -1127,7 +1135,7 @@ export default async function (pi: ExtensionAPI) {
 	let initialModels: ProviderModelConfig[] = [];
 	try {
 		const cred = await readStoredCredential();
-		if (cred) initialModels = await fetchZedModels(cred);
+		if (cred) initialModels = await fetchZedModels(cred, AbortSignal.timeout(STARTUP_MODEL_TIMEOUT_MS));
 	} catch (error) {
 		console.warn(`[zed] model discovery unavailable: ${String(error)}`);
 	}
