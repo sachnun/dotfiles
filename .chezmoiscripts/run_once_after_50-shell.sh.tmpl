@@ -11,11 +11,6 @@ if ! command -v fish >/dev/null 2>&1; then
   exit 0
 fi
 
-if [ ! -t 0 ]; then
-  echo "Skipping default shell change: no interactive TTY."
-  exit 0
-fi
-
 fish_path="$(command -v fish)"
 current_shell="${SHELL:-}"
 
@@ -25,9 +20,14 @@ if ! command -v chsh >/dev/null 2>&1; then
 fi
 if [ "$current_shell" != "$fish_path" ]; then
   if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    # Passwordless sudo: chsh works without a TTY.
     sudo chsh -s "$fish_path"
-  else
+  elif [ -t 0 ]; then
+    # Interactive chsh; will prompt for the password.
     chsh -s "$fish_path"
+  else
+    echo "Skipping default shell change: no interactive TTY and no passwordless sudo."
+    exit 0
   fi
 fi
 {{ end -}}

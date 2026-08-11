@@ -1,0 +1,36 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
+#!{{ lookPath "sh" }}
+set -eu
+
+key_path="$HOME/.config/chezmoi/key.txt"
+
+if [ -f "$key_path" ]; then
+  exit 0
+fi
+
+# This script is always run by chezmoi itself, but the binary may live
+# outside PATH (e.g. get.chezmoi.io/lb installs to BINDIR relative to the
+# working directory, which on GitHub Codespaces is /workspaces/...).
+chezmoi_bin=""
+for candidate in \
+  "$(command -v chezmoi 2>/dev/null || true)" \
+  "$HOME/.local/bin/chezmoi" \
+  "$HOME/bin/chezmoi" \
+  "/usr/local/bin/chezmoi" \
+  "$PWD/.local/bin/chezmoi"; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    chezmoi_bin="$candidate"
+    break
+  fi
+done
+
+if [ -z "$chezmoi_bin" ]; then
+  echo "chezmoi not found, skipping age key decryption."
+  exit 0
+fi
+
+mkdir -p "$HOME/.config/chezmoi"
+src_key="{{ .chezmoi.sourceDir }}/key.txt.age"
+"$chezmoi_bin" age decrypt --output "$key_path" --passphrase "$src_key"
+chmod 600 "$key_path"
+{{ end -}}
