@@ -20,8 +20,9 @@ if ! command -v chsh >/dev/null 2>&1; then
 fi
 if [ "$current_shell" != "$fish_path" ]; then
   if command -v sudo >/dev/null 2>&1; then
-    # sudo chsh handles both NOPASSWD (Codespaces) and interactive prompts.
-    sudo chsh -s "$fish_path"
+    # Must pass the username explicitly: under sudo, chsh without a username
+    # changes root's shell instead of the current user's.
+    sudo chsh -s "$fish_path" "$(id -un)"
   elif [ -t 0 ]; then
     # Interactive chsh; will prompt for the password.
     chsh -s "$fish_path"

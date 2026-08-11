@@ -1,6 +1,6 @@
 tools:
   - name: chezmoi
-    install: sh -c "$(curl -fsLS get.chezmoi.io/lb)"
+    install: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$INSTALL_DIR"
   - name: starship
     install: curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
   - name: opencode2
