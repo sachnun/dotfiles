@@ -1,5 +1,8 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
+# Milliseconds before directory scanning times out (default: 30000)
+scan_timeout = 60000
+
 [character]
 success_symbol = "[❯](cyan)"
 
