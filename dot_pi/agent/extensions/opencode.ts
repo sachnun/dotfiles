@@ -19,7 +19,14 @@ import type {
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import { getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
 
-const BASE_URL = "https://opencode.ai/zen/v1";
+// Requests go through unroxy (koyeb) — a rotating-IP URL rewrite proxy —
+// because the zen gateway rate-limits the anonymous free tier per source IP
+// (see rateLimiter.ts in sst/opencode branch 2.0: per-IP daily bucket,
+// reset at UTC midnight). From a phone (CGNAT) the shared IP is exhausted,
+// so deepseek-v4-flash-free etc. return 429 FreeUsageLimitError. Via unroxy
+// the request egresses from pool IPs with fresh quota (verified: 200 OK,
+// streaming works).
+const BASE_URL = "https://unroxy.koyeb.app/opencode.ai/zen/v1";
 const API_KEY = "public";
 
 // Built-in openai-completions delegate: keeps the full pi request path (hooks, retries, usage).
@@ -37,10 +44,19 @@ const toCleanId = (apiId: string) =>
     apiId.endsWith("-free") ? apiId.slice(0, -5) : apiId;
 
 // Present a model list with aliased (clean) ids and record the alias mapping.
+// baseUrl is forced to BASE_URL per model: pi's openai-completions client
+// builds the request URL from model.baseUrl, NOT the provider-level baseUrl,
+// and the bundled catalog models carry the direct opencode.ai URL (which is
+// why requests kept bypassing the unroxy proxy and still hit the per-IP
+// rate limit).
 const present = (models: ProviderModelConfig[]): ProviderModelConfig[] => {
     aliases.clear();
     for (const model of models) aliases.set(toCleanId(model.id), model.id);
-    return models.map((model) => ({ ...model, id: toCleanId(model.id) }));
+    return models.map((model) => ({
+        ...model,
+        id: toCleanId(model.id),
+        baseUrl: BASE_URL,
+    }));
 };
 
 export default function (pi: ExtensionAPI) {
