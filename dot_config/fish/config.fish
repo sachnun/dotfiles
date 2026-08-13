@@ -20,6 +20,7 @@ starship init fish | source
 # Pi
 fish_add_path "/usr/bin"
 
+
 # >>> grok installer >>>
 fish_add_path $HOME/.grok/bin
 # <<< grok installer <<<
