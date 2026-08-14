@@ -55,14 +55,6 @@ export default async function (pi: ExtensionAPI) {
         const res = await fetch(CATALOG, { signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(`models.dev HTTP ${res.status}`);
         const models = freeModels((await res.json()) as Catalog);
-        const aliases = new Map(models.map((m) => [clean(m.id), m.id]));
-
-        pi.on("before_provider_request", (event) => {
-            const p = event.payload as { model?: unknown } | null | undefined;
-            if (!p || typeof p.model !== "string") return;
-            const real = aliases.get(p.model);
-            if (real && real !== p.model) { p.model = real; return p; }
-        });
 
         pi.registerProvider("opencode", {
             name: "OpenCode", baseUrl: DIRECT, api: "openai-completions", apiKey: "public",
@@ -80,7 +72,7 @@ export default async function (pi: ExtensionAPI) {
                     yield ev;
                 }
             },
-            models: models.map((m) => ({ ...m, id: clean(m.id) })),
+            models,
         });
     } catch (error) {
         console.error("[opencode] REGISTRATION ERROR:", error instanceof Error ? error.message : String(error));
