@@ -1,3 +1,33 @@
 {
-  "providers": {}
+  "providers": {
+    "vercel": {
+      "name": "Vercel",
+      "baseUrl": "https://ai-gateway.vercel.sh/v1",
+      "api": "openai-completions",
+      // Required: marks requests as an "eve agent" so zai/glm-5.2 is
+      // routed free to Blackbox (without this -> 403 credit card required).
+      "headers": {
+        "User-Agent": "eve/0.37.1"
+      },
+      "compat": {
+        "maxTokensField": "max_tokens",
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "zai/glm-5.2",
+          "name": "GLM 5.2 (free via Vercel/Blackbox)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1000000,
+          "maxTokens": 128000,
+          // FREE ($0) until August 27, 2026.
+          // After that, reverts to standard rates:
+          //   input $1.1/M, output $3.851/M, cacheRead $0.275/M.
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
 }
