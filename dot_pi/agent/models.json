@@ -28,6 +28,17 @@
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
         }
       ]
+    },
+    "xai": {
+      "baseUrl": "https://cli-chat-proxy.grok.com/v1",
+      "headers": {
+        "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
+        "x-grok-client-identifier": "grok-shell",
+        "x-grok-client-version": "1.0.3",
+        "x-grok-client-mode": "interactive",
+        "X-XAI-Token-Auth": "xai-grok-cli",
+        "x-authenticateresponse": "authenticate-response"
+      }
     }
   }
 }
