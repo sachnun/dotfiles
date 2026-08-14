@@ -1,10 +1,10 @@
 {
-  "lastChangelogVersion": "0.84.1",
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-pro",
+  "lastChangelogVersion": "0.84.2",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "all",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [],
   "terminal": {
@@ -36,5 +36,7 @@
   "markdown": {
     "mermaid": "streaming"
   },
-  "enableInstallTelemetry": false
+  "enableInstallTelemetry": false,
+  "fullscreenExitOutput": "resume-hint",
+  "showHardwareCursor": false
 }
