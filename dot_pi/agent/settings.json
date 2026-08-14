@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.1",
-  "defaultProvider": "xai",
-  "defaultModel": "grok-4.6",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-pro",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
