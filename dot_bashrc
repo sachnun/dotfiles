@@ -4,3 +4,4 @@ umask 0022
 if [ -x "$(command -v fish)" ] && [ "$(ps -p $$ -o comm= 2>/dev/null)" != "fish" ]; then
   exec fish
 fi
+
