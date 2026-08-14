@@ -1,93 +1,75 @@
-// Model source: pi's bundled OpenCode catalog (@earendil-works/pi-ai/providers/all,
-// getBuiltinModels("opencode")). Metadata is versioned with pi itself, so no
-// network fetch and no disk cache are needed — this is a fully static provider.
-// Only ids ending in "-free" get registered: the gateway's anonymous tier (the
-// gateway re-validates ids at request time, so a stale entry just fails that
-// one request).
+// OpenCode Zen anonymous free tier, direct by default.
 //
-// Overrides pi's builtin "opencode" provider (OpenCode Zen, needs
-// OPENCODE_API_KEY) with the anonymous "public" key.
-//
-// Ids are aliased: the picker shows clean ids ("-free" stripped),
-// before_provider_request rewrites requests back to the exact API id (the
-// gateway rejects ids without "-free").
+// The gateway gives non-opencode clients a lower fallback daily quota (it keys
+// the check on the User-Agent header) — that's why plain pi requests 429ed.
+// Sending an opencode-style User-Agent puts us on the normal free quota.
+// Fallback: only on a 429, retry the same request via the unroxy proxy and
+// stay on it until UTC midnight + 5m, then probe direct again.
 
-import type {
-    ExtensionAPI,
-    ProviderModelConfig,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import { getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
 
-// Requests go through unroxy (koyeb) — a rotating-IP URL rewrite proxy —
-// because the zen gateway rate-limits the anonymous free tier per source IP
-// (see rateLimiter.ts in sst/opencode branch 2.0: per-IP daily bucket,
-// reset at UTC midnight). From a phone (CGNAT) the shared IP is exhausted,
-// so deepseek-v4-flash-free etc. return 429 FreeUsageLimitError. Via unroxy
-// the request egresses from pool IPs with fresh quota (verified: 200 OK,
-// streaming works).
-const BASE_URL = "https://unroxy.koyeb.app/opencode.ai/zen/v1";
-const API_KEY = "public";
+const DIRECT = "https://opencode.ai/zen/v1";
+const PROXY = "https://unroxy.koyeb.app/opencode.ai/zen/v1";
+const RATE_LIMITED = /(^|\D)429(\D|$)|freeusagelimit|rate\s*limit|usage\s*limit|quota|retry\s+delay/i;
 
-// Built-in openai-completions delegate: keeps the full pi request path (hooks, retries, usage).
-const openaiStreams = openAICompletionsApi();
+const openai = openAICompletionsApi();
+type Model = Parameters<typeof openai.streamSimple>[0];
+type Context = Parameters<typeof openai.streamSimple>[1];
+type Options = Parameters<typeof openai.streamSimple>[2];
 
-// Bundled catalog entries, restricted to the gateway's anonymous free tier.
-const freeModels = () =>
-    getBuiltinModels("opencode").filter((model) =>
-        model.id.endsWith("-free"),
-    ) as ProviderModelConfig[];
+// Clean picker id -> gateway id ("deepseek-v4-flash" -> "deepseek-v4-flash-free").
+const models = (getBuiltinModels("opencode") as ProviderModelConfig[])
+    .filter((m) => m.id.endsWith("-free"))
+    .map((m) => ({ ...m, id: m.id.slice(0, -5) }));
+const aliases = new Map(models.map((m) => [m.id, m.id + "-free"]));
 
-// Clean display id -> exact API id; before_provider_request rewrites requests back.
-const aliases = new Map<string, string>();
-const toCleanId = (apiId: string) =>
-    apiId.endsWith("-free") ? apiId.slice(0, -5) : apiId;
+let proxyUntil = 0; // use the proxy while Date.now() < this
 
-// Present a model list with aliased (clean) ids and record the alias mapping.
-// baseUrl is forced to BASE_URL per model: pi's openai-completions client
-// builds the request URL from model.baseUrl, NOT the provider-level baseUrl,
-// and the bundled catalog models carry the direct opencode.ai URL (which is
-// why requests kept bypassing the unroxy proxy and still hit the per-IP
-// rate limit).
-const present = (models: ProviderModelConfig[]): ProviderModelConfig[] => {
-    aliases.clear();
-    for (const model of models) aliases.set(toCleanId(model.id), model.id);
-    return models.map((model) => ({
-        ...model,
-        id: toCleanId(model.id),
-        baseUrl: BASE_URL,
-    }));
+const midnight = () => {
+    const d = new Date();
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) + 5 * 60_000;
 };
 
-export default function (pi: ExtensionAPI) {
-    try {
-        // Rewrite clean id -> exact API id (e.g. "deepseek-v4-flash" -> "deepseek-v4-flash-free").
-        pi.on("before_provider_request", (event) => {
-            const payload = event.payload as
-                { model?: unknown } | null | undefined;
-            if (!payload || typeof payload.model !== "string") return;
-            const apiId = aliases.get(payload.model);
-            if (apiId && apiId !== payload.model) {
-                payload.model = apiId;
-                return payload;
-            }
-        });
+const routed = (model: Model, baseUrl: string): Model => ({
+    ...model,
+    baseUrl,
+    headers: { ...model.headers, "user-agent": "opencode/pi" },
+});
 
-        pi.registerProvider("opencode", {
-            name: "OpenCode",
-            baseUrl: BASE_URL,
-            api: "openai-completions",
-            apiKey: API_KEY,
-            // Delegate to the built-in openai-completions implementation.
-            streamSimple: (model, context, options) =>
-                openaiStreams.streamSimple(model, context, options),
-            models: present(freeModels()),
-        });
-    } catch (error) {
-        console.error(
-            "[opencode] REGISTRATION ERROR:",
-            error instanceof Error ? error.message : String(error),
-        );
-        throw error;
-    }
+export default function (pi: ExtensionAPI) {
+    pi.on("before_provider_request", (event) => {
+        const p = event.payload as { model?: unknown } | null | undefined;
+        if (!p || typeof p.model !== "string") return;
+        const apiId = aliases.get(p.model);
+        if (apiId) {
+            p.model = apiId;
+            return p;
+        }
+    });
+
+    pi.registerProvider("opencode", {
+        name: "OpenCode",
+        baseUrl: DIRECT,
+        api: "openai-completions",
+        apiKey: "public",
+        async *streamSimple(model: Model, context: Context, options: Options) {
+            if (Date.now() < proxyUntil) {
+                yield* openai.streamSimple(routed(model, PROXY), context, options);
+                return;
+            }
+            let first = true;
+            for await (const ev of openai.streamSimple(routed(model, DIRECT), context, options)) {
+                if (first && ev.type === "error" && RATE_LIMITED.test(ev.error?.errorMessage ?? "")) {
+                    proxyUntil = midnight();
+                    yield* openai.streamSimple(routed(model, PROXY), context, options);
+                    return;
+                }
+                first = false;
+                yield ev;
+            }
+        },
+        models,
+    });
 }

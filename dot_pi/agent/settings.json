@@ -3,7 +3,7 @@
   "defaultProvider": "freebux",
   "defaultModel": "deepseek/deepseek-v4-pro",
   "hideThinkingBlock": true,
-  "treeFilterMode": "default",
+  "treeFilterMode": "all",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "packages": [],
@@ -31,5 +31,10 @@
     "opencode/deepseek-v4-flash",
     "freebux/deepseek/deepseek-v4-flash",
     "freebux/deepseek/deepseek-v4-pro"
-  ]
+  ],
+  "steeringMode": "all",
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "enableInstallTelemetry": false
 }
