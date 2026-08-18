@@ -1,5 +1,6 @@
 // OpenCode Zen anonymous free tier, direct by default. Free = cost 0, not deprecated.
 import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import type { Model, Api } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 
 const DIRECT = "https://opencode.ai/zen/v1";
@@ -50,32 +51,57 @@ const freeModels = (c: Catalog): ProviderModelConfig[] => {
         });
 };
 
-export default async function (pi: ExtensionAPI) {
-    try {
-        const res = await fetch(CATALOG, { signal: AbortSignal.timeout(20_000) });
-        if (!res.ok) throw new Error(`models.dev HTTP ${res.status}`);
-        const models = freeModels((await res.json()) as Catalog);
+async function fetchCatalog(signal?: AbortSignal): Promise<ProviderModelConfig[]> {
+	const res = await fetch(CATALOG, { signal: signal ?? AbortSignal.timeout(20_000) });
+	if (!res.ok) throw new Error(`models.dev HTTP ${res.status}`);
+	return freeModels((await res.json()) as Catalog);
+}
 
-        pi.registerProvider("opencode", {
-            name: "OpenCode", baseUrl: DIRECT, api: "openai-completions", apiKey: "public",
-            async *streamSimple(model: M, context: C, options: O) {
-                const via = (url: string) => openai.streamSimple(routed(model, url), context, options);
-                const direct = Date.now() >= proxyUntil;
-                let first = true;
-                for await (const ev of via(direct ? DIRECT : PROXY)) {
-                    if (direct && first && ev.type === "error" && RATE_LIMITED.test(ev.error?.errorMessage ?? "")) {
-                        proxyUntil = midnight();
-                        yield* via(PROXY);
-                        return;
-                    }
-                    first = false;
-                    yield ev;
-                }
-            },
-            models,
-        });
-    } catch (error) {
-        console.error("[opencode] REGISTRATION ERROR:", error instanceof Error ? error.message : String(error));
-        throw error;
-    }
+export default function (pi: ExtensionAPI) {
+	// Non-blocking discovery: register immediately with an empty catalog and
+	// populate it in the background (plus pi's own catalog refresh via
+	// refreshModels). A slow/unreachable catalog must not delay session start.
+	let models: ProviderModelConfig[] = [];
+	void fetchCatalog()
+		.then((fresh) => {
+			models.splice(0, models.length, ...fresh);
+		})
+		.catch((error) => {
+			console.warn(`[opencode] model discovery unavailable: ${error instanceof Error ? error.message : String(error)}`);
+		});
+
+	pi.registerProvider("opencode", {
+		name: "OpenCode", baseUrl: DIRECT, api: "openai-completions", apiKey: "public",
+		models,
+		refreshModels: async ({ signal, stored, publish, allowNetwork }) => {
+			// Offline/abort → serve the persisted catalog (or current in-memory list).
+			if (!allowNetwork || signal.aborted) return (stored?.models as unknown as ProviderModelConfig[]) ?? models;
+			try {
+				const fresh = await fetchCatalog(signal);
+				if (fresh.length > 0) {
+					await publish({ persist: { models: fresh as Model<Api>[], checkedAt: Date.now() } });
+					return fresh;
+				}
+				return (stored?.models as unknown as ProviderModelConfig[]) ?? models;
+			} catch (error) {
+				// Keep the last-known catalog on failure instead of dropping it.
+				if (stored?.models?.length) return stored.models as unknown as ProviderModelConfig[];
+				return models;
+			}
+		},
+		async *streamSimple(model: M, context: C, options: O) {
+			const via = (url: string) => openai.streamSimple(routed(model, url), context, options);
+			const direct = Date.now() >= proxyUntil;
+			let first = true;
+			for await (const ev of via(direct ? DIRECT : PROXY)) {
+				if (direct && first && ev.type === "error" && RATE_LIMITED.test(ev.error?.errorMessage ?? "")) {
+					proxyUntil = midnight();
+					yield* via(PROXY);
+					return;
+				}
+				first = false;
+				yield ev;
+			}
+		},
+	});
 }

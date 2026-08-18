@@ -168,13 +168,19 @@ function formatStatus(data: StatusResponse, modelId: string): string | undefined
 	return timeBar(secs / SESSION_DURATION_SECS);
 }
 
-export default async function (pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
+	// Model discovery is non-blocking: the provider registers immediately with
+	// an empty catalog and the fetch runs in the background (plus pi's own
+	// catalog refresh via refreshModels). A slow/unreachable API must not
+	// delay extension load — and therefore session start.
 	let models: ProviderModelConfig[] = [];
-	try {
-		models = await fetchModels();
-	} catch (error) {
-		console.warn(`[freebux] model discovery unavailable: ${String(error)}`);
-	}
+	void fetchModels()
+		.then((fresh) => {
+			models.splice(0, models.length, ...fresh);
+		})
+		.catch((error) => {
+			console.warn(`[freebux] model discovery unavailable: ${String(error)}`);
+		});
 
 	pi.registerProvider("freebux", {
 		name: "Freebux",
@@ -182,18 +188,22 @@ export default async function (pi: ExtensionAPI) {
 		api: "openai-completions",
 		apiKey: "freebux",
 		models,
-		refreshModels: async ({ signal, stored, publish }) => {
-			// Abort/offline → serve the persisted catalog.
-			if (signal.aborted) return (stored?.models as unknown as ProviderModelConfig[]) ?? [];
+		refreshModels: async ({ signal, stored, publish, allowNetwork }) => {
+			// Offline/abort → serve the persisted catalog (or current in-memory list).
+			if (!allowNetwork || signal.aborted) return (stored?.models as unknown as ProviderModelConfig[]) ?? models;
 			try {
 				const fresh = await fetchModels(signal);
-				await publish({
-					persist: { models: fresh as Model<Api>[], checkedAt: Date.now() },
-				});
-				return fresh;
+				if (fresh.length > 0) {
+					await publish({
+						persist: { models: fresh as Model<Api>[], checkedAt: Date.now() },
+					});
+					return fresh;
+				}
+				return (stored?.models as unknown as ProviderModelConfig[]) ?? models;
 			} catch (error) {
+				// Keep the last-known catalog on failure instead of dropping it.
 				if (stored?.models?.length) return stored.models as unknown as ProviderModelConfig[];
-				throw error;
+				return models;
 			}
 		},
 	});
