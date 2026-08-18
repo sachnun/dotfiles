@@ -178,8 +178,8 @@ export default function (pi: ExtensionAPI) {
 		.then((fresh) => {
 			models.splice(0, models.length, ...fresh);
 		})
-		.catch((error) => {
-			console.warn(`[freebux] model discovery unavailable: ${String(error)}`);
+		.catch(() => {
+			// Silent: model discovery is best-effort.
 		});
 
 	pi.registerProvider("freebux", {

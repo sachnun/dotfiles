@@ -66,8 +66,8 @@ export default function (pi: ExtensionAPI) {
 		.then((fresh) => {
 			models.splice(0, models.length, ...fresh);
 		})
-		.catch((error) => {
-			console.warn(`[opencode] model discovery unavailable: ${error instanceof Error ? error.message : String(error)}`);
+		.catch(() => {
+			// Silent: catalog discovery is best-effort.
 		});
 
 	pi.registerProvider("opencode", {
