@@ -1,4 +1,4 @@
-{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
+{{- if eq .chezmoi.os "linux" -}}
 #!{{ lookPath "bash" }}
 # Tools hash: {{ include ".chezmoidata/tools.yaml" | sha256sum }}
 set -euo pipefail
@@ -10,11 +10,9 @@ INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
 {{- range .tools }}
-{{- if or (eq $.chezmoi.os "linux") (not (index . "exclude_android")) }}
 if ! command -v {{ .name }} >/dev/null 2>&1; then
   echo "Installing {{ .name }}..."
   {{ .install }}
 fi
-{{- end }}
 {{- end }}
 {{ end -}}

@@ -1,4 +1,4 @@
-{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
+{{- if eq .chezmoi.os "linux" -}}
 #!{{ lookPath "bash" }}
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
@@ -34,15 +34,6 @@ else
   curl -fsSL https://deb.nodesource.com/setup_current.x | ${SUDO:-} bash -
   ${SUDO:-} apt-get install -y nodejs
 fi
-{{- else if not (hasKey .chezmoi.osRelease "id") }}
-# Termux / Android — use pkg
-termux_packages=(
-{{- range .packages.pkg }}
-    {{ . }}
-{{- end }}
-)
-pkg update
-pkg upgrade -y
-pkg install -y "${termux_packages[@]}"
-{{- end }}
+{{ end -}}
+
 {{ end -}}

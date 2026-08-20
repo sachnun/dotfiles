@@ -5,11 +5,9 @@ tools:
     install: curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$INSTALL_DIR"
   - name: opencode2
     install: curl -fsSL https://raw.githubusercontent.com/anomalyco/opencode/v2/install | bash
-    exclude_android: true
   - name: pi
     install: curl -fsSL https://pi.dev/install.sh | sh
   - name: fastfetch
-    exclude_android: true
     install: |
       if grep -qiE 'debian|ubuntu' /etc/os-release 2>/dev/null; then
         case "$(uname -m)" in

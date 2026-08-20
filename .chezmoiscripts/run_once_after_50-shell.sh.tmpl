@@ -2,9 +2,7 @@
 #!{{ lookPath "bash" }}
 set -euo pipefail
 
-# Set fish as the login shell (chsh). On Termux/Android the login shell
-# stays bash and fish is launched from the chezmoi-managed ~/.bashrc, so
-# no chsh equivalent is needed there.
+# Set fish as the login shell (chsh).
 
 if ! command -v fish >/dev/null 2>&1; then
   echo "Skipping default shell change: fish is unavailable."
