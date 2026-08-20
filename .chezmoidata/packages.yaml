@@ -50,7 +50,6 @@ packages:
     - gnupg
     - golang-go
     - jq
-    - nano
     - openssh-client
     - python3
     - ripgrep
@@ -61,5 +60,4 @@ packages:
     - tree
     - unzip
     - vim
-    - wget
     - zip
