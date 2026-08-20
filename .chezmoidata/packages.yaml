@@ -50,7 +50,6 @@ packages:
     - gnupg
     - golang-go
     - jq
-    - openssh-client
     - python3
     - ripgrep
     - rclone
