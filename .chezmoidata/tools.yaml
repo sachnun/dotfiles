@@ -12,12 +12,21 @@ tools:
     exclude_android: true
     install: |
       if grep -qiE 'debian|ubuntu' /etc/os-release 2>/dev/null; then
-        deb_url="$(curl -fsSL https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | jq -r '.assets[].browser_download_url' | grep -E 'linux-amd64\.deb$' | head -n1)"
-        curl -fsSL -o /tmp/fastfetch.deb "$deb_url"
-        if [ "$(id -u)" -eq 0 ]; then
-          dpkg -i /tmp/fastfetch.deb
+        case "$(uname -m)" in
+          x86_64|amd64) deb_arch=amd64 ;;
+          aarch64|arm64) deb_arch=aarch64 ;;
+          *) deb_arch="" ;;
+        esac
+        if [ -n "$deb_arch" ]; then
+          deb_url="$(curl -fsSL https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | jq -r '.assets[].browser_download_url' | grep -E "linux-${deb_arch}\.deb$" | head -n1)"
+          curl -fsSL -o /tmp/fastfetch.deb "$deb_url"
+          if [ "$(id -u)" -eq 0 ]; then
+            dpkg -i /tmp/fastfetch.deb
+          else
+            sudo dpkg -i /tmp/fastfetch.deb
+          fi
         else
-          sudo dpkg -i /tmp/fastfetch.deb
+          echo "fastfetch: unsupported architecture ($(uname -m)); skipping."
         fi
       else
         echo "fastfetch: no .deb install path for this distro; skipping."
