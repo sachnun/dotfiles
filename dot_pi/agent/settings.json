@@ -1,10 +1,10 @@
 {
   "lastChangelogVersion": "0.84.2",
   "defaultProvider": "opencode",
-  "defaultModel": "deepseek-v4-flash-free",
+  "defaultModel": "x-preview-f-free",
   "hideThinkingBlock": true,
   "treeFilterMode": "all",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "theme": "dark",
   "packages": [],
   "terminal": {
