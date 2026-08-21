@@ -28,7 +28,6 @@
   "collapseChangelog": true,
   "tuiMode": "fullscreen",
   "enabledModels": [
-    "opencode/deepseek-v4-flash-free",
     "freebux/deepseek/deepseek-v4-flash",
     "freebux/deepseek/deepseek-v4-pro"
   ],
