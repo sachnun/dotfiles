@@ -4,7 +4,7 @@
   "defaultModel": "x-preview-f-free",
   "hideThinkingBlock": true,
   "treeFilterMode": "all",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [],
   "terminal": {
