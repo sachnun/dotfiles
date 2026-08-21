@@ -35,7 +35,7 @@
   "markdown": {
     "mermaid": "streaming"
   },
-  "enableInstallTelemetry": false,
+  "enableInstallTelemetry": true,
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false
 }
