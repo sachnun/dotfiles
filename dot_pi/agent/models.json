@@ -1,44 +1,40 @@
 {
-  "providers": {
-    "vercel": {
-      "name": "Vercel",
-      "baseUrl": "https://ai-gateway.vercel.sh/v1",
-      "api": "openai-completions",
-      // Required: marks requests as an "eve agent" so zai/glm-5.2 is
-      // routed free to Blackbox (without this -> 403 credit card required).
-      "headers": {
-        "User-Agent": "eve/0.37.1"
-      },
-      "compat": {
-        "maxTokensField": "max_tokens",
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false
-      },
-      "models": [
-        {
-          "id": "zai/glm-5.2",
-          "name": "GLM 5.2 (free via Vercel/Blackbox)",
-          "reasoning": true,
-          "input": ["text"],
-          "contextWindow": 1000000,
-          "maxTokens": 128000,
-          // FREE ($0) until August 27, 2026.
-          // After that, reverts to standard rates:
-          //   input $1.1/M, output $3.851/M, cacheRead $0.275/M.
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+    "providers": {
+        "orca": {
+            "name": "Orca",
+            "baseUrl": "https://api.orcarouter.ai/v1",
+            "api": "openai-completions",
+            "compat": {
+                "supportsDeveloperRole": false
+            },
+            "models": [
+                {
+                    "id": "deepseek/deepseek-v4-flash-vision-exp",
+                    "reasoning": true,
+                    "thinkingLevelMap": {
+                        "max": "max"
+                    },
+                    "contextWindow": 1000000,
+                    "input": ["text", "image"]
+                }
+            ]
+        },
+        "xai": {
+            "baseUrl": "https://cli-chat-proxy.grok.com/v1",
+            "headers": {
+                "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
+                "x-grok-client-identifier": "grok-shell",
+                "x-grok-client-version": "1.0.3",
+                "x-grok-client-mode": "interactive",
+                "X-XAI-Token-Auth": "xai-grok-cli",
+                "x-authenticateresponse": "authenticate-response"
+            }
+        },
+        "opencode": {
+            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+            "headers": {
+                "User-Agent": "opencode/pi"
+            }
         }
-      ]
-    },
-    "xai": {
-      "baseUrl": "https://cli-chat-proxy.grok.com/v1",
-      "headers": {
-        "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
-        "x-grok-client-identifier": "grok-shell",
-        "x-grok-client-version": "1.0.3",
-        "x-grok-client-mode": "interactive",
-        "X-XAI-Token-Auth": "xai-grok-cli",
-        "x-authenticateresponse": "authenticate-response"
-      }
     }
-  }
 }

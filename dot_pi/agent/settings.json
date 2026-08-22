@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.2",
-  "defaultProvider": "opencode",
-  "defaultModel": "x-preview-f-free",
+  "defaultProvider": "xai",
+  "defaultModel": "grok-4.6",
   "hideThinkingBlock": true,
   "treeFilterMode": "all",
   "defaultThinkingLevel": "max",
@@ -14,14 +14,14 @@
     "-extensions/telegram/index.ts",
     "-extensions/chrome/index.ts",
     "+extensions/freebux.ts",
-    "+extensions/opencode.ts"
+    "-extensions/opencode.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
   "uiMode": "fullscreen",
   "fullscreenScrollbar": "auto",
   "images": {
-    "blockImages": true
+    "blockImages": false
   },
   "enableSkillCommands": true,
   "showCacheMissNotices": true,

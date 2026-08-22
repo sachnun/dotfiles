@@ -1,7 +1,7 @@
 // OpenCode Zen anonymous free tier, direct by default. Free = cost 0, not deprecated.
 import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
-import type { Model, Api } from "@earendil-works/pi-ai";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
+import type { Api, AssistantMessage, AssistantMessageEvent, AssistantMessageEventStream, Model } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream, openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 
 const DIRECT = "https://opencode.ai/zen/v1";
 const PROXY = "https://unroxy.koyeb.app/opencode.ai/zen/v1";
@@ -25,10 +25,45 @@ type Compat = NonNullable<ProviderModelConfig["compat"]>;
 const COMPAT: Compat = { supportsStore: false, supportsDeveloperRole: false, maxTokensField: "max_tokens" };
 const T = (low: string | null, medium: string | null, high: string, max: string | null): ProviderModelConfig["thinkingLevelMap"] =>
     ({ off: null, minimal: null, low, medium, high, xhigh: null, max });
+function makeErrorMessage(model: M, error: unknown): AssistantMessage {
+	const errorMessage = error instanceof Error ? error.message : String(error);
+	return {
+		role: "assistant",
+		content: [],
+		api: model.api,
+		provider: model.provider,
+		model: model.id,
+		usage: {
+			input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		},
+		stopReason: "error",
+		errorMessage,
+		timestamp: Date.now(),
+	};
+}
+
+async function* streamEvents(model: M, context: C, options: O): AsyncGenerator<AssistantMessageEvent> {
+	const via = (url: string) => openai.streamSimple(routed(model, url), context, options);
+	const direct = Date.now() >= proxyUntil;
+	let first = true;
+	for await (const ev of via(direct ? DIRECT : PROXY)) {
+		if (direct && first && ev.type === "error" && RATE_LIMITED.test(ev.error?.errorMessage ?? "")) {
+			proxyUntil = midnight();
+			yield* via(PROXY);
+			return;
+		}
+		first = false;
+		yield ev;
+	}
+}
+
 const OVERRIDES: Record<string, { compat?: Compat; thinkingLevelMap?: ProviderModelConfig["thinkingLevelMap"] }> = {
     "deepseek-v4-flash-free": { compat: { ...COMPAT, requiresReasoningContentOnAssistantMessages: true }, thinkingLevelMap: T(null, null, "high", "max") },
     "hy3-free": { thinkingLevelMap: T("low", "medium", "high", null) },
     "laguna-s-2.1-free": { thinkingLevelMap: T("low", "medium", "high", null) },
+    // Upstream never sends finish_reason; without this flag every request fails.
+    "muse-spark-1.2-contributor-free": { compat: { ...COMPAT, supportsFinishReason: false } },
 };
 
 const freeModels = (c: Catalog): ProviderModelConfig[] => {
@@ -89,19 +124,23 @@ export default function (pi: ExtensionAPI) {
 				return models;
 			}
 		},
-		async *streamSimple(model: M, context: C, options: O) {
-			const via = (url: string) => openai.streamSimple(routed(model, url), context, options);
-			const direct = Date.now() >= proxyUntil;
-			let first = true;
-			for await (const ev of via(direct ? DIRECT : PROXY)) {
-				if (direct && first && ev.type === "error" && RATE_LIMITED.test(ev.error?.errorMessage ?? "")) {
-					proxyUntil = midnight();
-					yield* via(PROXY);
-					return;
+		streamSimple(model: M, context: C, options: O): AssistantMessageEventStream {
+			const stream = createAssistantMessageEventStream();
+			void (async () => {
+				let final: AssistantMessage | undefined;
+				try {
+					for await (const event of streamEvents(model, context, options)) {
+						stream.push(event);
+						if (event.type === "done" || event.type === "error") final = event.type === "done" ? event.message : event.error;
+					}
+				} catch (error) {
+					const message = makeErrorMessage(model, error);
+					stream.push({ type: "error", reason: "error", error: message });
+					final = message;
 				}
-				first = false;
-				yield ev;
-			}
+				stream.end(final);
+			})();
+			return stream;
 		},
 	});
 }
