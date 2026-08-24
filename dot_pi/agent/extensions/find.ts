@@ -1,313 +1,192 @@
+import { execFileSync } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType, isBashToolResult } from "@earendil-works/pi-coding-agent";
 
-const FIND_TIMEOUT_SECONDS = 5;
+const TIMEOUT = 5;
 
-const TIMEOUT_MESSAGE = `find command timed out after ${FIND_TIMEOUT_SECONDS}s. Use \`fd\` (file discovery) or \`rg\` (content search) instead — much faster:
-- fd -e ts                    # files by extension (find . -name '*.ts')
-- fd -t d                     # directories (find . -type d)
-- fd --max-depth 2 -e ts      # with depth limit
-- rg "pattern" path            # search file contents (instead of find + grep)
-- rg -l "pattern"             # only print matching file names`;
+const FD = (() => {
+	try {
+		execFileSync("which", ["fd"], { stdio: "ignore" });
+		return "fd";
+	} catch {
+		return "fdfind";
+	}
+})();
+const HINT = `find timed out (${TIMEOUT}s) — use ${FD} (files: ${FD} -e ts / ${FD} -t d) or rg (content: rg -l "pat") instead.`;
 
-interface Token {
-	text: string;
-	quoted: boolean;
-	meta: boolean;
-	start: number;
-}
+const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-// pi runs commands via `bash -c`, so quoted/escaped metacharacters are part of
-// a token; unquoted `|`, `;`, `&`, `<`, `>`, `(`, `)` end the command
-// invocation.
-function tokenize(command: string): Token[] {
-	const tokens: Token[] = [];
-	let i = 0;
-	while (i < command.length) {
-		const c = command[i];
-		if (/\s/.test(c)) {
-			i++;
+function tokens(cmd: string): [string, number][] {
+	const out: [string, number][] = [];
+	let buf = "";
+	let start = 0;
+	let quote = "";
+	for (let i = 0; i < cmd.length; i++) {
+		const c = cmd[i];
+		if (!buf) start = i;
+		if (quote) {
+			if (c === quote) quote = "";
+			else buf += c;
 			continue;
 		}
-		const start = i;
-		if ("|;&<>()".includes(c)) {
-			tokens.push({ text: c, quoted: false, meta: true, start });
-			i++;
+		if (c === "'" || c === '"') {
+			quote = c;
 			continue;
 		}
-		let text = "";
-		let quoted = false;
-		while (i < command.length) {
-			const ch = command[i];
-			if (ch === "'" || ch === '"') {
-				quoted = true;
-				i++;
-				while (i < command.length && command[i] !== ch) {
-					text += command[i];
-					i++;
-				}
-				if (i < command.length) i++; // closing quote
-				continue;
-			}
-			if (ch === "\\") {
-				if (i + 1 < command.length) {
-					text += command[i + 1];
-					i += 2;
-					continue;
-				}
-				i++;
-				continue;
-			}
-			if (/\s/.test(ch) || "|;&<>()".includes(ch)) break;
-			text += ch;
-			i++;
+		if (c === "\\" && i + 1 < cmd.length) {
+			buf += cmd[++i];
+			continue;
 		}
-		tokens.push({ text, quoted, meta: false, start });
+		if (/\s/.test(c) || "|;&<>()".includes(c)) {
+			if (buf) out.push([buf, start]);
+			buf = "";
+			if ("|;&<>()".includes(c)) out.push([c, i]);
+			continue;
+		}
+		buf += c;
 	}
-	return tokens;
+	if (buf) out.push([buf, start]);
+	return out;
 }
 
-const FIND_WRAPPERS = new Set(["sudo", "xargs", "time", "command", "env", "nohup", "doas", "nice"]);
-
-// Index of the first token that actually invokes `find` as a command (start of
-// a command, after a separator, or after a known command wrapper). Avoids false
-// positives like `rg find .` or `echo find`.
-function findCommandIndex(tokens: Token[]): number {
-	for (let i = 0; i < tokens.length; i++) {
-		const t = tokens[i];
-		if (t.meta || t.quoted || t.text !== "find") continue;
-		const prev = tokens[i - 1];
-		if (!prev || prev.meta || FIND_WRAPPERS.has(prev.text)) return i;
-	}
-	return -1;
-}
-
-const GREP_FLAGS = new Set(["l", "c", "n", "H", "h", "i", "w", "E", "F", "x", "s", "v", "q"]);
-
-interface FindRewrite {
-	paths: string[];
-	follow: boolean;
+interface R {
+	fd: string[];
+	rg?: string[];
 	glob?: string;
-	maxDepth?: string;
-	type?: "f" | "d";
-	grep?: { flags: string[]; pattern: string };
+	paths: string[];
 }
 
-interface ExecParse {
-	flags: string[];
-	pattern: string;
-	next: number;
-}
-
-// Parse the tokens of a `find` invocation (starting after the `find` token).
-// Returns null when any predicate has no fd/rg equivalent (e.g. -mtime, -size,
-// -perm, -newer, -delete, -print0, -o, !, -iname, -exec with non-grep).
-function parseFindArgs(tokens: Token[], start: number): FindRewrite | null {
-	const out: FindRewrite = { paths: [], follow: false };
-	let i = start;
-	let seenPredicate = false;
-	let grepSeen = false;
-	while (i < tokens.length) {
-		const t = tokens[i];
-		if (t.meta) break; // end of this command invocation
-		if (t.text === "!") return null;
-		if (!t.text.startsWith("-")) {
-			if (seenPredicate) return null;
-			out.paths.push(t.text);
-			i++;
+function parse(ts: [string, number][], i: number): R | null {
+	const r: R = { fd: [], paths: [] };
+	let rgBad = false;
+	for (; i < ts.length; i++) {
+		const t = ts[i][0];
+		if (t === "!") return null;
+		if ("|;&<>()".includes(t)) return r;
+		if (!t.startsWith("-")) {
+			r.paths.push(t);
 			continue;
 		}
-		seenPredicate = true;
-		switch (t.text) {
-			case "-L":
-				out.follow = true;
-				i++;
+		switch (t) {
+			case "-name": {
+				const g = ts[++i]?.[0];
+				if (g === undefined || r.glob !== undefined) return null;
+				r.glob = g;
 				break;
-			case "-P":
-			case "-H":
-			case "-print":
-				i++;
-				break;
+			}
 			case "-type": {
-				const v = tokens[i + 1];
-				if (!v || v.meta || (v.text !== "f" && v.text !== "d") || out.type !== undefined) return null;
-				out.type = v.text;
-				i += 2;
+				const v = ts[++i]?.[0];
+				if (v !== "f" && v !== "d") return null;
+				if (v === "d") rgBad = true;
+				r.fd.push("-t", v);
 				break;
 			}
 			case "-maxdepth": {
-				const v = tokens[i + 1];
-				if (!v || v.meta || !/^\d+$/.test(v.text)) return null;
-				out.maxDepth = v.text;
-				i += 2;
-				break;
-			}
-			case "-name": {
-				const v = tokens[i + 1];
-				if (!v || v.meta || out.glob !== undefined) return null;
-				out.glob = v.text;
-				i += 2;
+				const n = ts[++i]?.[0];
+				if (!/^\d+$/.test(n ?? "")) return null;
+				rgBad = true;
+				r.fd.push("--max-depth", n);
 				break;
 			}
 			case "-exec": {
-				if (grepSeen) return null;
-				const exec = parseGrepExec(tokens, i + 1);
-				if (!exec) return null;
-				// rg cannot express -maxdepth, and grep on directories is meaningless.
-				if (out.maxDepth !== undefined || out.type === "d") return null;
-				out.grep = exec;
-				grepSeen = true;
-				i = exec.next;
+				if (rgBad || ts[i + 1]?.[0] !== "grep") return null;
+				const flags: string[] = [];
+				let pat: string | undefined;
+				let k = i + 2;
+				for (; k < ts.length; k++) {
+					const x = ts[k][0];
+					if (x === "{}") break;
+					if (/^-[a-zA-Z]+$/.test(x)) {
+						flags.push(x);
+						continue;
+					}
+					if (pat !== undefined) return null;
+					pat = x;
+				}
+				if (pat === undefined || ![";", "+"].includes(ts[k + 1]?.[0] ?? "")) return null;
+				r.rg = [...flags, q(pat), "--hidden", "--no-ignore"];
+				i = k + 1;
 				break;
 			}
 			default:
 				return null;
 		}
 	}
-	return out;
+	return r;
 }
 
-// Parse `grep [flags] pattern {} \;` (or `{} +`).
-function parseGrepExec(tokens: Token[], i: number): ExecParse | null {
-	const cmd = tokens[i];
-	if (!cmd || cmd.meta || cmd.text !== "grep") return null;
-	i++;
-	const flags: string[] = [];
-	let pattern: string | undefined;
-	for (; i < tokens.length; i++) {
-		const t = tokens[i];
-		if (t.meta) return null; // unterminated -exec
-		if (t.text === "{}") {
-			i++;
-			break;
-		}
-		if (t.text.startsWith("-")) {
-			const m = /^-([a-zA-Z]+)$/.exec(t.text);
-			if (!m) return null;
-			for (const ch of m[1]) if (!GREP_FLAGS.has(ch)) return null;
-			flags.push(...m[1]);
-			continue;
-		}
-		if (pattern !== undefined) return null; // more than one pattern
-		pattern = t.text;
-	}
-	if (pattern === undefined) return null;
-	const term = tokens[i];
-	if (!term || term.meta || (term.text !== ";" && term.text !== "+")) return null;
-	return { flags, pattern, next: i + 1 };
-}
-
-// Quote anything that could be reinterpreted by the shell: whitespace, glob
-// metacharacters (* ? [), quotes, $, and backslashes must reach rg verbatim.
-function shellQuote(s: string): string {
-	if (s.length > 0 && !/[^A-Za-z0-9_./{}!@%+=:,~-]/.test(s)) return s;
-	return `'${s.replace(/'/g, `'\\''`)}'`;
-}
-
-// fd is pi's bundled find replacement (auto-installed and on PATH); rg handles
-// the -exec grep case, which is its strength.
-function buildReplacement(parsed: FindRewrite): string {
+function build(r: R): string {
 	const parts: string[] = [];
-	if (parsed.grep) {
-		parts.push("rg");
-		if (parsed.grep.flags.length) parts.push(`-${parsed.grep.flags.join("")}`);
-		parts.push(shellQuote(parsed.grep.pattern));
-		parts.push("--hidden", "--no-ignore");
-		if (parsed.follow) parts.push("--follow");
-		if (parsed.glob !== undefined) parts.push("-g", shellQuote(parsed.glob));
+	if (r.rg) {
+		parts.push("rg", ...r.rg);
+		if (r.glob !== undefined) parts.push("-g", q(r.glob));
 	} else {
-		parts.push("fd");
-		// find lists everything, including hidden and gitignored paths.
-		parts.push("-H", "--no-ignore");
-		if (parsed.follow) parts.push("-L");
-		if (parsed.maxDepth !== undefined) parts.push("--max-depth", parsed.maxDepth);
-		if (parsed.type !== undefined) parts.push("-t", parsed.type);
-		if (parsed.glob !== undefined) {
-			parts.push("-g", shellQuote(parsed.glob));
-		} else if (parsed.paths.length > 0) {
-			// A bare path would be misread as a pattern by fd; emit a match-all
-			// pattern so every path is treated as a search root.
-			parts.push(".");
-		}
+		parts.push(FD, "-H", "--no-ignore", ...r.fd);
+		if (r.glob !== undefined) parts.push("-g", q(r.glob));
+		else if (r.paths.length > 0) parts.push(".");
 	}
-	for (const p of parsed.paths) {
-		// With the match-all pattern emitted above, a lone "." path is redundant.
-		if (parsed.glob === undefined && p === "." && parsed.paths.length === 1) continue;
-		parts.push(shellQuote(p));
+	for (const p of r.paths) {
+		if (r.glob === undefined && p === "." && r.paths.length === 1) continue;
+		parts.push(q(p));
 	}
 	return parts.join(" ");
 }
 
-// Rewrite the first `find` invocation in `command` to `rg`. Returns null when
-// the invocation uses predicates rg cannot express.
-function rewriteFind(command: string): string | null {
-	if (command.includes("$(") || command.includes("`")) return null;
-	const tokens = tokenize(command);
-	const idx = findCommandIndex(tokens);
-	if (idx === -1) return null;
-	const parsed = parseFindArgs(tokens, idx + 1);
-	if (!parsed) return null;
+function findIdx(ts: [string, number][]): number {
+	for (let i = 0; i < ts.length; i++) {
+		if (ts[i][0] === "find" && (i === 0 || "|;&<>()".includes(ts[i - 1][0]))) return i;
+	}
+	return -1;
+}
 
-	let end = command.length;
-	for (let k = idx + 1; k < tokens.length; k++) {
-		if (tokens[k].meta) {
-			end = tokens[k].start;
+function rewrite(cmd: string): string | null {
+	if (cmd.includes("$(") || cmd.includes("`")) return null;
+	const ts = tokens(cmd);
+	const fi = findIdx(ts);
+	if (fi === -1) return null;
+	const r = parse(ts, fi + 1);
+	if (!r) return null;
+	let end = cmd.length;
+	for (let i = fi + 1; i < ts.length; i++) {
+		if ("|;&<>()".includes(ts[i][0]) && cmd[ts[i][1]] !== "\\") {
+			end = ts[i][1];
 			break;
 		}
 	}
-	const prefix = command.slice(0, tokens[idx].start);
-	let suffix = command.slice(end);
-	// The original whitespace before a metacharacter (e.g. `| xargs`) was not
-	// part of the find span, so re-add a separator for `|`, `&`, `<`, `>`.
-	const built = buildReplacement(parsed);
+	let suffix = cmd.slice(end);
+	const built = build(r);
 	if (suffix && /^[|&<>]/.test(suffix) && !/\s$/.test(built)) suffix = ` ${suffix}`;
-	return prefix + built + suffix;
+	return cmd.slice(0, ts[fi][1]) + built + suffix;
 }
 
-// Rewrite every safe `find` invocation. Returns the final command and whether
-// any `find` invocation remains (unsafe ones are left for the watchdog).
-function replaceAllFinds(command: string): { command: string; anyRemaining: boolean } {
-	let current = command;
+function replaceAll(cmd: string): { cmd: string; rest: boolean } {
+	let out = cmd;
 	for (let n = 0; n < 5; n++) {
-		const rewritten = rewriteFind(current);
-		if (rewritten === null) break;
-		current = rewritten;
+		const r = rewrite(out);
+		if (r === null) break;
+		out = r;
 	}
-	return { command: current, anyRemaining: findCommandIndex(tokenize(current)) !== -1 };
+	return { cmd: out, rest: findIdx(tokens(out)) !== -1 };
 }
 
 export default function (pi: ExtensionAPI) {
-	// toolCallIds of bash calls that still use `find` and were capped with a timeout.
 	const tracked = new Set<string>();
 
 	pi.on("tool_call", (event) => {
 		if (!isToolCallEventType("bash", event)) return;
-		if (findCommandIndex(tokenize(event.input.command)) === -1) return;
-
-		const rewritten = replaceAllFinds(event.input.command);
-		if (rewritten.command !== event.input.command) {
-			event.input.command = rewritten.command;
+		const r = replaceAll(event.input.command);
+		if (r.cmd !== event.input.command) event.input.command = r.cmd;
+		if (r.rest) {
+			event.input.timeout = Math.min(event.input.timeout ?? TIMEOUT, TIMEOUT);
+			tracked.add(event.toolCallId);
 		}
-		if (!rewritten.anyRemaining) return; // fully converted to rg
-
-		// Unsupported `find` usage remains: cap at 5s so a stuck find fails fast.
-		event.input.timeout = Math.min(event.input.timeout ?? FIND_TIMEOUT_SECONDS, FIND_TIMEOUT_SECONDS);
-		tracked.add(event.toolCallId);
 	});
 
 	pi.on("tool_result", (event, ctx) => {
-		if (!tracked.has(event.toolCallId)) return;
-		tracked.delete(event.toolCallId);
-		if (!isBashToolResult(event)) return;
-		if (!event.isError) return;
-
+		if (!tracked.delete(event.toolCallId) || !isBashToolResult(event) || !event.isError) return;
 		const text = event.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
 		if (!text.includes("timed out")) return;
-
-		ctx.ui.notify("find timed out — use fd or rg instead", "error");
-		return {
-			isError: true,
-			content: [{ type: "text", text: TIMEOUT_MESSAGE }],
-		};
+		ctx.ui.notify("find timed out — use fd or rg", "error");
+		return { isError: true, content: [{ type: "text", text: HINT }] };
 	});
 }
