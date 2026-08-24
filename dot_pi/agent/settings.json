@@ -1,38 +1,38 @@
 {
-    "lastChangelogVersion": "0.84.3",
-    "defaultProvider": "freebux",
-    "defaultModel": "deepseek/deepseek-v4-flash",
-    "hideThinkingBlock": true,
-    "treeFilterMode": "all",
-    "defaultThinkingLevel": "max",
-    "theme": "dark",
-    "packages": [],
-    "terminal": {
-        "showTerminalProgress": true
-    },
-    "extensions": [
-        "-extensions/telegram/index.ts",
-        "+extensions/freebux.ts",
-        "-extensions/opencode.ts",
-        "-extensions/chrome/index.ts"
-    ],
-    "quietStartup": false,
-    "httpIdleTimeoutMs": 30000,
-    "uiMode": "fullscreen",
-    "fullscreenScrollbar": "auto",
-    "images": {
-        "blockImages": false
-    },
-    "enableSkillCommands": true,
-    "showCacheMissNotices": true,
-    "collapseChangelog": true,
-    "tuiMode": "fullscreen",
-    "enabledModels": [],
-    "steeringMode": "all",
-    "markdown": {
-        "mermaid": "streaming"
-    },
-    "enableInstallTelemetry": true,
-    "fullscreenExitOutput": "resume-hint",
-    "showHardwareCursor": false
+  "lastChangelogVersion": "0.84.3",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-flash",
+  "hideThinkingBlock": true,
+  "treeFilterMode": "default",
+  "defaultThinkingLevel": "max",
+  "theme": "dark",
+  "packages": [],
+  "terminal": {
+    "showTerminalProgress": true
+  },
+  "extensions": [
+    "-extensions/telegram/index.ts",
+    "+extensions/freebux.ts",
+    "-extensions/opencode.ts",
+    "-extensions/chrome/index.ts"
+  ],
+  "quietStartup": false,
+  "httpIdleTimeoutMs": 30000,
+  "uiMode": "fullscreen",
+  "fullscreenScrollbar": "auto",
+  "images": {
+    "blockImages": false
+  },
+  "enableSkillCommands": true,
+  "showCacheMissNotices": true,
+  "collapseChangelog": true,
+  "tuiMode": "fullscreen",
+  "enabledModels": [],
+  "steeringMode": "all",
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "enableInstallTelemetry": true,
+  "fullscreenExitOutput": "resume-hint",
+  "showHardwareCursor": false
 }
