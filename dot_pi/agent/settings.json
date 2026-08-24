@@ -27,12 +27,15 @@
   "showCacheMissNotices": true,
   "collapseChangelog": true,
   "tuiMode": "fullscreen",
-  "enabledModels": [],
   "steeringMode": "all",
   "markdown": {
     "mermaid": "streaming"
   },
   "enableInstallTelemetry": true,
   "fullscreenExitOutput": "resume-hint",
-  "showHardwareCursor": false
+  "showHardwareCursor": false,
+  "enabledModels": [
+    "freebux/deepseek/deepseek-v4-flash",
+    "openrouter/stealth/ox-alpha"
+  ]
 }
