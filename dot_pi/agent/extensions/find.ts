@@ -1,8 +1,6 @@
 import { execFileSync } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { isToolCallEventType, isBashToolResult } from "@earendil-works/pi-coding-agent";
-
-const TIMEOUT = 5;
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
 const FD = (() => {
 	try {
@@ -12,7 +10,6 @@ const FD = (() => {
 		return "fdfind";
 	}
 })();
-const HINT = `find timed out (${TIMEOUT}s) — use ${FD} (files: ${FD} -e ts / ${FD} -t d) or rg (content: rg -l "pat") instead.`;
 
 const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
@@ -159,34 +156,20 @@ function rewrite(cmd: string): string | null {
 	return cmd.slice(0, ts[fi][1]) + built + suffix;
 }
 
-function replaceAll(cmd: string): { cmd: string; rest: boolean } {
+function replaceAll(cmd: string): string {
 	let out = cmd;
 	for (let n = 0; n < 5; n++) {
 		const r = rewrite(out);
 		if (r === null) break;
 		out = r;
 	}
-	return { cmd: out, rest: findIdx(tokens(out)) !== -1 };
+	return out;
 }
 
 export default function (pi: ExtensionAPI) {
-	const tracked = new Set<string>();
-
 	pi.on("tool_call", (event) => {
 		if (!isToolCallEventType("bash", event)) return;
 		const r = replaceAll(event.input.command);
-		if (r.cmd !== event.input.command) event.input.command = r.cmd;
-		if (r.rest) {
-			event.input.timeout = Math.min(event.input.timeout ?? TIMEOUT, TIMEOUT);
-			tracked.add(event.toolCallId);
-		}
-	});
-
-	pi.on("tool_result", (event, ctx) => {
-		if (!tracked.delete(event.toolCallId) || !isBashToolResult(event) || !event.isError) return;
-		const text = event.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
-		if (!text.includes("timed out")) return;
-		ctx.ui.notify("find timed out — use fd or rg", "error");
-		return { isError: true, content: [{ type: "text", text: HINT }] };
+		if (r !== event.input.command) event.input.command = r;
 	});
 }

@@ -12,10 +12,10 @@
   },
   "extensions": [
     "-extensions/telegram/index.ts",
-    "-extensions/chrome/index.ts",
     "+extensions/freebux.ts",
     "-extensions/opencode.ts",
-    "+extensions/find.ts"
+    "+extensions/find.ts",
+    "-extensions/chrome/index.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
