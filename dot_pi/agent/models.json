@@ -1,5 +1,22 @@
 {
     "providers": {
+        "nous": {
+            "name": "Nous",
+            "baseUrl": "https://inference-api.nousresearch.com/v1",
+            "api": "openai-completions",
+            "compat": {
+                "supportsDeveloperRole": false,
+                "maxTokensField": "max_tokens"
+            },
+            "models": [
+                {
+                    "id": "stealth/ox-alpha",
+                    "reasoning": true,
+                    "contextWindow": 1000000,
+                    "input": ["text"]
+                }
+            ]
+        },
         "orca": {
             "name": "Orca",
             "baseUrl": "https://api.orcarouter.ai/v1",
