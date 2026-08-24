@@ -1,10 +1,10 @@
 {
-  "lastChangelogVersion": "0.84.2",
+  "lastChangelogVersion": "0.84.3",
   "defaultProvider": "freebux",
   "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "all",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [],
   "terminal": {
@@ -14,7 +14,8 @@
     "-extensions/telegram/index.ts",
     "-extensions/chrome/index.ts",
     "+extensions/freebux.ts",
-    "-extensions/opencode.ts"
+    "-extensions/opencode.ts",
+    "+extensions/find.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
