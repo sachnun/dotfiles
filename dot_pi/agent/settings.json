@@ -14,8 +14,8 @@
     "-extensions/telegram/index.ts",
     "+extensions/freebux.ts",
     "-extensions/opencode.ts",
-    "+extensions/find.ts",
-    "-extensions/chrome/index.ts"
+    "-extensions/chrome/index.ts",
+    "-extensions/find.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
