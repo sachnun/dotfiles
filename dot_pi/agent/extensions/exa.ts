@@ -6,6 +6,8 @@ import { Type } from "typebox";
 const E = "https://mcp.exa.ai/mcp";
 const H = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
 
+const month = (d: Date) => `${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+
 async function mcp(tool: string, args: unknown): Promise<string> {
   const res = await fetch(E, {
     method: "POST",
@@ -20,17 +22,11 @@ async function mcp(tool: string, args: unknown): Promise<string> {
 }
 
 export default function exa(pi: ExtensionAPI) {
-  pi.on("before_agent_start", (event) => {
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return { systemPrompt: `${event.systemPrompt}\n\nToday is ${today}.` };
-  });
-
   pi.registerTool({
     name: "exa",
     description:
-      "Search the web for up-to-date information: recent news, events, facts, prices, or anything " +
-      "that may have changed after your knowledge cutoff.",
+      "Search the web for up-to-date information (news, events, facts, prices) that may have changed " +
+      "after your knowledge cutoff.",
     parameters: Type.Object({
       query: Type.String(),
     }),
@@ -43,26 +39,15 @@ export default function exa(pi: ExtensionAPI) {
       if (!expanded) return new Text("", 0, 0);
       const content = result.content[0];
       if (content?.type !== "text") return new Text(theme.fg("error", "exa: no content"), 0, 0);
-      const text = content.text;
-      if (!text.startsWith("Title: ")) {
-        return new Markdown(`\n${text}`, 0, 0, getMarkdownTheme());
-      }
-      let out = "";
-      for (const l of text.split("\n")) {
-        if (l.startsWith("Title: ")) out += `${out ? "\n\n" : ""}${theme.fg("toolTitle", l.slice(7))}`;
-        else if (l.startsWith("URL: ")) out += `\n${theme.fg("dim", l.slice(5))}`;
-        else if (l.startsWith("Published: ") && !l.endsWith("N/A")) out += `\n${theme.fg("muted", l.slice(11))}`;
-      }
-      return new Text(out ? `\n${out}` : theme.fg("error", text), 0, 0);
+      return new Markdown(`\n${content.text}`, 0, 0, getMarkdownTheme());
     },
 
     async execute(_id, p) {
-      try {
-        const text = await mcp("web_search_exa", { query: p.query, numResults: 3 });
-        return { content: [{ type: "text", text }] };
-      } catch (e) {
-        return { content: [{ type: "text", text: `exa: ${(e as Error).message}` }] };
-      }
+      const text = await mcp("web_search_exa", {
+        query: `${p.query} (${month(new Date())})`,
+        numResults: 2,
+      });
+      return { content: [{ type: "text", text }] };
     },
   });
 }
