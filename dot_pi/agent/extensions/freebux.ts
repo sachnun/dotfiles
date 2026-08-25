@@ -2,6 +2,20 @@ import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-codin
 import type { Model, Api } from "@earendil-works/pi-ai";
 
 const BASE_URL = "https://freebux.up.railway.app/v1";
+const FETCH_TIMEOUT_MS = 10_000;
+
+// Shared across the two cache-only refresh calls pi runs at startup, so a
+// fresh install performs exactly one network fetch. Pi supersedes concurrent
+// refreshes by aborting the previous caller's signal, so this fetch uses its
+// own caller-independent signal.
+let startupFetch: Promise<ProviderModelConfig[]> | undefined;
+
+function fetchModelsOnce(): Promise<ProviderModelConfig[]> {
+	if (!startupFetch) {
+		startupFetch = fetchModels(AbortSignal.timeout(FETCH_TIMEOUT_MS)).catch(() => []);
+	}
+	return startupFetch;
+}
 
 async function fetchModels(signal?: AbortSignal): Promise<ProviderModelConfig[]> {
 	const res = await fetch(`${BASE_URL}/models`, { headers: { Accept: "application/json" }, signal });
@@ -40,15 +54,28 @@ export default function (pi: ExtensionAPI) {
 		apiKey: "freebux",
 		models: [],
 		refreshModels: async ({ signal, stored, publish, allowNetwork }) => {
-			if (!allowNetwork || signal.aborted) return (stored?.models as unknown as ProviderModelConfig[]) ?? [];
+			if (signal.aborted) return undefined;
+			if (!allowNetwork) {
+				// Cache-only phase (startup, credential sync): restore the persisted
+				// catalog. Only when the model-store is empty (first run) fetch once
+				// and persist it, so later startups skip the network round-trip.
+				if (stored?.models?.length) {
+					return stored.models as unknown as ProviderModelConfig[];
+				}
+				const fresh = await fetchModelsOnce();
+				if (signal.aborted || fresh.length === 0) return undefined;
+				await publish({ persist: { models: fresh as Model<Api>[], checkedAt: Date.now() } });
+				return fresh;
+			}
 			try {
 				const fresh = await fetchModels(signal);
+				if (signal.aborted) return undefined;
 				if (fresh.length > 0) {
 					await publish({ persist: { models: fresh as Model<Api>[], checkedAt: Date.now() } });
 					return fresh;
 				}
 			} catch {}
-			return (stored?.models as unknown as ProviderModelConfig[]) ?? [];
+			return stored?.models as unknown as ProviderModelConfig[] | undefined;
 		},
 	});
 }
