@@ -1,24 +1,5 @@
 {
     "providers": {
-        "nous": {
-            "name": "Nous",
-            "baseUrl": "https://inference-api.nousresearch.com/v1",
-            "api": "openai-completions",
-            "compat": {
-                "supportsDeveloperRole": false,
-                "maxTokensField": "max_tokens"
-            },
-            "models": [
-                {
-                    "id": "stealth/ox-alpha",
-                    "reasoning": true,
-                    "contextWindow": 1000000,
-                    "input": [
-                        "text"
-                    ]
-                }
-            ]
-        },
         "orca": {
             "name": "Orca",
             "baseUrl": "https://api.orcarouter.ai/v1",
@@ -34,10 +15,7 @@
                         "max": "max"
                     },
                     "contextWindow": 1048576,
-                    "input": [
-                        "text",
-                        "image"
-                    ]
+                    "input": ["text", "image"]
                 }
             ]
         },
@@ -73,22 +51,7 @@
                     "name": "MiniMax M3",
                     "reasoning": true,
                     "contextWindow": 1048576,
-                    "maxTokens": 32768,
-                    "cost": {
-                        "input": 0.0006,
-                        "output": 0.0024,
-                        "cacheRead": 0.00012,
-                        "cacheWrite": 0,
-                        "tiers": [
-                            {
-                                "inputTokensAbove": 512000,
-                                "input": 0.0012,
-                                "output": 0.0048,
-                                "cacheRead": 0.00024,
-                                "cacheWrite": 0
-                            }
-                        ]
-                    }
+                    "maxTokens": 32768
                 }
             ]
         },
@@ -98,23 +61,18 @@
             "api": "openai-completions",
             "models": [
                 {
-                    "id": "deepseek-ai/DeepSeek-V4-Flash",
-                    "reasoning": true,
-                    "contextWindow": 1000000,
-                    "maxTokens": 32768
-                },
-                {
-                    "id": "MiniMaxAI/MiniMax-M3",
-                    "reasoning": true,
-                    "contextWindow": 1048576,
-                    "maxTokens": 32768
-                },
-                {
-                    "id": "qwen3.8-27b:free",
+                    "id": "qwen3.8-27b",
                     "name": "Qwen 3.8 27B",
                     "reasoning": true,
                     "contextWindow": 1000000,
                     "maxTokens": 131072
+                },
+                {
+                    "id": "deepseek-ai/DeepSeek-V4-Flash",
+                    "name": "DeepSeek V4 Flash",
+                    "reasoning": true,
+                    "contextWindow": 1000000,
+                    "maxTokens": 32768
                 }
             ]
         }
