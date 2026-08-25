@@ -1,5 +1,33 @@
 {
     "providers": {
+        "bai": {
+            "name": "B.AI",
+            "baseUrl": "https://api.b.ai/v1",
+            "api": "openai-completions",
+            "compat": {
+                "thinkingFormat": "deepseek",
+                "supportsDeveloperRole": false
+            },
+            "models": [
+                {
+                    "id": "deepseek-v4-flash-vision-exp",
+                    "name": "DeepSeek V4 Flash Vision Exp",
+                    "reasoning": true,
+                    "thinkingLevelMap": {
+                        "max": "max"
+                    },
+                    "contextWindow": 1048576,
+                    "maxTokens": 32768,
+                    "input": ["text", "image"],
+                    "cost": {
+                        "input": 0.22,
+                        "output": 0.66,
+                        "cacheRead": 0.0073,
+                        "cacheWrite": 0.22
+                    }
+                }
+            ]
+        },
         "orca": {
             "name": "Orca",
             "baseUrl": "https://api.orcarouter.ai/v1",
