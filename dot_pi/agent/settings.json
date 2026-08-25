@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.3",
   "defaultProvider": "freebux",
-  "defaultModel": "crof/kimi-k3-eco",
+  "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
@@ -35,7 +35,6 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
-    "freebux/crof/kimi-k3-eco",
     "freebux/deepseek/deepseek-v4-flash",
     "openrouter/stealth/ox-alpha"
   ]
