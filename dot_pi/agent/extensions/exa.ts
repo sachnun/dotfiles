@@ -28,14 +28,15 @@ export default function exa(pi: ExtensionAPI) {
 
   pi.registerTool({
     name: "exa",
-    description: "Search the web or fetch a page.",
+    description:
+      "Search the web for up-to-date information: recent news, events, facts, prices, or anything " +
+      "that may have changed after your knowledge cutoff.",
     parameters: Type.Object({
-      query: Type.Optional(Type.String()),
-      url: Type.Optional(Type.String()),
+      query: Type.String(),
     }),
 
     renderCall(args, theme) {
-      return new Text(theme.fg("toolTitle", theme.bold("exa ")) + theme.fg("accent", args.query ?? args.url), 0, 0);
+      return new Text(theme.fg("toolTitle", theme.bold("exa ")) + theme.fg("accent", args.query ?? ""), 0, 0);
     },
 
     renderResult(result, { expanded }, theme) {
@@ -57,19 +58,8 @@ export default function exa(pi: ExtensionAPI) {
 
     async execute(_id, p) {
       try {
-        if (p.query) {
-          const text = await mcp("web_search_exa", { query: p.query, numResults: 3 });
-          return { content: [{ type: "text", text }] };
-        }
-        if (p.url) {
-          const text = await mcp("web_fetch_exa", { urls: [p.url], maxCharacters: 3000 });
-          const cleaned = text
-            .split("\n")
-            .filter((l) => !l.startsWith("URL: "))
-            .join("\n");
-          return { content: [{ type: "text", text: cleaned }] };
-        }
-        return { content: [{ type: "text", text: "exa: provide query or url" }] };
+        const text = await mcp("web_search_exa", { query: p.query, numResults: 3 });
+        return { content: [{ type: "text", text }] };
       } catch (e) {
         return { content: [{ type: "text", text: `exa: ${(e as Error).message}` }] };
       }

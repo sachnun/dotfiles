@@ -36,6 +36,7 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
-    "openrouter/stealth/ox-alpha"
+    "openrouter/stealth/ox-alpha",
+    "freebux/stealth/ox-alpha"
   ]
 }

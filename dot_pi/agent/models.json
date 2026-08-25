@@ -13,7 +13,9 @@
                     "id": "stealth/ox-alpha",
                     "reasoning": true,
                     "contextWindow": 1000000,
-                    "input": ["text"]
+                    "input": [
+                        "text"
+                    ]
                 }
             ]
         },
@@ -32,7 +34,10 @@
                         "max": "max"
                     },
                     "contextWindow": 1000000,
-                    "input": ["text", "image"]
+                    "input": [
+                        "text",
+                        "image"
+                    ]
                 }
             ]
         },
@@ -52,6 +57,40 @@
             "headers": {
                 "User-Agent": "opencode/pi"
             }
+        },
+        "gmi": {
+            "name": "GMI Cloud",
+            "baseUrl": "https://api.gmi-serving.com/v1",
+            "api": "openai-completions",
+            "compat": {
+                "supportsDeveloperRole": false,
+                "thinkingFormat": "deepseek",
+                "maxTokensField": "max_tokens"
+            },
+            "models": [
+                {
+                    "id": "MiniMaxAI/MiniMax-M3",
+                    "name": "MiniMax M3",
+                    "reasoning": true,
+                    "contextWindow": 1048576,
+                    "maxTokens": 32768,
+                    "cost": {
+                        "input": 0.0006,
+                        "output": 0.0024,
+                        "cacheRead": 0.00012,
+                        "cacheWrite": 0,
+                        "tiers": [
+                            {
+                                "inputTokensAbove": 512000,
+                                "input": 0.0012,
+                                "output": 0.0048,
+                                "cacheRead": 0.00024,
+                                "cacheWrite": 0
+                            }
+                        ]
+                    }
+                }
+            ]
         },
         "madefaka": {
             "name": "Madefaka",
