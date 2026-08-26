@@ -45,6 +45,11 @@
             "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
             "headers": {
                 "User-Agent": "opencode/pi"
+            },
+            "modelOverrides": {
+                "big-pickle": {
+                    "contextWindow": 300000
+                }
             }
         }
     }
