@@ -1,14 +1,15 @@
 {
   "lastChangelogVersion": "0.84.3",
-  "defaultProvider": "perch",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultProvider": "opencode",
+  "defaultModel": "big-pickle",
   "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [],
   "terminal": {
-    "showTerminalProgress": true
+    "showTerminalProgress": true,
+    "clearOnShrink": true
   },
   "extensions": [
     "-extensions/telegram/index.ts",
@@ -36,6 +37,7 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
+    "opencode/big-pickle",
     "freebux/deepseek/deepseek-v4-flash",
     "openrouter/stealth/ox-alpha",
     "perch/deepseek-v4-flash",
