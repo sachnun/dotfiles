@@ -16,8 +16,8 @@
     "-extensions/opencode.ts",
     "-extensions/chrome/index.ts",
     "-extensions/tok.ts",
-    "-extensions/freebux.ts",
-    "-extensions/perch.ts"
+    "+extensions/perch.ts",
+    "+extensions/freebux.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
@@ -39,6 +39,7 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "openrouter/stealth/ox-alpha"
+    "perch/deepseek-v4-flash",
+    "freebux/deepseek/deepseek-v4-flash"
   ]
 }

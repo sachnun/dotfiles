@@ -90,10 +90,51 @@ async function refreshTokens(refreshToken: string): Promise<{ access: string; re
 	};
 }
 
-/** Access token comes from pi's credential store (auth.json) via the JWT hint. */
+/** Module-level refresh token cache — set during login/refresh, used by resolveAccessToken to proactively refresh before expiry. */
+let cachedRefreshToken: string | null = null;
+
+/** Decode JWT payload (no signature verification) to read exp claim. */
+function decodeJwtExp(token: string): number | null {
+	try {
+		const parts = token.split(".");
+		if (parts.length < 2) return null;
+		const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+		return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Store the refresh token for proactive expiry checks. */
+function cacheRefreshToken(token: string | null): void {
+	if (token) cachedRefreshToken = token;
+}
+
+/** Access token comes from pi's credential store (auth.json) via the JWT hint.
+ * Proactively refreshes if the token is expired or about to expire (within 60s). */
 async function resolveAccessToken(apiKeyHint?: string): Promise<string> {
-	if (apiKeyHint?.trim().startsWith("ey")) return apiKeyHint.trim();
-	throw new Error("Perch is not logged in. Run: /login perch");
+	const token = apiKeyHint?.trim();
+	if (!token?.startsWith("ey")) {
+		throw new Error("Perch is not logged in. Run: /login perch");
+	}
+
+	// Check expiry with 60-second margin (matching CLI's EXPIRY_MARGIN_MS behaviour).
+	const expiresAt = decodeJwtExp(token);
+	const now = Date.now();
+	if (expiresAt !== null && expiresAt - now > 60_000) return token; // still valid
+
+	// Token expired or about to expire — try proactive refresh.
+	if (cachedRefreshToken) {
+		try {
+			const t = await refreshTokens(cachedRefreshToken);
+			cacheRefreshToken(t.refresh);
+			return t.access;
+		} catch {
+			// Refresh failed — fall through and let the original token be used;
+			// the server will reject it and the caller can decide what to do.
+		}
+	}
+	return token;
 }
 
 /** Turn a model-call HTTP failure into an actionable message. */
@@ -511,6 +552,7 @@ async function runBrowserLogin(
 		onProgress?.("Ensuring Starter plan is selected…");
 		await ensurePlanSelected(access); // throws on hard failures (banned etc.)
 		await markSignupSourceCli(access, tokens.user_metadata); // same post-login step the CLI does
+		cacheRefreshToken(tokens.refresh_token ? String(tokens.refresh_token) : null);
 		void fetchSessionIds(access).catch(() => {}); // warm attribution cache
 
 		return {
@@ -653,8 +695,10 @@ function streamPerchDeepSeek(
 			});
 
 			// Same fetch policy as the CLI's proxy wrapper: up to 3 attempts,
-			// exponential 350ms backoff, retry only transient statuses.
+			// exponential 350ms backoff, retry transient statuses AND auth errors
+			// (auth errors trigger a token refresh before retry).
 			let res!: Response;
+			let currentAccessToken = accessToken;
 			for (let attempt = 0; ; attempt++) {
 				try {
 					res = await fetch(`${APP_URL}/api/perch-terminal/model-call`, {
@@ -662,7 +706,7 @@ function streamPerchDeepSeek(
 						headers: {
 							"Content-Type": "application/json",
 							Accept: "text/event-stream",
-							Authorization: `Bearer ${accessToken}`,
+							Authorization: `Bearer ${currentAccessToken}`,
 						},
 						body,
 						signal: options?.signal,
@@ -673,6 +717,22 @@ function streamPerchDeepSeek(
 						(err instanceof Error && err.name === "AbortError");
 					if (aborted || attempt >= 2) throw err;
 				}
+
+				// Auth errors (400/401/403) — attempt a token refresh and retry once.
+				const isAuthError = res && (res.status === 400 || res.status === 401 || res.status === 403);
+				if (isAuthError && cachedRefreshToken && attempt < 2) {
+					await res.text().catch(() => ""); // consume body
+					try {
+						const t = await refreshTokens(cachedRefreshToken);
+						cacheRefreshToken(t.refresh);
+						currentAccessToken = t.access;
+						await new Promise((r) => setTimeout(r, 200));
+						continue; // retry with fresh token
+					} catch {
+						// Refresh failed — fall through to the transient check below.
+					}
+				}
+
 				const transient = res && (res.status === 408 || res.status === 425 || res.status >= 500);
 				if (!transient || attempt >= 2) {
 					const text = res ? await res.text().catch(() => "") : "";
@@ -1171,15 +1231,18 @@ export default function (pi: ExtensionAPI) {
 			name: "Perch",
 			async login(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 				// Full browser PKCE flow — no external CLI involved.
-				return runBrowserLogin(
+				const creds = await runBrowserLogin(
 					({ url }) => callbacks.onAuth({ url }),
 					(message) => callbacks.onProgress?.(message),
 				);
+				cacheRefreshToken(creds.refresh || null);
+				return creds;
 			},
 			async refreshToken(credentials: OAuthCredentials, signal: AbortSignal): Promise<OAuthCredentials> {
 				signal.throwIfAborted();
 				if (!credentials.refresh) throw new Error("No Perch refresh token. Run: /login perch");
 				const t = await refreshTokens(credentials.refresh);
+				cacheRefreshToken(t.refresh);
 				return { refresh: t.refresh, access: t.access, expires: t.expires };
 			},
 			getApiKey(credentials: OAuthCredentials): string {
