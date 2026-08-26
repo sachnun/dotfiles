@@ -13,10 +13,11 @@
   },
   "extensions": [
     "-extensions/telegram/index.ts",
-    "+extensions/freebux.ts",
     "-extensions/opencode.ts",
     "-extensions/chrome/index.ts",
-    "-extensions/tok.ts"
+    "-extensions/tok.ts",
+    "-extensions/freebux.ts",
+    "-extensions/perch.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
