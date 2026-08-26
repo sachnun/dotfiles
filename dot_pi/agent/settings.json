@@ -39,9 +39,6 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "freebux/deepseek/deepseek-v4-flash",
-    "openrouter/stealth/ox-alpha",
-    "perch/deepseek-v4-flash",
-    "orca/orcarouter/auto"
+    "openrouter/stealth/ox-alpha"
   ]
 }
