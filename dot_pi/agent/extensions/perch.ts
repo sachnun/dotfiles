@@ -96,6 +96,170 @@ async function resolveAccessToken(apiKeyHint?: string): Promise<string> {
 	throw new Error("Perch is not logged in. Run: /login perch");
 }
 
+/** Turn a model-call HTTP failure into an actionable message. */
+async function explainModelCallFailure(status: number, body: string): Promise<string> {
+	if (status !== 403) return `Perch model-call failed: HTTP ${status} ${body.slice(0, 300)}`;
+	// 403 with a valid token means account state, not auth.
+	try {
+		const json = JSON.parse(body) as { errorCode?: string };
+		if (json?.errorCode === "not_authorized" || json?.errorCode === "tier_selection_required") {
+			return (
+				`Perch model-call rejected: no active plan (HTTP 403).\n` +
+				`Run /login perch again to auto-select the free Starter plan,\n` +
+				`or pick a plan at https://chat.perchai.app/perchai.`
+			);
+		}
+	} catch {
+		/* fall through */
+	}
+	return `Perch model-call failed: HTTP ${status} ${body.slice(0, 300)}`;
+}
+
+/**
+ * Mark the account signup source as "cli" after login, exactly like the CLI:
+ * `if (!y || y === "unknown") await supabase.auth.updateUser({ data: { signup_source: "cli" } })`.
+ * Keeps account metadata consistent with the traffic the proxy sees.
+ */
+async function markSignupSourceCli(accessToken: string, current: unknown): Promise<void> {
+	try {
+		const meta = (current as { user_metadata?: { signup_source?: string } } | undefined)?.user_metadata;
+		const src = meta?.signup_source;
+		if (src && src !== "unknown") return;
+		const config = await fetchAuthConfig();
+		await fetch(`${config.supabaseUrl.replace(/\/+$/, "")}/auth/v1/user`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				apikey: config.supabaseAnonKey,
+				Authorization: `Bearer ${accessToken}`,
+			},
+			body: JSON.stringify({ data: { signup_source: "cli" } }),
+		});
+	} catch {
+		/* best effort */
+	}
+}
+
+// =============================================================================
+// Session metadata shared with the model-call proxy (CLI parity)
+// =============================================================================
+
+/** userId/workspaceId cached once per process; attribution uses them like vy() in the CLI. */
+let sessionIdsCache: { userId: string | null; workspaceId: string | null } | null = null;
+let sessionIdsPromise: Promise<{ userId: string | null; workspaceId: string | null }> | null = null;
+
+function fetchSessionIds(accessToken: string): Promise<{ userId: string | null; workspaceId: string | null }> {
+	if (!sessionIdsPromise) {
+		sessionIdsPromise = (async () => {
+			try {
+				const res = await fetch(`${APP_URL}/api/perchai/account`, {
+					headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+					signal: AbortSignal.timeout(5_000),
+				});
+				if (!res.ok) throw new Error(String(res.status));
+				const json = (await res.json()) as AccountResponse;
+				sessionIdsCache = {
+					userId: json.session?.userId ?? null,
+					workspaceId: json.session?.workspaceId ?? null,
+				};
+			} catch {
+				sessionIdsCache = { userId: null, workspaceId: null };
+			}
+			return sessionIdsCache;
+		})();
+	}
+	return sessionIdsPromise;
+}
+
+/** Fire-and-forget turn telemetry — same endpoint/fields the CLI posts per turn. */
+function postTurnTelemetry(params: {
+	accessToken: string;
+	runId: string;
+	prompt: string;
+	assistantText: string;
+	status: "completed" | "failed" | "cancelled";
+	durationMs: number;
+}): void {
+	void fetch(`${APP_URL}/api/perch-terminal/cli-turn`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", Authorization: `Bearer ${params.accessToken}` },
+		body: JSON.stringify({
+			prompt: params.prompt.slice(0, 8_000),
+			assistantText: params.assistantText,
+			threadId: perchThreadId(),
+			runId: params.runId,
+			chatMode: null,
+			personaId: null,
+			status: params.status,
+			durationMs: params.durationMs,
+			error: null,
+			events: [],
+			contextSnapshot: null,
+			systemInitiated: false,
+		}),
+		signal: AbortSignal.timeout(12_000),
+	}).catch(() => {});
+}
+
+/** Stable thread id per pi process (the CLI persists one per workspace). */
+let _threadId: string | null = null;
+function perchThreadId(): string {
+	_threadId ??= randomBytes(16).toString("hex");
+	return _threadId;
+}
+
+/** Run id format used by the CLI (`cli-turn-<ts>-<rand>`). */
+function newRunId(): string {
+	return `cli-turn-${Date.now()}-${randomBytes(4).toString("hex")}`;
+}
+
+/**
+ * Auto-select the free Starter plan (code "pilot") for accounts without one,
+ * mirroring the web app's PlanChooser: it calls Supabase RPC
+ * perch_ai_select_plan({ p_plan_code: "pilot" }) when tierSelectionRequired.
+ * Runs right after login so model calls work immediately.
+ */
+async function ensurePlanSelected(accessToken: string): Promise<void> {
+	let session: AccountResponse["session"];
+	try {
+		const res = await fetch(`${APP_URL}/api/perchai/account`, {
+			headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+		});
+		if (!res.ok) return; // best effort; model-call reports precise errors later
+		const json = (await res.json().catch(() => null)) as AccountResponse | null;
+		if (!json?.ok) return;
+		session = json.session;
+	} catch {
+		return;
+	}
+	// Only act when the server demands a tier choice (same condition as web).
+	if (!session?.tierSelectionRequired) return;
+
+	const config = await fetchAuthConfig();
+	const rpc = await fetch(
+		`${config.supabaseUrl.replace(/\/+$/, "")}/rest/v1/rpc/perch_ai_select_plan`,
+		{
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				apikey: config.supabaseAnonKey,
+				Authorization: `Bearer ${accessToken}`,
+			},
+			body: JSON.stringify({ p_plan_code: "pilot" }),
+		},
+	);
+	const out = (await rpc.json().catch(() => null)) as
+		| { ok?: boolean; error?: string; reason?: string }
+		| null;
+	if (!rpc.ok || !out?.ok) {
+		throw new Error(
+			out?.error === "banned"
+				? `Perch sign-in blocked: ${out.reason ?? "account banned"}. Contact hello@perchai.app.`
+				: `Could not select Perch Starter plan (${rpc.status}). Pick a plan at https://chat.perchai.app/perchai.`,
+		);
+	}
+}
+
 // =============================================================================
 // Context -> Perch proxy conversion (OpenAI-style wire format)
 // =============================================================================
@@ -343,8 +507,14 @@ async function runBrowserLogin(
 			throw new Error(`Perch token exchange failed (${tokenRes.status}).`);
 		}
 
+		const access = String(tokens.access_token);
+		onProgress?.("Ensuring Starter plan is selected…");
+		await ensurePlanSelected(access); // throws on hard failures (banned etc.)
+		await markSignupSourceCli(access, tokens.user_metadata); // same post-login step the CLI does
+		void fetchSessionIds(access).catch(() => {}); // warm attribution cache
+
 		return {
-			access: String(tokens.access_token),
+			access,
 			refresh: tokens.refresh_token ? String(tokens.refresh_token) : "",
 			expires: typeof tokens.expires_at === "number"
 				? tokens.expires_at * 1000
@@ -404,38 +574,56 @@ function streamPerchDeepSeek(
 			timestamp: Date.now(),
 		};
 
+		const startedAt = Date.now();
 		try {
 			const accessToken = await resolveAccessToken(options?.apiKey);
 
-			// Resolve reasoning directive exactly like pi's openai-completions
-			// openrouter format: mapped value from thinkingLevelMap, or an off
-			// directive when no explicit level was requested.
+			// Last user message text — the prompt field for turn telemetry.
+			const lastUser = [...context.messages].reverse().find((m) => m.role === "user");
+			const promptText = lastUser ? textFromContent(lastUser.content) : "";
+
+			// Resolve per-request reasoning directive only when pi explicitly asks
+			// for a thinking level. The CLI leaves upstream defaults alone unless
+			// the user picked an effort, so we do the same.
 			let reasoningDirective: Record<string, unknown> | null = null;
 			if (model.reasoning && options?.reasoning) {
 				const mapped = model.thinkingLevelMap?.[options.reasoning];
 				if (mapped !== null) {
 					reasoningDirective = { reasoningEffort: mapped ?? options.reasoning };
 				}
-			} else if (model.reasoning && model.thinkingLevelMap?.off !== null) {
-				reasoningDirective = { reasoningEffort: model.thinkingLevelMap?.off ?? "none" };
 			}
 
-			// Coarse outer-effort metadata (what the official CLI sends).
-			let effort: PerchEffort | null = null;
-			let roostReasoning: boolean | null = null;
+			// Outer effort metadata — the official CLI ALWAYS sends its persisted
+			// roost state on every model-call: { choice: "standard", reasoningEnabled,
+			// effort: { level, orchestration } }. Default state is high/on (Csr()/a2()).
+			let effortLevel: PerchEffortLevel = "high"; // CLI default
 			if (reasoningDirective) {
 				const eff = String(reasoningDirective.reasoningEffort);
-				const level: PerchEffortLevel =
-					eff === "none" || eff === "off"
-						? "off"
-						: eff === "xhigh" || eff === "max"
-							? "high"
-							: (["off", "low", "medium", "high"] as const).includes(eff as PerchEffortLevel)
-								? (eff as PerchEffortLevel)
-								: "high";
-				effort = { level, orchestration: false };
-				roostReasoning = level !== "off";
+				effortLevel = eff === "none" || eff === "off"
+					? "off"
+					: eff === "xhigh" || eff === "max"
+						? "high"
+						: (["off", "low", "medium", "high"] as const).includes(eff as PerchEffortLevel)
+							? (eff as PerchEffortLevel)
+							: "high";
 			}
+			const effort: PerchEffort = { level: effortLevel, orchestration: false };
+			const roostReasoning = effortLevel !== "off";
+
+			// Attribution mirrors the CLI's vy(): ids from the account endpoint,
+			// source "cli" when clientSurface is cli; null when unknown.
+			const runId = newRunId();
+			const ids = await fetchSessionIds(accessToken);
+			const attribution = ids.userId && ids.workspaceId
+				? {
+					userId: ids.userId,
+					workspaceId: ids.workspaceId,
+					runId,
+					lane: "chat",
+					source: "cli",
+					billingMultiplier: null,
+				}
+				: null;
 
 			const body = JSON.stringify({
 				request: {
@@ -449,32 +637,48 @@ function streamPerchDeepSeek(
 					// chat_template_kwargs.enable_thinking on W&B-hosted models).
 					...(reasoningDirective ? { reasoning: reasoningDirective } : {}),
 				},
-				runId: `pi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+				runId,
 				lane: "chat",
 				strictManual: false, // true triggers starter_model_blocked on non-Pro plans
 				preferredModelId: null,
 				avoidModelIds: [],
-				attribution: null,
+				attribution,
 				clientSurface: "cli",
 				manualModelOptionId:
 					MODEL_OPTION_IDS[model.id] ?? MODEL_OPTION_IDS["deepseek-v4-flash"],
-				// Outer effort metadata — what the official CLI sends.
-				...(effort && roostReasoning !== null ? { effort, roostReasoning } : {}),
+				// Persisted roost state — the CLI sends this on every request.
+				roostModelChoice: "standard",
+				roostReasoning,
+				effort,
 			});
 
-			const res = await fetch(`${APP_URL}/api/perch-terminal/model-call`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "text/event-stream",
-					Authorization: `Bearer ${accessToken}`,
-				},
-				body,
-				signal: options?.signal,
-			});
-			if (!res.ok || !res.body) {
-				const text = await res.text().catch(() => "");
-				throw new Error(`Perch model-call failed: HTTP ${res.status} ${text.slice(0, 300)}`);
+			// Same fetch policy as the CLI's proxy wrapper: up to 3 attempts,
+			// exponential 350ms backoff, retry only transient statuses.
+			let res!: Response;
+			for (let attempt = 0; ; attempt++) {
+				try {
+					res = await fetch(`${APP_URL}/api/perch-terminal/model-call`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Accept: "text/event-stream",
+							Authorization: `Bearer ${accessToken}`,
+						},
+						body,
+						signal: options?.signal,
+					});
+					if (res.ok && res.body) break;
+				} catch (err) {
+					const aborted = options?.signal?.aborted ||
+						(err instanceof Error && err.name === "AbortError");
+					if (aborted || attempt >= 2) throw err;
+				}
+				const transient = res && (res.status === 408 || res.status === 425 || res.status >= 500);
+				if (!transient || attempt >= 2) {
+					const text = res ? await res.text().catch(() => "") : "";
+					throw new Error(await explainModelCallFailure(res ? res.status : 0, text));
+				}
+				await new Promise((r) => setTimeout(r, 350 * 2 ** attempt));
 			}
 
 			stream.push({ type: "start", partial: output });
@@ -614,6 +818,20 @@ function streamPerchDeepSeek(
 			if (terminal === "pending") {
 				throw new Error("Perch stream ended without a terminal done event");
 			}
+
+			// Turn telemetry — same endpoint the CLI posts after each turn.
+			postTurnTelemetry({
+				accessToken,
+				runId,
+				prompt: promptText,
+				assistantText: output.content
+					.filter((b): b is TextContent => b.type === "text")
+					.map((b) => b.text)
+					.join("\n"),
+				status: terminal === "aborted" ? "cancelled" : terminal === "error" ? "failed" : "completed",
+				durationMs: Date.now() - startedAt,
+			});
+
 			if (terminal === "error" || terminal === "aborted") {
 				stream.push({ type: "error", reason: terminal, error: output });
 				stream.end();
@@ -656,13 +874,13 @@ async function parseSse(body: ReadableStream<Uint8Array>, onEvent: (event: any) 
 }
 
 // =============================================================================
-// /usage — Perch Token allowance panel (same info as the CLI.s /usage)
+// /usage — Perch Token allowance panel (same info as the CLI's /usage)
 // =============================================================================
 
 interface AccountResponse {
 	ok?: boolean;
 	profile?: { email?: string | null; name?: string | null };
-	session?: { planCode?: string; planName?: string; membershipRole?: string; entitlements?: Array<{ key: string; value_json?: { enabled?: boolean; models?: string[]; limit?: number } }> };
+	session?: { userId?: string; workspaceId?: string | null; planCode?: string; planName?: string; membershipRole?: string; tierSelectionRequired?: boolean; entitlements?: Array<{ key: string; value_json?: { enabled?: boolean; models?: string[]; limit?: number } }> };
 	usageMeter?: {
 		dailyPt?: number | null;
 		weeklyPt?: number | null;
