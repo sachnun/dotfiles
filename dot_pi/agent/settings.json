@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.3",
-  "defaultProvider": "orca",
-  "defaultModel": "orcarouter/auto",
+  "defaultProvider": "perch",
+  "defaultModel": "deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
@@ -14,7 +14,8 @@
     "-extensions/telegram/index.ts",
     "+extensions/freebux.ts",
     "-extensions/opencode.ts",
-    "-extensions/chrome/index.ts"
+    "-extensions/chrome/index.ts",
+    "-extensions/tok.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,

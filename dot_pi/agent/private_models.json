@@ -1,41 +1,51 @@
 {
-  "providers": {
-    "orca": {
-      "name": "Orca",
-      "baseUrl": "https://api.orcarouter.ai/v1",
-      "api": "openai-completions",
-      "compat": {
-        "supportsDeveloperRole": false
-      },
-      "models": [
-        {
-          "id": "orcarouter/auto",
-          "name": "OrcaRouter Auto",
-          "reasoning": false,
-          "input": [
-            "text"
-          ],
-          "contextWindow": 200000,
-          "maxTokens": 8192
+    "providers": {
+        "orca": {
+            "name": "Orca",
+            "baseUrl": "https://api.orcarouter.ai/v1",
+            "api": "openai-completions",
+            "compat": {
+                "supportsDeveloperRole": false
+            },
+            "models": [
+                {
+                    "id": "orcarouter/auto",
+                    "name": "OrcaRouter Auto",
+                    "reasoning": false,
+                    "input": ["text"],
+                    "contextWindow": 200000,
+                    "maxTokens": 8192
+                }
+            ]
+        },
+        "xai": {
+            "baseUrl": "https://cli-chat-proxy.grok.com/v1",
+            "headers": {
+                "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
+                "x-grok-client-identifier": "grok-shell",
+                "x-grok-client-version": "1.0.3",
+                "x-grok-client-mode": "interactive",
+                "X-XAI-Token-Auth": "xai-grok-cli",
+                "x-authenticateresponse": "authenticate-response"
+            }
+        },
+        "empero": {
+            "name": "Empero",
+            "baseUrl": "https://free.empero.org/v1",
+            "apiKey": "free",
+            "api": "openai-completions",
+            "models": [
+                {
+                    "id": "Qwen/Qwen3.8-27B-FP8",
+                    "name": "Qwen 3.8 27B"
+                }
+            ]
+        },
+        "opencode": {
+            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+            "headers": {
+                "User-Agent": "opencode/pi"
+            }
         }
-      ]
-    },
-    "xai": {
-      "baseUrl": "https://cli-chat-proxy.grok.com/v1",
-      "headers": {
-        "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
-        "x-grok-client-identifier": "grok-shell",
-        "x-grok-client-version": "1.0.3",
-        "x-grok-client-mode": "interactive",
-        "X-XAI-Token-Auth": "xai-grok-cli",
-        "x-authenticateresponse": "authenticate-response"
-      }
-    },
-    "opencode": {
-      "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
-      "headers": {
-        "User-Agent": "opencode/pi"
-      }
     }
-  }
 }
