@@ -39,7 +39,7 @@ import type {
 	ToolCall,
 } from "@earendil-works/pi-ai";
 import { calculateCost, createAssistantMessageEventStream } from "@earendil-works/pi-ai";
-import { Container, Spacer, Text } from "@earendil-works/pi-tui";
+import { Container, Spacer, Text, type TUI } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
 import { createServer } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
@@ -729,6 +729,11 @@ async function fetchAccount(accessToken: string): Promise<AccountResponse> {
 	return json;
 }
 
+/** In-flight /usage loading state so both custom() phases share one transcript row. */
+let usageSpin: ReturnType<typeof setInterval> | undefined;
+let usageLoadingRow: Text | null = null;
+let usageTui: TUI | null = null;
+
 /** Column where values start in /usage rows (longest label is "This month" = 11 chars). */
 const LABEL_WIDTH = 13;
 
@@ -974,31 +979,66 @@ export default function (pi: ExtensionAPI) {
 		description: "Show Perch Token allowance and session usage",
 		handler: async (_args: string, ctx: ExtensionCommandContext) => {
 			void _args;
-			let account: AccountResponse;
-			try {
-				// Resolve the stored OAuth JWT from pi's credential store (auth.json).
-				const accessToken = await ctx.modelRegistry.getApiKeyForProvider("perch");
-				if (!accessToken) throw new Error("Perch is not logged in. Run: /login perch");
-				account = await fetchAccount(accessToken);
-			} catch (error) {
-				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			if (!ctx.hasUI) {
+				ctx.ui.notify("Perch usage is only available in interactive mode", "warning");
 				return;
 			}
-			if (!ctx.hasUI) return;
 
-			await ctx.ui.custom<void>(
+			// Loading row lives IN the transcript and is replaced in place when data arrives.
+			await ctx.ui.custom<void>((tui, theme, _keybindings, done) => {
+				done(); // we don't need focus; just borrow the TUI reference
+				const chat = findChatContainer(tui);
+				const spinnerFrames = ["\u280b", "\u2819", "\u2839", "\u2838", "\u2834", "\u2826", "\u2827", "\u2807"];
+				if (chat) {
+					const loadingRow = new Text(theme.fg("dim", "\u280b Loading Perch usage \u2026"), 1, 0);
+					chat.addChild(new Spacer(1));
+					chat.addChild(loadingRow);
+					tui.requestRender();
+					let frame = 0;
+					usageSpin = setInterval(() => {
+						frame = (frame + 1) % spinnerFrames.length;
+						loadingRow.setText(theme.fg("dim", `${spinnerFrames[frame]} Loading Perch usage \u2026`));
+						tui.requestRender();
+					}, 80);
+					usageLoadingRow = loadingRow;
+					usageTui = tui;
+				}
+				return {
+					invalidate() {},
+					render(width: number) {
+						void width;
+						return [];
+					},
+				};
+			}, { overlay: true });
+
+			try {
+				let account: AccountResponse;
+				try {
+					// Resolve the stored OAuth JWT from pi's credential store (auth.json).
+					const accessToken = await ctx.modelRegistry.getApiKeyForProvider("perch");
+					if (!accessToken) throw new Error("Perch is not logged in. Run: /login perch");
+					account = await fetchAccount(accessToken);
+				} catch (error) {
+					const msg = error instanceof Error ? error.message : String(error);
+					// Replace the loading row with the error message.
+					if (usageLoadingRow) {
+						usageLoadingRow.setText(`\x1b[31m${msg}\x1b[39m`);
+						usageTui?.requestRender();
+					} else {
+						ctx.ui.notify(msg, "error");
+					}
+					return;
+				}
+
+				await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => {
 					done(); // we don't need focus; just borrow the TUI reference
 					const chat = findChatContainer(tui);
-					if (chat) {
-						// Same rendering pattern as the built-in /session command
-						chat.addChild(new Spacer(1));
-						chat.addChild(
-							new Text(
-								[theme.fg("borderMuted", "Perch \u2014 usage"), ...renderUsageLines(account, theme)].join("\n"),
-								1,
-								0,
-							),
+					if (chat || usageLoadingRow) {
+						// Replace the loading row in place with the final panel.
+						usageLoadingRow?.setText(
+							[theme.fg("borderMuted", "Perch \u2014 usage"), ...renderUsageLines(account, theme)].join("\n"),
 						);
 						tui.requestRender();
 					} else {
@@ -1013,7 +1053,13 @@ export default function (pi: ExtensionAPI) {
 					};
 				},
 				{ overlay: true },
-			);
+				);
+			} finally {
+				clearInterval(usageSpin);
+				usageSpin = undefined;
+				usageLoadingRow = null;
+				usageTui = null;
+			}
 		},
 	});
 }
