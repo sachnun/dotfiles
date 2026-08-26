@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.84.3",
   "defaultProvider": "perch",
   "defaultModel": "deepseek-v4-flash",
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
