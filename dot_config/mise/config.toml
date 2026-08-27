@@ -1,9 +1,11 @@
 [tools]
 bun = "latest"
+ffmpeg = "latest"
 gh = "latest"
 glab = "latest"
 go = "latest"
 node = "latest"
+pi = "latest"
 python = "latest"
 uv = "latest"
 
