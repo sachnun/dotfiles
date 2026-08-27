@@ -3,7 +3,6 @@ packages:
     - base
     - base-devel
     - age
-    - btop
     - curl
     - expect
     - fd
@@ -18,8 +17,6 @@ packages:
     - nano
     - openssh
     - ripgrep
-    - rclone
-    - sqlite
     - sudo
     - tmux
     - tree
@@ -29,7 +26,6 @@ packages:
     - zip
   apt:
     - age
-    - btop
     - build-essential
     - curl
     - expect
@@ -41,8 +37,6 @@ packages:
     - gnupg
     - jq
     - ripgrep
-    - rclone
-    - sqlite3
     - sudo
     - tmux
     - tree

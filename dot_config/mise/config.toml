@@ -1,13 +1,16 @@
 [tools]
+btop = "latest"
 bun = "latest"
 fastfetch = "latest"
 ffmpeg = "latest"
 gh = "latest"
+"github:aria2/aria2" = "latest"
 glab = "latest"
 go = "latest"
 node = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
 python = "latest"
+rclone = "latest"
 starship = "latest"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
