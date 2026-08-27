@@ -24,5 +24,3 @@ starship = "latest"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 
-[settings]
-auto_update = true

@@ -2,9 +2,7 @@ set -U fish_greeting
 
 umask 0022
 
-# PATH
-fish_add_path $HOME/.local/share/mise/shims
-fish_add_path $HOME/.local/bin
+mise activate fish | source
 
 if status is-interactive
     fastfetch
