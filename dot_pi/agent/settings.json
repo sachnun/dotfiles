@@ -6,7 +6,9 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
-  "packages": [],
+  "packages": [
+    "npm:@ff-labs/pi-fff"
+  ],
   "terminal": {
     "showTerminalProgress": true,
     "clearOnShrink": true
