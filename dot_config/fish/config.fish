@@ -10,7 +10,3 @@ if status is-interactive
     fastfetch
     starship init fish | source
 end
-
-# Environment variables
-
-
