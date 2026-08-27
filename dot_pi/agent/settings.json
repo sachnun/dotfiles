@@ -7,7 +7,7 @@
   "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [
-    "npm:@ff-labs/pi-fff"
+    "npm:@aaronkyriesenbach/pi-substitute-commands"
   ],
   "terminal": {
     "showTerminalProgress": true,
