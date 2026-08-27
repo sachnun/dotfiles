@@ -26,4 +26,10 @@ echo "Using mise at: $MISE_BIN"
 echo "Applying mise tools from ~/.config/mise/config.toml..."
 cd "$HOME"
 "$MISE_BIN" install --yes
+
+# Uninstall tools still installed but no longer declared in any mise config.
+# (Note: `mise prune` is the documented way but is buggy in mise 2026.8.14 -
+#  real mode doesn't delete prunable tools.)
+"$MISE_BIN" ls --json | jq -r 'to_entries[] | select((([.value[].source] | any(.type=="mise.toml")) | not) and ([.value[].installed] | any)) | .key' \
+  | xargs -r -I{} "$MISE_BIN" uninstall -y -a {}
 {{ end -}}
