@@ -1,0 +1,29 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!{{ lookPath "bash" }}
+# Mise config hash: {{ include "dot_config/mise/config.toml" | sha256sum }}
+set -euo pipefail
+
+INSTALL_DIR="$HOME/.local/bin"
+mkdir -p "$INSTALL_DIR"
+
+export PATH="$HOME/.local/share/mise/shims:$INSTALL_DIR:$PATH"
+
+# Install mise itself if not already available (official installer -> ~/.local/bin/mise).
+MISE_BIN="$(command -v mise || true)"
+if [ -z "$MISE_BIN" ]; then
+  echo "Installing mise..."
+  curl -fsSL https://mise.run | sh
+  MISE_BIN="$INSTALL_DIR/mise"
+fi
+if [ ! -x "$MISE_BIN" ]; then
+  echo "ERROR: mise not found after install." >&2
+  exit 1
+fi
+echo "Using mise at: $MISE_BIN"
+
+# Install / apply all tools declared in the global mise config.
+# Run from $HOME so only the global config (~/.config/mise/config.toml) applies.
+echo "Applying mise tools from ~/.config/mise/config.toml..."
+cd "$HOME"
+"$MISE_BIN" install --yes
+{{ end -}}
