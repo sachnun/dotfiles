@@ -34,10 +34,23 @@
             "baseUrl": "https://free.empero.org/v1",
             "apiKey": "free",
             "api": "openai-completions",
+            "compat": {
+                "supportsDeveloperRole": false
+            },
             "models": [
                 {
-                    "id": "Qwen/Qwen3.8-27B-FP8",
-                    "name": "Qwen 3.8 27B"
+                    "id": "glm-5.3-flash",
+                    "name": "GLM 5.3 Flash",
+                    "reasoning": true,
+                    "contextWindow": 128000,
+                    "maxTokens": 16384
+                },
+                {
+                    "id": "qwen3.8-flash",
+                    "name": "Qwen 3.8 Flash",
+                    "reasoning": true,
+                    "contextWindow": 128000,
+                    "maxTokens": 16384
                 }
             ]
         },
@@ -48,7 +61,7 @@
             },
             "modelOverrides": {
                 "big-pickle": {
-                    "contextWindow": 300000
+                    "contextWindow": 1000000
                 }
             }
         }

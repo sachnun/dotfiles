@@ -16,8 +16,9 @@
     "-extensions/opencode.ts",
     "-extensions/chrome/index.ts",
     "-extensions/tok.ts",
-    "+extensions/perch.ts",
-    "+extensions/freebux.ts"
+    "+extensions/freebux.ts",
+    "-extensions/perch.ts",
+    "-extensions/exa.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
@@ -39,7 +40,7 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "perch/deepseek-v4-flash",
-    "freebux/deepseek/deepseek-v4-flash"
+    "freebux/deepseek/deepseek-v4-flash",
+    "cline/z-ai/glm-5.3-flash"
   ]
 }
