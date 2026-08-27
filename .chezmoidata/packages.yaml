@@ -4,7 +4,6 @@ packages:
     - base-devel
     - age
     - btop
-    - chezmoi
     - curl
     - expect
     - fastfetch
@@ -23,7 +22,6 @@ packages:
     - ripgrep
     - rclone
     - sqlite
-    - starship
     - sudo
     - tmux
     - tree
