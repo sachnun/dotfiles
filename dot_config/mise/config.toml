@@ -3,6 +3,7 @@ bun = "latest"
 gh = "latest"
 go = "latest"
 node = "latest"
+"npm:@opencode-ai/cli" = "beta"
 python = "latest"
 uv = "latest"
 
