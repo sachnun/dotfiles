@@ -12,7 +12,6 @@ packages:
     - fzf
     - git
     - git-lfs
-    - github-cli
     - glab
     - gnupg
     - grep
@@ -38,7 +37,6 @@ packages:
     - fd-find
     - fish
     - fzf
-    - gh
     - git
     - git-lfs
     - gnupg
