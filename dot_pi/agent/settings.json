@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.84.3",
   "defaultProvider": "opencode",
   "defaultModel": "big-pickle",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
