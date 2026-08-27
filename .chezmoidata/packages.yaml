@@ -1,22 +1,20 @@
 packages:
   pacman:
+    - age
     - base
     - base-devel
-    - age
     - curl
     - expect
-    - fd
     - fish
-    - fzf
     - git
     - git-lfs
-    - glab
     - gnupg
     - grep
-    - jq
     - nano
     - openssh
-    - ripgrep
+    - podman
+    - podman-compose
+    - podman-docker
     - sudo
     - tmux
     - tree
@@ -29,14 +27,13 @@ packages:
     - build-essential
     - curl
     - expect
-    - fd-find
     - fish
-    - fzf
     - git
     - git-lfs
     - gnupg
-    - jq
-    - ripgrep
+    - podman
+    - podman-compose
+    - podman-docker
     - sudo
     - tmux
     - tree
