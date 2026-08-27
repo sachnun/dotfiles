@@ -6,9 +6,7 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
-  "packages": [
-    "npm:@aaronkyriesenbach/pi-substitute-commands"
-  ],
+  "packages": [],
   "terminal": {
     "showTerminalProgress": true,
     "clearOnShrink": true
@@ -20,7 +18,8 @@
     "-extensions/tok.ts",
     "+extensions/freebux.ts",
     "-extensions/perch.ts",
-    "-extensions/exa.ts"
+    "-extensions/exa.ts",
+    "+extensions/find/index.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
