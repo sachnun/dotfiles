@@ -2,14 +2,15 @@ set -U fish_greeting
 
 umask 0022
 
+# PATH
+fish_add_path $HOME/.local/share/mise/shims
+fish_add_path $HOME/.local/bin
+
 if status is-interactive
     fastfetch
+    starship init fish | source
 end
-
-# PATH
-fish_add_path $HOME/.local/bin
-fish_add_path $HOME/.local/share/mise/shims
 
 # Environment variables
 
-starship init fish | source
+
