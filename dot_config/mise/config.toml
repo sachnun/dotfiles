@@ -16,10 +16,10 @@ herdr = "latest"
 jq = "latest"
 node = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
+"npm:@opencode-ai/cli" = { version = "beta", allow_builds = true }
 python = "latest"
 rclone = "latest"
 ripgrep = "latest"
 starship = "latest"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
-
