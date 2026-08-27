@@ -6,7 +6,6 @@ packages:
     - btop
     - curl
     - expect
-    - fastfetch
     - fd
     - fish
     - fzf
