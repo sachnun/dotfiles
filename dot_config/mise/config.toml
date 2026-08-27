@@ -1,6 +1,7 @@
 [tools]
 bun = "latest"
 gh = "latest"
+glab = "latest"
 go = "latest"
 node = "latest"
 python = "latest"
