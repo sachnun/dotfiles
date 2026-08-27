@@ -1,0 +1,8 @@
+{
+  "name": "pi-agent-extensions",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "unbash": "^4.0.0"
+  }
+}
