@@ -28,4 +28,6 @@ wrangler = { version = "latest", allow_builds = ["esbuild", "sharp", "workerd"] 
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 
 [settings]
+minimum_release_age = "0"
+auto_update = true
 

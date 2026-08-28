@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.84.3",
+  "lastChangelogVersion": "0.84.4",
   "defaultProvider": "opencode",
   "defaultModel": "big-pickle",
   "hideThinkingBlock": true,
@@ -43,5 +43,6 @@
     "opencode/big-pickle",
     "freebux/deepseek/deepseek-v4-flash",
     "cline/z-ai/glm-5.3-flash"
-  ]
+  ],
+  "fullscreenCopyOnSelect": false
 }
