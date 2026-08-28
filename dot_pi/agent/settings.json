@@ -19,7 +19,7 @@
     "+extensions/freebux.ts",
     "-extensions/perch.ts",
     "-extensions/exa.ts",
-    "+extensions/find/index.ts"
+    "+extensions/find.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
