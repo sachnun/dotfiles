@@ -12,9 +12,6 @@ packages:
     - grep
     - nano
     - openssh
-    - podman
-    - podman-compose
-    - podman-docker
     - sudo
     - tmux
     - tree
@@ -31,9 +28,6 @@ packages:
     - git
     - git-lfs
     - gnupg
-    - podman
-    - podman-compose
-    - podman-docker
     - sudo
     - tmux
     - tree
