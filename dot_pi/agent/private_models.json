@@ -59,6 +59,13 @@
             "headers": {
                 "User-Agent": "opencode/pi"
             }
+        },
+        "openrouter": {
+            "modelOverrides": {
+                "minimax/minimax-m3:free": {
+                    "maxTokens": 524288
+                }
+            }
         }
     }
 }
