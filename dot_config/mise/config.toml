@@ -2,6 +2,7 @@
 btop = "latest"
 bun = "latest"
 cloudflared = "latest"
+codex = "latest"
 fastfetch = "latest"
 fd = "latest"
 ffmpeg = "latest"

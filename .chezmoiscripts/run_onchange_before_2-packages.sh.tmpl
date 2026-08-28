@@ -3,12 +3,19 @@
 # Packages hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 set -euo pipefail
 
-{{- if and (hasKey .chezmoi.osRelease "id") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) }}
 packages=(
 {{- range .packages.pacman }}
     {{ . }}
 {{- end }}
 )
+{{- if and (hasKey .chezmoi.osRelease "id") (eq .chezmoi.osRelease.id "omarchy") }}
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+${SUDO} pacman -S --needed --noconfirm "${packages[@]}"
+{{- else if and (hasKey .chezmoi.osRelease "id") (or (eq .chezmoi.osRelease.id "arch") (eq .chezmoi.osRelease.id "archlinux")) }}
 pacman -Syu --needed --noconfirm "${packages[@]}"
 {{- else if and (hasKey .chezmoi.osRelease "id") (or (eq .chezmoi.osRelease.id "debian") (eq .chezmoi.osRelease.id "ubuntu")) }}
 # Debian / Ubuntu — use apt
