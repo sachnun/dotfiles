@@ -14,7 +14,6 @@ glow = "latest"
 go = "latest"
 herdr = "latest"
 jq = "latest"
-neovim = "latest"
 node = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
 "npm:@opencode-ai/cli" = { version = "beta", allow_builds = true }
