@@ -58,6 +58,7 @@ yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
 "npm:agent-browser" = "latest"
 bun = "latest"
+"github:can1357/oh-my-pi" = "latest"
 
 [settings]
 minimum_release_age = "0"
