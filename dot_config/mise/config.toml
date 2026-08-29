@@ -1,5 +1,4 @@
 [bootstrap.packages]
-"apt:age" = "latest"
 "apt:build-essential" = "latest"
 "apt:curl" = "latest"
 "apt:expect" = "latest"
@@ -13,7 +12,6 @@
 "apt:unzip" = "latest"
 "apt:vim" = "latest"
 "apt:zip" = "latest"
-"pacman:age" = "latest"
 "pacman:base" = "latest"
 "pacman:base-devel" = "latest"
 "pacman:curl" = "latest"
