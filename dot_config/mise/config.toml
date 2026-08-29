@@ -23,7 +23,7 @@
 "pacman:sudo" = "latest"
 
 [bootstrap.user]
-login_shell = "/home/linuxbrew/.linuxbrew/bin/fish"
+login_shell = "/usr/bin/fish"
 
 [tools]
 btop = "latest"
