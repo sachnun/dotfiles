@@ -9,13 +9,12 @@ fish_add_path $HOME/.local/bin
 
 if status is-interactive
   mise activate fish | source
+  function on_exit --on-event fish_exit
+      chezmoi re-add
+  end
 else
   mise activate fish --shims | source
 end
 
 starship init fish | source
-
-function on_exit --on-event fish_exit
-    chezmoi re-add
-end
 
