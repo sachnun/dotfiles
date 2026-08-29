@@ -9,8 +9,6 @@ mise activate fish | source
 
 if status --is-login
     chezmoi update
-    mise bootstrap packages up --yes
-    mise up --yes
     clear
 end
 
