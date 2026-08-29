@@ -1,13 +1,13 @@
 [bootstrap.packages]
 "apt:build-essential" = "latest"
 "apt:curl" = "latest"
+"apt:fish" = "latest"
 "apt:git" = "latest"
 "apt:git-lfs" = "latest"
 "apt:openssh-client" = "latest"
 "brew:wget" = "latest"
 "brew:aria2" = "latest"
 "brew:expect" = "latest"
-"brew:fish" = "latest"
 "brew:grep" = "latest"
 "brew:libxml2" = "latest"
 "brew:nano" = "latest"
@@ -21,6 +21,7 @@
 "pacman:curl" = "latest"
 "pacman:git" = "latest"
 "pacman:git-lfs" = "latest"
+"pacman:fish" = "latest"
 "pacman:openssh" = "latest"
 "pacman:sudo" = "latest"
 
