@@ -7,4 +7,5 @@ mise activate fish | source
 if status is-interactive
     fastfetch
     starship init fish | source
+    outdated
 end
