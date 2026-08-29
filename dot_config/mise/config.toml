@@ -4,7 +4,7 @@
 "apt:git" = "latest"
 "apt:git-lfs" = "latest"
 "apt:openssh-client" = "latest"
-"apt:wget" = "latest"
+"brew:wget" = "latest"
 "brew:aria2" = "latest"
 "brew:expect" = "latest"
 "brew:fish" = "latest"
@@ -22,7 +22,6 @@
 "pacman:git-lfs" = "latest"
 "pacman:openssh" = "latest"
 "pacman:sudo" = "latest"
-"pacman:wget" = "latest"
 
 [bootstrap.user]
 login_shell = "/home/linuxbrew/.linuxbrew/bin/fish"
