@@ -3,7 +3,7 @@
 "apt:curl" = "latest"
 "apt:git" = "latest"
 "apt:git-lfs" = "latest"
-"apt:openssh" = "latest"
+"apt:openssh-client" = "latest"
 "apt:wget" = "latest"
 "brew:aria2" = "latest"
 "brew:expect" = "latest"
