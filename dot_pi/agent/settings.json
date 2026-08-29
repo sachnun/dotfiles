@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.4",
-  "defaultProvider": "opencode",
-  "defaultModel": "big-pickle",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",

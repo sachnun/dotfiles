@@ -60,3 +60,7 @@ yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 [settings]
 minimum_release_age = "0"
 auto_update = true
+
+[shell_alias]
+cr = "chezmoi re-add"
+cu = "chezmoi update"
