@@ -10,6 +10,7 @@
                     "id": "deepseek/deepseek-v4-flash",
                     "name": "DeepSeek V4 Flash",
                     "reasoning": true,
+                    "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
                     "contextWindow": 1048576,
                     "maxTokens": 384000,
                     "compat": {
@@ -20,6 +21,7 @@
                     "id": "deepseek/deepseek-v4-pro",
                     "name": "DeepSeek V4 Pro",
                     "reasoning": true,
+                    "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
                     "contextWindow": 1048576,
                     "maxTokens": 384000,
                     "compat": {
@@ -31,6 +33,7 @@
                     "name": "GLM 5.3 Flash",
                     "reasoning": true,
                     "input": ["text", "image"],
+                    "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
                     "contextWindow": 1310720,
                     "maxTokens": 131072,
                     "compat": {
