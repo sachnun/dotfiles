@@ -9,6 +9,7 @@
 "brew:expect" = "latest"
 "brew:fish" = "latest"
 "brew:grep" = "latest"
+"brew:libxml2" = "latest"
 "brew:nano" = "latest"
 "brew:tmux" = "latest"
 "brew:tree" = "latest"
