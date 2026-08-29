@@ -1,6 +1,7 @@
 set -U fish_greeting
 
 fish_add_path /home/linuxbrew/.linuxbrew/bin
+fish_add_path $HOME/.local/bin
 
 umask 0022
 

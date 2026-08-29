@@ -8,7 +8,7 @@
   "theme": "dark",
   "packages": [],
   "terminal": {
-    "showTerminalProgress": false,
+    "showTerminalProgress": true,
     "clearOnShrink": true
   },
   "extensions": [

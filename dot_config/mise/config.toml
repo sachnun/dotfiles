@@ -9,7 +9,6 @@
 "brew:aria2" = "latest"
 "brew:expect" = "latest"
 "brew:grep" = "latest"
-"brew:libxml2" = "latest"
 "brew:nano" = "latest"
 "brew:tmux" = "latest"
 "brew:tree" = "latest"
