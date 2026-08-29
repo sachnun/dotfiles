@@ -31,6 +31,9 @@
 "pacman:wget" = "latest"
 "pacman:zip" = "latest"
 
+[bootstrap.user]
+login_shell = "/usr/bin/fish"
+
 [tools]
 btop = "latest"
 bun = "latest"
