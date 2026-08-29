@@ -19,7 +19,7 @@ if [ ! -x "$MISE_BIN" ]; then
 fi
 
 cd "$HOME"
-"$MISE_BIN" bootstrap --only packages,tools --yes --update
+"$MISE_BIN" bootstrap --yes --update
 
 "$MISE_BIN" bootstrap packages prune --manager brew --yes
 
