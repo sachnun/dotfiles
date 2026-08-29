@@ -1,7 +1,2 @@
 umask 0022
 
-# Start fish on login (set by chezmoi)
-if [ -x "$(command -v fish)" ] && [ "$(ps -p $$ -o comm= 2>/dev/null)" != "fish" ]; then
-  exec fish
-fi
-
