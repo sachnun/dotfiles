@@ -9,7 +9,7 @@
   "packages": [],
   "terminal": {
     "showTerminalProgress": true,
-    "clearOnShrink": true
+    "clearOnShrink": false
   },
   "extensions": [
     "-extensions/telegram/index.ts",
