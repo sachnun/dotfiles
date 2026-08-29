@@ -21,11 +21,11 @@ if [ ! -x "$MISE_BIN" ]; then
 fi
 echo "Using mise at: $MISE_BIN"
 
-# Install / apply all tools declared in the global mise config.
+# Apply both OS packages and tools declared in the global mise config.
 # Run from $HOME so only the global config (~/.config/mise/config.toml) applies.
-echo "Applying mise tools from ~/.config/mise/config.toml..."
+echo "Applying mise packages and tools from ~/.config/mise/config.toml..."
 cd "$HOME"
-"$MISE_BIN" install --yes
+"$MISE_BIN" bootstrap --only packages,tools --yes --update
 
 # Uninstall tools still installed but no longer declared in any mise config.
 # (Note: `mise prune` is the documented way but is buggy in mise 2026.8.14 -
