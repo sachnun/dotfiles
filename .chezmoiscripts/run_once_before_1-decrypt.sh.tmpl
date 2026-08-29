@@ -4,21 +4,13 @@ set -eu
 
 key_path="$HOME/.config/chezmoi/key.txt"
 
-if [ -f "$key_path" ]; then
-  exit 0
-fi
+[ -f "$key_path" ] && exit 0
 
-# This script is always run by chezmoi itself, but the binary may live
-# outside PATH (e.g. get.chezmoi.io/lb installs to BINDIR relative to the
-# working directory, which on GitHub Codespaces is /workspaces/...).
+# Locate chezmoi; it may be installed outside PATH (e.g. GitHub Codespaces).
 chezmoi_bin=""
-for candidate in \
-  "$(command -v chezmoi 2>/dev/null || true)" \
-  "$HOME/.local/bin/chezmoi" \
-  "$HOME/bin/chezmoi" \
-  "/usr/local/bin/chezmoi" \
-  "$PWD/.local/bin/chezmoi" \
-  /workspaces/*/.local/bin/chezmoi; do
+for candidate in "$(command -v chezmoi 2>/dev/null || true)" \
+  "$HOME/.local/bin/chezmoi" "$HOME/bin/chezmoi" "/usr/local/bin/chezmoi" \
+  "$PWD/.local/bin/chezmoi" /workspaces/*/.local/bin/chezmoi; do
   if [ -n "$candidate" ] && [ -x "$candidate" ]; then
     chezmoi_bin="$candidate"
     break
