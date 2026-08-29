@@ -5,5 +5,6 @@ function outdated
         if not mise upgrade -n --dry-run-code >/dev/null 2>&1
             mise upgrade -n
         end
+        clear
     end
 end
