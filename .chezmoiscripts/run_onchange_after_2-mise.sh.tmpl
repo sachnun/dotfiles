@@ -8,10 +8,8 @@ mkdir -p "$INSTALL_DIR"
 
 export PATH="$HOME/.local/share/mise/shims:$INSTALL_DIR:$PATH"
 
-# Install mise itself if not already available (official installer -> ~/.local/bin/mise).
 MISE_BIN="$(command -v mise || true)"
 if [ -z "$MISE_BIN" ]; then
-  echo "Installing mise..."
   curl -fsSL https://mise.run | sh
   MISE_BIN="$INSTALL_DIR/mise"
 fi
@@ -19,17 +17,11 @@ if [ ! -x "$MISE_BIN" ]; then
   echo "ERROR: mise not found after install." >&2
   exit 1
 fi
-echo "Using mise at: $MISE_BIN"
 
-# Apply both OS packages and tools declared in the global mise config.
-# Run from $HOME so only the global config (~/.config/mise/config.toml) applies.
-echo "Applying mise packages and tools from ~/.config/mise/config.toml..."
 cd "$HOME"
 "$MISE_BIN" bootstrap --only packages,tools --yes --update
 
-# Uninstall tools still installed but no longer declared in any mise config.
-# (Note: `mise prune` is the documented way but is buggy in mise 2026.8.14 -
-#  real mode doesn't delete prunable tools.)
-"$MISE_BIN" ls --json | jq -r 'to_entries[] | select((([.value[].source] | any(.type=="mise.toml")) | not) and ([.value[].installed] | any)) | .key' \
-  | xargs -r -I{} "$MISE_BIN" uninstall -y -a {}
+"$MISE_BIN" bootstrap packages prune --manager brew --yes
+
+"$MISE_BIN" prune --yes
 {{ end -}}

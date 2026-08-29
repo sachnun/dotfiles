@@ -6,7 +6,6 @@ key_path="$HOME/.config/chezmoi/key.txt"
 
 [ -f "$key_path" ] && exit 0
 
-# Locate chezmoi; it may be installed outside PATH (e.g. GitHub Codespaces).
 chezmoi_bin=""
 for candidate in "$(command -v chezmoi 2>/dev/null || true)" \
   "$HOME/.local/bin/chezmoi" "$HOME/bin/chezmoi" "/usr/local/bin/chezmoi" \
@@ -18,7 +17,6 @@ for candidate in "$(command -v chezmoi 2>/dev/null || true)" \
 done
 
 if [ -z "$chezmoi_bin" ]; then
-  echo "chezmoi not found, skipping age key decryption."
   exit 0
 fi
 
