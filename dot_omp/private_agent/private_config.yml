@@ -1,0 +1,6 @@
+providers:
+  webSearchOrder:
+    []
+setupVersion: 2
+modelRoles:
+  default: opencode-zen/big-pickle
