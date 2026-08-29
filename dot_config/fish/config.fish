@@ -22,5 +22,3 @@ if status is-interactive
     fastfetch
     starship init fish | source
 end
-
-fnox activate fish | source
