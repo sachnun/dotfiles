@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+{{- if eq .chezmoi.os "linux" -}}
+#!{{ lookPath "bash" }}
 set -euo pipefail
 
 export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
@@ -12,3 +13,4 @@ fi
 cd "$HOME"
 "$MISE_BIN" bootstrap packages up --yes
 "$MISE_BIN" up --yes
+{{ end -}}
