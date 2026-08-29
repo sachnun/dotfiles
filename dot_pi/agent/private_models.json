@@ -1,56 +1,41 @@
 {
     "providers": {
-        "orca": {
-            "name": "Orca",
-            "baseUrl": "https://api.orcarouter.ai/v1",
+        "freebux": {
+            "name": "Freebux",
+            "baseUrl": "https://freebux.up.railway.app/v1",
+            "apiKey": ".",
             "api": "openai-completions",
-            "compat": {
-                "supportsDeveloperRole": false
-            },
             "models": [
                 {
-                    "id": "orcarouter/auto",
-                    "name": "OrcaRouter Auto",
-                    "reasoning": false,
-                    "input": ["text"],
-                    "contextWindow": 200000,
-                    "maxTokens": 8192
-                }
-            ]
-        },
-        "xai": {
-            "baseUrl": "https://cli-chat-proxy.grok.com/v1",
-            "headers": {
-                "User-Agent": "grok-shell/1.0.3 (android; aarch64)",
-                "x-grok-client-identifier": "grok-shell",
-                "x-grok-client-version": "1.0.3",
-                "x-grok-client-mode": "interactive",
-                "X-XAI-Token-Auth": "xai-grok-cli",
-                "x-authenticateresponse": "authenticate-response"
-            }
-        },
-        "empero": {
-            "name": "Empero",
-            "baseUrl": "https://free.empero.org/v1",
-            "apiKey": "free",
-            "api": "openai-completions",
-            "compat": {
-                "supportsDeveloperRole": false
-            },
-            "models": [
-                {
-                    "id": "glm-5.3-flash",
-                    "name": "GLM 5.3 Flash",
+                    "id": "deepseek/deepseek-v4-flash",
+                    "name": "DeepSeek V4 Flash",
                     "reasoning": true,
-                    "contextWindow": 128000,
-                    "maxTokens": 16384
+                    "contextWindow": 1048576,
+                    "maxTokens": 384000,
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    }
                 },
                 {
-                    "id": "qwen3.8-flash",
-                    "name": "Qwen 3.8 Flash",
+                    "id": "deepseek/deepseek-v4-pro",
+                    "name": "DeepSeek V4 Pro",
                     "reasoning": true,
-                    "contextWindow": 128000,
-                    "maxTokens": 16384
+                    "contextWindow": 1048576,
+                    "maxTokens": 384000,
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    }
+                },
+                {
+                    "id": "z-ai/glm-5.3-flash",
+                    "name": "GLM 5.3 Flash",
+                    "reasoning": true,
+                    "input": ["text", "image"],
+                    "contextWindow": 1310720,
+                    "maxTokens": 131072,
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    }
                 }
             ]
         },

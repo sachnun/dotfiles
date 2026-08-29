@@ -16,7 +16,6 @@
     "-extensions/opencode.ts",
     "-extensions/chrome/index.ts",
     "-extensions/tok.ts",
-    "+extensions/freebux.ts",
     "-extensions/perch.ts",
     "-extensions/exa.ts",
     "+extensions/find.ts"
@@ -41,7 +40,6 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "freebux/deepseek/deepseek-v4-flash",
     "cline/z-ai/glm-5.3-flash"
   ],
   "fullscreenCopyOnSelect": false
