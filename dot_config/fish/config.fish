@@ -22,3 +22,7 @@ if status is-interactive
     fastfetch
     starship init fish | source
 end
+
+function on_exit --on-event fish_exit
+    chezmoi re-add
+end
