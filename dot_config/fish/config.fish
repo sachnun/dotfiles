@@ -1,5 +1,7 @@
 set -U fish_greeting
 
+fish_add_path /home/linuxbrew/.linuxbrew/bin
+
 umask 0022
 
 mise activate fish | source
