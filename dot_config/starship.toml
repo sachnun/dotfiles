@@ -12,6 +12,9 @@ $line_break\
 $python\
 $character"""
 
+[username]
+show_always = true
+
 [directory]
 style = "cyan"
 
