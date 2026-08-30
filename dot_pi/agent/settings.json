@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.4",
   "defaultProvider": "cline",
-  "defaultModel": "z-ai/glm-5.3-flash",
+  "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -40,7 +40,8 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "cline/z-ai/glm-5.3-flash"
+    "cline/z-ai/glm-5.3-flash",
+    "cline/deepseek/deepseek-v4-flash"
   ],
   "fullscreenCopyOnSelect": false
 }
