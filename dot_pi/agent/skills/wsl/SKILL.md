@@ -9,7 +9,7 @@ Everything verified on WSL2 (kernel `6.6.87.2-microsoft-standard-WSL2`, Arch) wi
 
 ```bash
 uname -a
-which notepad.exe powershell.exe cmd.exe   # must resolve; they live in /mnt/c/WINDOWS/system32
+which powershell.exe cmd.exe tasklist.exe   # must resolve; they live in /mnt/c/WINDOWS/system32
 wsl.exe -l -v | iconv -f UTF-16LE -t UTF-8 # list distros (wsl.exe pipes UTF-16LE)
 ```
 
@@ -28,14 +28,11 @@ wsl.exe -l -v | iconv -f UTF-16LE -t UTF-8 # list distros (wsl.exe pipes UTF-16L
 ```bash
 wslpath -w /mnt/c/temp/file.txt              # Linux -> Windows path
 TMPWIN=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('TEMP')" | tr -d '\r\n')
-notepad.exe "$(wslpath -w /mnt/c/temp/note.txt)" &    # open GUI app
+calc.exe &    # open any GUI app         (or: explorer.exe /mnt/c/temp)
 mkdir -p /mnt/c/temp && printf 'hi' > /mnt/c/temp/x.txt   # files for Windows tools live under /mnt/c
 
 # single-shot Windows command (UTF-8 output)
 powershell.exe -NoProfile -Command "[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Service" | iconv -f UTF-8 -t UTF-8
-
-# inspect window + unsaved-changes marker
-powershell.exe -NoProfile -Command "Get-Process notepad | Select-Object Id,MainWindowTitle | Format-List"
 
 # minimize an Office app already running
 powershell.exe -NoProfile -Command "\$w = [Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application'); \$w.WindowState = 2"

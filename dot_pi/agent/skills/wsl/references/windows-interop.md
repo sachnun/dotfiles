@@ -20,7 +20,7 @@ C:/Windows/System32/SystemPropertiesAdvanced.exe                      # GUI exe
 
 ```bash
 tasklist.exe | rg -i chrome                                # list processes
-taskkill.exe /IM notepad.exe /F                             # kill by image name
+taskkill.exe /IM chrome.exe /F                             # kill by image name
 powershell.exe -NoProfile -Command "Get-Process chrome | Select-Object Id,MainWindowTitle | Format-List"
 powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Select-Object ProcessId,CommandLine"
 sc.exe query Spooler                                        # service state
@@ -47,17 +47,16 @@ Roots: `HKLM`, `HKCU`, `HKCR`, `HKU`. Registry writes under `HKLM` need elevatio
 ## GUI apps
 
 ```bash
-notepad.exe "$(wslpath -w /mnt/c/temp/note.txt)" &
+calc.exe &                                   # open GUI app (also: explorer.exe /mnt/c/temp)
 "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" "https://example.com" &
 "/mnt/c/Program Files/Microsoft/Edge/Application/msedge.exe" "https://example.com" &
 ```
 
 - GUI apps appear on the interactive Windows desktop. From an SSH/headless session they fail — need a logged-in interactive session.
-- A leading `*` in a Notepad window title means unsaved changes (`Get-Process notepad | Select MainWindowTitle`).
 - Type into the focused window with inline SendKeys:
 
 ```bash
-powershell.exe -NoProfile -Command "\$ws = New-Object -ComObject WScript.Shell; \$ws.AppActivate('notepad'); Start-Sleep -Milliseconds 400; \$ws.SendKeys('{END}{ENTER}typed from WSL!')"
+powershell.exe -NoProfile -Command "\$ws = New-Object -ComObject WScript.Shell; \$ws.AppActivate('calc'); Start-Sleep -Milliseconds 400; \$ws.SendKeys('{NUM1}{ADD}{NUM2}{ENTER}')"
 ```
 
 SendKeys escaping: brace special chars `{}`, `()`, `+`, `^`, `%`, `~`; named keys pass literally (`{ENTER}`, `{END}`, `{TAB}`, `{ESC}`, `{F5}`).
