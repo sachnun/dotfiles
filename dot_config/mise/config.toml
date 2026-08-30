@@ -59,11 +59,15 @@ yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "npm:agent-browser" = "latest"
 bun = "latest"
 "github:can1357/oh-my-pi" = "latest"
+neonctl = "latest"
 
 [settings]
 minimum_release_age = "0"
 auto_update = true
 experimental = true
+
+[settings.age]
+key_file = "/root/.config/chezmoi/key.txt"
 
 [shell_alias]
 cr = "chezmoi re-add"
@@ -72,3 +76,4 @@ cu = "chezmoi update"
 [env]
 CLOUDFLARE_ACCOUNT_ID = "13e8f6d8fb7367570ada75fa71e1999d"
 CLOUDFLARE_API_TOKEN = { age = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJYnlXNGhkV3hwRmNvRW5nS3NnWVR6TDZ2cWprYzR4ZmFkM3U3VGdxeUFBCk5pUlNnQm5wTjhoWE9Pd21raHhjSEhXcC94Q0FmeEFVYWhrc1dDSTBKak0KLT4gdS1ncmVhc2UKVEwzd2JsdDFNS0VVdGp4K2Rqd0lsblZBc1gyRzFXY0hJODRRZi9EanZ5VGpjMmlRR2xPQlIwcVhKNzJURW4yWApKTHNnazVGR3pNZWRPRjFMR0EKLS0tIFFYTzdMK0I0YWNIbmVnUGUyN1ZpcmFwT2RSbWt0OG5wbFVqUDJkM0NqNFEKznr4q14lQHW4kZhu+OKk8VyL5LfnmkW0kjr2QWjmbyCfKB8QDibIZE42ZNtD1/gdmvxOzZe6nqv25NKshyXS/Qn8yqg60EYXPPiS7L+3R/ABDcD3Tg" }
+NEON_API_KEY = { age = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBVTklPcDh4SmJLelZDcmVmZlJIdWxOU0FCRFN3WUIvMnJDNGY0cExRRENnCllzdGRpMWdpVEc3aVhhbTNEN29Kbi9NbVpRTVZjUHRVT1VwY3NpUzl0RG8KLT4gflQtZ3JlYXNlCjFTUkxKQ1VnSjR1Slp6bUVLellFYXZ4T1Z6bTBkaTUrN25lbzY3Zi9jam11emM1M2Z2S0taTS92bGt3R291cnQKSkR3L09yT3pMQU5Fc2ZYOTNhbVZuemZKWXpadDd5TFJqa2s2SVlOZmlvTmdxbm5jSmcKLS0tIEk5YktUUERhSjNNM1Z4RThiWVFWYVZzVXRyOVppTnhnUVp1SjI5NW1TblEKMhR8EGk+4XytY0cHNHwS8qk7zL1UY1c617VAgxS21s/d6k71+P5QscLsgzFNVIsSTlbdxLbTGmMcoUc/j37N6Ch5VOyUvBbL3E9JrCGvVm5D4T1v7+eLFBhal3GLPjb0eAepUp8" }
