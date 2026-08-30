@@ -27,7 +27,7 @@
   "images": {
     "blockImages": false
   },
-  "enableSkillCommands": true,
+  "enableSkillCommands": false,
   "showCacheMissNotices": true,
   "collapseChangelog": true,
   "tuiMode": "fullscreen",
