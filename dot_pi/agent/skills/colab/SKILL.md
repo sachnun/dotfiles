@@ -1,6 +1,6 @@
 ---
 name: colab
-description: Operates Google Colab via the `colab` CLI — provision CPU/GPU/TPU sessions, run Python scripts or piped code on remote VMs, sync files, install packages, inspect logs, and export session history as notebooks. Use for any work on Colab VMs, ephemeral one-shot compute jobs, or benchmarks on Google infrastructure.
+description: Operates Google Colab via the `colab` CLI — use for any compute job on Colab VMs (CPU/GPU/TPU) from this session.
 ---
 
 # Colab Session Operator
