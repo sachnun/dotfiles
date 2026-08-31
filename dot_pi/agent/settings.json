@@ -39,8 +39,7 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
-    "opencode/big-pickle",
-    "omniroute/cl/deepseek/deepseek-v4-flash"
+    "opencode/big-pickle"
   ],
   "fullscreenCopyOnSelect": false
 }
