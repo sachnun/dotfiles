@@ -18,3 +18,12 @@ end
 
 starship init fish | source
 
+if status is-interactive
+    set -l marker /run/user/(id -u)/chezmoi-update-ran
+
+    if not test -f $marker
+        touch $marker
+        setsid /root/.local/bin/chezmoi update --no-tty >/dev/null 2>&1 &
+    end
+end
+
