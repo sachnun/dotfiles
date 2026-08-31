@@ -17,7 +17,8 @@
     "-extensions/perch.ts",
     "-extensions/exa.ts",
     "-extensions/cline.ts",
-    "+extensions/find.ts"
+    "+extensions/find.ts",
+    "-extensions/tok.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
