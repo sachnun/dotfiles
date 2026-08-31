@@ -18,7 +18,8 @@
     "-extensions/exa.ts",
     "-extensions/cline.ts",
     "+extensions/find.ts",
-    "-extensions/tok.ts"
+    "-extensions/tok.ts",
+    "-extensions/opencode.ts"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
@@ -39,7 +40,8 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
-    "opencode/big-pickle"
+    "opencode/big-pickle",
+    "freebux/deepseek/deepseek-v4-flash"
   ],
   "fullscreenCopyOnSelect": false
 }
