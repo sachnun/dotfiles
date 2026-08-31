@@ -6,7 +6,9 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
   "theme": "dark",
-  "packages": [],
+  "packages": [
+    "npm:pi-antigravity"
+  ],
   "terminal": {
     "showTerminalProgress": true,
     "clearOnShrink": false
