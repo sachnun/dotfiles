@@ -1,5 +1,26 @@
 {
   "providers": {
+    "entrim": {
+      "name": "Entrim",
+      "api": "openai-completions",
+      "baseUrl": "https://api.entrim.ai/v1",
+      "models": [
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Flash",
+          "name": "DeepSeek V4 Flash",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1048576,
+          "maxTokens": 393216,
+          "cost": {
+            "input": 0.09,
+            "output": 0.17,
+            "cacheRead": 0.015,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    },
     "nine": {
       "name": "Nine",
       "baseUrl": "https://9router-production-513f.up.railway.app/v1",
@@ -105,6 +126,13 @@
       "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
       "headers": {
         "User-Agent": "opencode/pi"
+      },
+      "modelOverrides": {
+        "big-pickle": {
+          "name": "GLM-5.3 Flash",
+          "contextWindow": 1048576,
+          "maxTokens": 131072
+        }
       }
     },
     "openrouter": {
