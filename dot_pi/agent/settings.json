@@ -40,7 +40,6 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/big-pickle",
-    "cline/z-ai/glm-5.3-flash",
     "cline/deepseek/deepseek-v4-flash"
   ],
   "fullscreenCopyOnSelect": false
