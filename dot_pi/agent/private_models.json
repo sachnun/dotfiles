@@ -39,6 +39,17 @@
                     "compat": {
                         "supportsDeveloperRole": false
                     }
+                },
+                {
+                    "id": "upstage/solar-pro4",
+                    "name": "Solar Pro 4",
+                    "reasoning": true,
+                    "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+                    "contextWindow": 1048576,
+                    "maxTokens": 384000,
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    }
                 }
             ]
         },

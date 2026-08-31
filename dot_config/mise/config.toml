@@ -8,6 +8,7 @@
 "brew:wget" = "latest"
 "brew:aria2" = "latest"
 "brew:expect" = "latest"
+"brew:libxml2" = "latest"
 "brew:nano" = "latest"
 "brew:tree" = "latest"
 "brew:unzip" = "latest"
