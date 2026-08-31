@@ -13,11 +13,10 @@
   },
   "extensions": [
     "-extensions/telegram/index.ts",
-    "-extensions/opencode.ts",
     "-extensions/chrome/index.ts",
-    "-extensions/tok.ts",
     "-extensions/perch.ts",
     "-extensions/exa.ts",
+    "-extensions/cline.ts",
     "+extensions/find.ts"
   ],
   "quietStartup": false,
@@ -39,8 +38,7 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
-    "opencode/big-pickle",
-    "cline/deepseek/deepseek-v4-flash"
+    "opencode/big-pickle"
   ],
   "fullscreenCopyOnSelect": false
 }
