@@ -129,7 +129,6 @@
       },
       "modelOverrides": {
         "big-pickle": {
-          "name": "GLM-5.3 Flash",
           "contextWindow": 1048576,
           "maxTokens": 131072
         }
