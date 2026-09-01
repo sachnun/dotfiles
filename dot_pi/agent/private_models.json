@@ -1,4 +1,5 @@
 {
+    "$schema": "models.schema.json",
     "providers": {
         "entrim": {
             "name": "Entrim",
@@ -136,7 +137,6 @@
             },
             "modelOverrides": {
                 "big-pickle": {
-                    "reasoning": false,
                     "contextWindow": 1048576,
                     "maxTokens": 131072,
                     "input": ["text", "image"]
