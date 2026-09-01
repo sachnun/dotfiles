@@ -62,6 +62,7 @@ railway = "latest"
 flyctl = "latest"
 "npm:playwriter" = "latest"
 gcloud = "latest"
+rust = "latest"
 
 [settings]
 minimum_release_age = "0"
