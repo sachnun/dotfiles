@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "providers": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Provider"
+      }
+    }
+  },
+  "required": ["providers"],
+  "$defs": {
+    "Provider": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "baseUrl": { "type": "string" },
+        "api": {
+          "type": "string",
+          "enum": ["openai-completions", "openai-responses", "anthropic-messages", "google-generative-ai"]
+        },
+        "apiKey": { "type": "string" },
+        "oauth": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["radius"]
+            }
+          }
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "authHeader": { "type": "boolean" },
+        "models": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Model" }
+        },
+        "modelOverrides": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/ModelOverride" }
+        },
+        "compat": { "$ref": "#/$defs/Compat" }
+      }
+    },
+    "Model": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "api": {
+          "type": "string",
+          "enum": ["openai-completions", "openai-responses", "anthropic-messages", "google-generative-ai"]
+        },
+        "reasoning": { "type": "boolean" },
+        "thinkingLevelMap": {
+          "type": "object",
+          "properties": {
+            "off": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "minimal": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "low": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "medium": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "high": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "xhigh": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "max": { "$ref": "#/$defs/ThinkingLevelValue" }
+          }
+        },
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text", "image"]
+          }
+        },
+        "contextWindow": { "type": "integer" },
+        "maxTokens": { "type": "integer" },
+        "cost": { "$ref": "#/$defs/Cost" },
+        "samplingParams": { "type": "object" },
+        "compat": { "$ref": "#/$defs/Compat" }
+      }
+    },
+    "ModelOverride": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "reasoning": { "type": "boolean" },
+        "thinkingLevelMap": {
+          "type": "object",
+          "properties": {
+            "off": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "minimal": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "low": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "medium": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "high": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "xhigh": { "$ref": "#/$defs/ThinkingLevelValue" },
+            "max": { "$ref": "#/$defs/ThinkingLevelValue" }
+          }
+        },
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text", "image"]
+          }
+        },
+        "cost": { "$ref": "#/$defs/Cost" },
+        "contextWindow": { "type": "integer" },
+        "maxTokens": { "type": "integer" },
+        "samplingParams": { "type": "object" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "compat": { "$ref": "#/$defs/Compat" }
+      }
+    },
+    "Cost": {
+      "type": "object",
+      "properties": {
+        "input": { "type": "number" },
+        "output": { "type": "number" },
+        "cacheRead": { "type": "number" },
+        "cacheWrite": { "type": "number" },
+        "tiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["inputTokensAbove", "input", "output", "cacheRead", "cacheWrite"],
+            "properties": {
+              "inputTokensAbove": { "type": "integer" },
+              "input": { "type": "number" },
+              "output": { "type": "number" },
+              "cacheRead": { "type": "number" },
+              "cacheWrite": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "ThinkingLevelValue": {
+      "type": ["string", "null"]
+    },
+    "Compat": {
+      "type": "object",
+      "properties": {
+        "supportsStore": { "type": "boolean" },
+        "supportsDeveloperRole": { "type": "boolean" },
+        "supportsReasoningEffort": { "type": "boolean" },
+        "supportsUsageInStreaming": { "type": "boolean" },
+        "supportsFinishReason": { "type": "boolean" },
+        "maxTokensField": {
+          "type": "string",
+          "enum": ["max_completion_tokens", "max_tokens"]
+        },
+        "requiresToolResultName": { "type": "boolean" },
+        "requiresAssistantAfterToolResult": { "type": "boolean" },
+        "requiresThinkingAsText": { "type": "boolean" },
+        "requiresReasoningContentOnAssistantMessages": { "type": "boolean" },
+        "thinkingFormat": {
+          "type": "string",
+          "enum": ["reasoning_effort", "openrouter", "deepseek", "together", "baseten", "zai", "qwen", "chat-template", "qwen-chat-template"]
+        },
+        "chatTemplateKwargs": { "type": "object" },
+        "chatTemplateArgs": { "type": "object" },
+        "thinkingTokenBudgetField": {
+          "type": "string",
+          "enum": ["thinking_token_budget", "thinking_budget", "thinking_budget_tokens"]
+        },
+        "supportsThinkingTokenBudget": { "type": "boolean" },
+        "supportsEagerToolInputStreaming": { "type": "boolean" },
+        "supportsLongCacheRetention": { "type": "boolean" },
+        "sendSessionAffinityHeaders": { "type": "boolean" },
+        "sessionAffinityFormat": {
+          "type": "string",
+          "enum": ["openai", "openai-nosession", "openrouter"]
+        },
+        "supportsCacheControlOnTools": { "type": "boolean" },
+        "forceAdaptiveThinking": { "type": "boolean" },
+        "allowEmptySignature": { "type": "boolean" },
+        "supportsStrictTools": { "type": "boolean" },
+        "supportsStrictMode": { "type": "boolean" },
+        "supportsOpenAIGrammarTools": { "type": "boolean" },
+        "deferredToolsMode": {
+          "type": "string",
+          "enum": ["kimi"]
+        },
+        "cacheControlFormat": {
+          "type": "string",
+          "enum": ["anthropic"]
+        },
+        "openRouterRouting": { "type": "object" },
+        "vercelGatewayRouting": {
+          "type": "object",
+          "properties": {
+            "only": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "order": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
