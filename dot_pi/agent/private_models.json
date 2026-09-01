@@ -1,146 +1,147 @@
 {
-  "providers": {
-    "entrim": {
-      "name": "Entrim",
-      "api": "openai-completions",
-      "baseUrl": "https://api.entrim.ai/v1",
-      "models": [
-        {
-          "id": "deepseek-ai/DeepSeek-V4-Flash",
-          "name": "DeepSeek V4 Flash",
-          "reasoning": true,
-          "input": ["text"],
-          "contextWindow": 1048576,
-          "maxTokens": 393216,
-          "cost": {
-            "input": 0.09,
-            "output": 0.17,
-            "cacheRead": 0.015,
-            "cacheWrite": 0
-          }
-        }
-      ]
-    },
-    "nine": {
-      "name": "Nine",
-      "baseUrl": "https://9router-production-513f.up.railway.app/v1",
-      "api": "openai-completions",
-      "models": [
-        {
-          "id": "ag/gemini-3.7-flash-high",
-          "name": "Gemini 3.7 Flash High",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 1048576,
-          "maxTokens": 65536,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+    "providers": {
+        "entrim": {
+            "name": "Entrim",
+            "api": "openai-completions",
+            "baseUrl": "https://api.entrim.ai/v1",
+            "models": [
+                {
+                    "id": "deepseek-ai/DeepSeek-V4-Flash",
+                    "name": "DeepSeek V4 Flash",
+                    "reasoning": true,
+                    "input": ["text"],
+                    "contextWindow": 1048576,
+                    "maxTokens": 393216,
+                    "cost": {
+                        "input": 0.09,
+                        "output": 0.17,
+                        "cacheRead": 0.015,
+                        "cacheWrite": 0
+                    }
+                }
+            ]
         },
-        {
-          "id": "openrouter/minimax/minimax-m3:free",
-          "name": "MiniMax M3",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 1048576,
-          "maxTokens": 512000,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
-        }
-      ]
-    },
-    "freebux": {
-      "api": "openai-completions",
-      "apiKey": ".",
-      "baseUrl": "https://freebux.up.railway.app/v1",
-      "models": [
-        {
-          "compat": {
-            "supportsDeveloperRole": false
-          },
-          "contextWindow": 1048576,
-          "cost": {
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "input": 0,
-            "output": 0
-          },
-          "id": "deepseek/deepseek-v4-flash",
-          "maxTokens": 384000,
-          "name": "DeepSeek V4 Flash",
-          "reasoning": true
+        "nine": {
+            "name": "Nine",
+            "baseUrl": "https://9router-production-513f.up.railway.app/v1",
+            "api": "openai-completions",
+            "models": [
+                {
+                    "id": "ag/gemini-3.7-flash-high",
+                    "name": "Gemini 3.7 Flash High",
+                    "reasoning": true,
+                    "input": ["text", "image"],
+                    "contextWindow": 1048576,
+                    "maxTokens": 65536,
+                    "cost": {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    }
+                },
+                {
+                    "id": "openrouter/minimax/minimax-m3:free",
+                    "name": "MiniMax M3",
+                    "reasoning": true,
+                    "input": ["text", "image"],
+                    "contextWindow": 1048576,
+                    "maxTokens": 512000,
+                    "cost": {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    }
+                }
+            ]
         },
-        {
-          "compat": {
-            "supportsDeveloperRole": false
-          },
-          "contextWindow": 1048576,
-          "cost": {
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "input": 0,
-            "output": 0
-          },
-          "id": "deepseek/deepseek-v4-pro",
-          "maxTokens": 384000,
-          "name": "DeepSeek V4 Pro",
-          "reasoning": true
+        "freebux": {
+            "name": "Freebux",
+            "api": "openai-completions",
+            "apiKey": ".",
+            "baseUrl": "https://freebux.up.railway.app/v1",
+            "models": [
+                {
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    },
+                    "contextWindow": 1048576,
+                    "cost": {
+                        "cacheRead": 0,
+                        "cacheWrite": 0,
+                        "input": 0,
+                        "output": 0
+                    },
+                    "id": "deepseek/deepseek-v4-flash",
+                    "maxTokens": 384000,
+                    "name": "DeepSeek V4 Flash",
+                    "reasoning": true
+                },
+                {
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    },
+                    "contextWindow": 1048576,
+                    "cost": {
+                        "cacheRead": 0,
+                        "cacheWrite": 0,
+                        "input": 0,
+                        "output": 0
+                    },
+                    "id": "deepseek/deepseek-v4-pro",
+                    "maxTokens": 384000,
+                    "name": "DeepSeek V4 Pro",
+                    "reasoning": true
+                },
+                {
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    },
+                    "contextWindow": 1310720,
+                    "cost": {
+                        "cacheRead": 0,
+                        "cacheWrite": 0,
+                        "input": 0,
+                        "output": 0
+                    },
+                    "id": "z-ai/glm-5.3-flash",
+                    "input": ["text", "image"],
+                    "maxTokens": 131072,
+                    "name": "GLM 5.3 Flash",
+                    "reasoning": true
+                },
+                {
+                    "compat": {
+                        "supportsDeveloperRole": false
+                    },
+                    "contextWindow": 1048576,
+                    "cost": {
+                        "cacheRead": 0,
+                        "cacheWrite": 0,
+                        "input": 0,
+                        "output": 0
+                    },
+                    "id": "upstage/solar-pro4",
+                    "maxTokens": 384000,
+                    "name": "Solar Pro 4",
+                    "reasoning": true
+                }
+            ]
         },
-        {
-          "compat": {
-            "supportsDeveloperRole": false
-          },
-          "contextWindow": 1310720,
-          "cost": {
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "input": 0,
-            "output": 0
-          },
-          "id": "z-ai/glm-5.3-flash",
-          "input": [
-            "text",
-            "image"
-          ],
-          "maxTokens": 131072,
-          "name": "GLM 5.3 Flash",
-          "reasoning": true
-        },
-        {
-          "compat": {
-            "supportsDeveloperRole": false
-          },
-          "contextWindow": 1048576,
-          "cost": {
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "input": 0,
-            "output": 0
-          },
-          "id": "upstage/solar-pro4",
-          "maxTokens": 384000,
-          "name": "Solar Pro 4",
-          "reasoning": true
+        "opencode": {
+            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+            "headers": {
+                "User-Agent": "opencode/pi"
+            },
+            "modelOverrides": {
+                "big-pickle": {
+                    "reasoning": false,
+                    "contextWindow": 1048576,
+                    "maxTokens": 131072,
+                    "input": ["text", "image"]
+                }
+            }
         }
-      ],
-      "name": "Freebux"
-    },
-    "opencode": {
-      "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
-      "headers": {
-        "User-Agent": "opencode/pi"
-      },
-      "modelOverrides": {
-        "big-pickle": {
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
-          "input": ["text", "image"]
-        }
-      }
-    },
-    "openrouter": {
-      "modelOverrides": {
-        "minimax/minimax-m3:free": {
-          "maxTokens": 524288
-        }
-      }
     }
-  }
 }
