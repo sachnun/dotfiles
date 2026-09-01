@@ -130,7 +130,8 @@
       "modelOverrides": {
         "big-pickle": {
           "contextWindow": 1048576,
-          "maxTokens": 131072
+          "maxTokens": 131072,
+          "input": ["text", "image"]
         }
       }
     },

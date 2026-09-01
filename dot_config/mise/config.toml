@@ -62,6 +62,7 @@ neonctl = "latest"
 "github:koyeb/koyeb-cli" = "latest"
 railway = "latest"
 flyctl = "latest"
+"npm:playwriter" = "latest"
 
 [settings]
 minimum_release_age = "0"

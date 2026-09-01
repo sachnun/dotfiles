@@ -101,14 +101,6 @@ SendKeys escape: `{}`, `()`, `+`, `^`, `%`, `~`; named keys `{ENTER}` `{END}` `{
 - **Mirrored mode** (`networkingMode=mirrored` in `.wslconfig`): localhost works both ways; no proxy needed
 - Diagnose: `ip -4 addr`, `ip route`, `rg nameserver /etc/resolv.conf`; Windows: `powershell.exe -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4"`
 
-### Chrome headless & CDP
-```bash
-"/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" --headless --disable-gpu --dump-dom "https://example.com"
-```
-- For CDP: add `--remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir="C:\\tmp\\netprobe"`
-- First Chrome process owns all flags/ports; kill stale instances before relaunching
-- `Network.enable` before navigating or events missed
-- `Network.requestWillBeSent` → type/method/URL; `Network.responseReceived` → status
 
 ### Office COM (Word example)
 ```powershell
@@ -139,7 +131,4 @@ powershell.exe -NoProfile -Command "Start-Process powershell.exe -Verb RunAs -Wa
 
 # minimize an Office app already running
 powershell.exe -NoProfile -Command "\$w = [Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application'); \$w.WindowState = 2"
-
-# headless Chrome DOM dump
-"/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" --headless --disable-gpu --dump-dom "https://example.com"
 ```
