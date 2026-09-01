@@ -29,7 +29,6 @@ login_shell = "/usr/bin/fish"
 [tools]
 btop = "latest"
 tmux = "latest"
-vim = "latest"
 cloudflared = "latest"
 fastfetch = "latest"
 fd = "latest"
