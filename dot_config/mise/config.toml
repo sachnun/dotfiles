@@ -12,6 +12,14 @@
 "pacman:tree" = "latest"
 "apt:unzip" = "latest"
 "apt:zip" = "latest"
+"apt:btop" = "latest"
+"apt:tmux" = "latest"
+"apt:fastfetch" = "latest"
+"apt:fzf" = "latest"
+"apt:jq" = "latest"
+"apt:glow" = "latest"
+"apt:rclone" = "latest"
+"apt:starship" = "latest"
 "pacman:base" = "latest"
 "pacman:base-devel" = "latest"
 "pacman:curl" = "latest"
@@ -19,24 +27,26 @@
 "pacman:git-lfs" = "latest"
 "pacman:fish" = "latest"
 "pacman:openssh" = "latest"
+"pacman:btop" = "latest"
+"pacman:tmux" = "latest"
+"pacman:fastfetch" = "latest"
+"pacman:fzf" = "latest"
+"pacman:jq" = "latest"
+"pacman:glow" = "latest"
+"pacman:rclone" = "latest"
+"pacman:starship" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
 
 [tools]
-btop = "latest"
-tmux = "latest"
 cloudflared = "latest"
-fastfetch = "latest"
 ffmpeg = "latest"
-fzf = "latest"
 gh = "latest"
 "github:ekzhang/bore" = "latest"
 glab = "latest"
-glow = "latest"
 go = "latest"
 herdr = "latest"
-jq = "latest"
 mitmproxy = "latest"
 node = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
@@ -44,11 +54,13 @@ node = "latest"
 pipx = "latest"
 "pipx:google-colab-cli" = "latest"
 python = "latest"
-rclone = "latest"
-starship = "latest"
 turso = "latest"
 uv = "latest"
-wrangler = { version = "latest", allow_builds = ["esbuild", "sharp", "workerd"] }
+wrangler = { version = "latest", allow_builds = [
+  "esbuild",
+  "sharp",
+  "workerd",
+] }
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
 "npm:agent-browser" = "latest"
@@ -65,8 +77,6 @@ rust = "latest"
 minimum_release_age = "0"
 auto_update = true
 experimental = true
-
-[settings.age]
 
 [shell_alias]
 cr = "chezmoi re-add"
