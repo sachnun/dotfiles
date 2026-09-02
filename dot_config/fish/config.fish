@@ -1,5 +1,7 @@
 function fish_greeting
-    fastfetch
+    if not set -q PI_CODING_AGENT
+        fastfetch
+    end
 end
 
 umask 0022
