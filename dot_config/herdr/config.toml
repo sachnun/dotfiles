@@ -1,2 +1,3 @@
 [terminal]
 new_cwd = "home"
+default_shell = "/usr/bin/fish"
