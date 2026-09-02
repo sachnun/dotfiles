@@ -17,6 +17,11 @@
 "pacman:starship" = "latest"
 "pacman:ffmpeg" = "latest"
 "pacman:cloudflared" = "latest"
+"pacman:python" = "latest"
+"pacman:go" = "latest"
+"pacman:nodejs" = "latest"
+"pacman:github-cli" = "latest"
+"pacman:glab" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
