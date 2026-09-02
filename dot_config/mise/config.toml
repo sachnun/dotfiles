@@ -22,16 +22,13 @@
 login_shell = "/usr/bin/fish"
 
 [tools]
-gh = "latest"
 "github:ekzhang/bore" = "latest"
 glab = "latest"
 go = "latest"
 mitmproxy = "latest"
-node = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
 "npm:@opencode-ai/cli" = { version = "beta", allow_builds = true }
 "pipx:google-colab-cli" = "latest"
-python = "latest"
 turso = "latest"
 uv = "latest"
 wrangler = { version = "latest", allow_builds = [
@@ -48,7 +45,6 @@ neonctl = "latest"
 railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
-rust = "latest"
 herdr = "latest"
 
 [settings]
