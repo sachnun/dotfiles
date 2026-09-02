@@ -56,6 +56,9 @@ minimum_release_age = "0"
 auto_update = true
 experimental = true
 
+[settings.npm]
+shell_out = true
+
 [shell_alias]
 cr = "chezmoi re-add"
 cu = "chezmoi update"
