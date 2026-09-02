@@ -15,7 +15,6 @@
 "apt:btop" = "latest"
 "apt:tmux" = "latest"
 "apt:fastfetch" = "latest"
-"apt:fzf" = "latest"
 "apt:jq" = "latest"
 "apt:bat" = "latest"
 "apt:rclone" = "latest"
@@ -31,7 +30,6 @@
 "pacman:btop" = "latest"
 "pacman:tmux" = "latest"
 "pacman:fastfetch" = "latest"
-"pacman:fzf" = "latest"
 "pacman:jq" = "latest"
 "pacman:bat" = "latest"
 "pacman:rclone" = "latest"
@@ -80,4 +78,3 @@ experimental = true
 [shell_alias]
 cr = "chezmoi re-add"
 cu = "chezmoi update"
-
