@@ -22,6 +22,7 @@
 "pacman:nodejs" = "latest"
 "pacman:github-cli" = "latest"
 "pacman:glab" = "latest"
+"pacman:npm" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
