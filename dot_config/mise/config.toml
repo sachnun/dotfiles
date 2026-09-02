@@ -41,7 +41,6 @@ wrangler = { version = "latest", allow_builds = [
   "workerd",
 ] }
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
-"pipx:speedtest-cli" = "latest"
 "npm:agent-browser" = "latest"
 bun = "latest"
 neonctl = "latest"
@@ -50,6 +49,7 @@ railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
 herdr = "latest"
+"http:speedtest" = { version = "1.2.0", url = "https://install.speedtest.net/app/cli/ookla-speedtest-{{ version }}-linux-aarch64.tgz" }
 
 [settings]
 minimum_release_age = "0"
