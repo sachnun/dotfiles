@@ -1,5 +1,5 @@
 function clear
-    if test -z (commandline)
+    if test -z (commandline | string collect)
         command clear
         commandline -f repaint
     else
