@@ -43,5 +43,8 @@
     "opencode/big-pickle",
     "freebux/deepseek/deepseek-v4-flash"
   ],
-  "fullscreenCopyOnSelect": false
+  "fullscreenCopyOnSelect": false,
+  "skills": [
+    "-skills/playwriter/SKILL.md"
+  ]
 }

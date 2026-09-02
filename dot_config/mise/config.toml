@@ -20,6 +20,7 @@
 "apt:glow" = "latest"
 "apt:rclone" = "latest"
 "apt:starship" = "latest"
+"apt:ffmpeg" = "latest"
 "pacman:base" = "latest"
 "pacman:base-devel" = "latest"
 "pacman:curl" = "latest"
@@ -35,13 +36,13 @@
 "pacman:glow" = "latest"
 "pacman:rclone" = "latest"
 "pacman:starship" = "latest"
+"pacman:ffmpeg" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
 
 [tools]
 cloudflared = "latest"
-ffmpeg = "latest"
 gh = "latest"
 "github:ekzhang/bore" = "latest"
 glab = "latest"
