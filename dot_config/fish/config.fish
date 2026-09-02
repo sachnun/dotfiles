@@ -1,5 +1,6 @@
 function fish_greeting
-    if not set -q PI_CODING_AGENT
+    set -l pp (ps -o ppid= -p $fish_pid | string trim)
+    if not string match -q herdr (ps -o comm= -p $pp)
         fastfetch
     end
 end
