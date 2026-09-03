@@ -20,9 +20,9 @@
 "pacman:python" = "latest"
 "pacman:go" = "latest"
 "pacman:nodejs" = "latest"
+"pacman:npm" = "latest"
 "pacman:github-cli" = "latest"
 "pacman:glab" = "latest"
-"pacman:npm" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
@@ -58,7 +58,6 @@ experimental = true
 
 [settings.npm]
 shell_out = true
-package_manager = "aube"
 
 [shell_alias]
 cr = "chezmoi re-add"
