@@ -9,6 +9,8 @@ fish_add_path $HOME/.local/bin
 
 source $__fish_config_dir/env.fish
 
+set -gx COLORTERM truecolor
+
 if status is-interactive
     mise activate fish | source
 else
