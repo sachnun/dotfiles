@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.84.4",
-  "defaultProvider": "opencode",
-  "defaultModel": "muse-spark-1.3-contributor-free",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "high",
@@ -40,12 +40,15 @@
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
   "enabledModels": [
-    "opencode/big-pickle",
+    "freebux/deepseek/deepseek-v4-flash",
     "opencode/muse-spark-1.3-contributor-free",
-    "freebux/deepseek/deepseek-v4-flash"
+    "opencode/big-pickle"
   ],
   "fullscreenCopyOnSelect": false,
   "skills": [
     "-skills/playwriter/SKILL.md"
-  ]
+  ],
+  "modelThinkingLevels": {
+    "opencode/muse-spark-1.3-contributor-free": "xhigh"
+  }
 }
