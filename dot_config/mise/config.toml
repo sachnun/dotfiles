@@ -41,7 +41,7 @@ wrangler = { version = "latest", allow_builds = [
   "workerd",
 ] }
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
-"npm:agent-browser" = "latest"
+"pipx:speedtest-cli" = "latest"
 bun = "latest"
 neonctl = "latest"
 "github:koyeb/koyeb-cli" = "latest"
@@ -50,6 +50,7 @@ flyctl = "latest"
 gcloud = "latest"
 herdr = "latest"
 "http:speedtest" = { version = "1.2.0", url = "https://install.speedtest.net/app/cli/ookla-speedtest-{{ version }}-linux-aarch64.tgz" }
+"npm:agent-browser" = "latest"
 
 [settings]
 minimum_release_age = "0"
@@ -58,6 +59,7 @@ experimental = true
 
 [settings.npm]
 shell_out = true
+package_manager = "aube"
 
 [shell_alias]
 cr = "chezmoi re-add"
