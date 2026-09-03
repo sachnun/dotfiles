@@ -1,4 +1,7 @@
 onboarding = false
 [terminal]
-new_cwd = "home"
+new_cwd = "current"
 default_shell = "/usr/bin/fish"
+
+[ui]
+agent_panel_sort = "spaces"
