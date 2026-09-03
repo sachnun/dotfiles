@@ -29,7 +29,6 @@ login_shell = "/usr/bin/fish"
 
 [tools]
 "github:ekzhang/bore" = "latest"
-mitmproxy = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
 "npm:@opencode-ai/cli" = { version = "beta", allow_builds = true }
 "pipx:google-colab-cli" = "latest"
