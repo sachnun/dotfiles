@@ -28,8 +28,8 @@
             "api": "openai-completions",
             "models": [
                 {
-                    "id": "ag/gemini-3.7-flash-high",
-                    "name": "Gemini 3.7 Flash High",
+                    "id": "ag/gemini-3.8-flash-high",
+                    "name": "Gemini 3.8 Flash",
                     "reasoning": true,
                     "input": ["text", "image"],
                     "contextWindow": 1048576,

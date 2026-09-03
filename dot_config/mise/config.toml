@@ -49,6 +49,7 @@ flyctl = "latest"
 gcloud = "latest"
 herdr = "latest"
 "npm:agent-browser" = "latest"
+"npm:edgeone" = "latest"
 
 [settings]
 minimum_release_age = "0"
