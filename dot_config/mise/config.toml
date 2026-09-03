@@ -49,7 +49,6 @@ railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
 herdr = "latest"
-"http:speedtest" = { version = "1.2.0", url = "https://install.speedtest.net/app/cli/ookla-speedtest-{{ version }}-linux-aarch64.tgz" }
 "npm:agent-browser" = "latest"
 
 [settings]
