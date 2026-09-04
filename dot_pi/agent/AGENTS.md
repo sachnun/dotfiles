@@ -12,6 +12,6 @@ Commands:
 
 Git:
 
-- Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
+- Conventional commits: `type: general`. Types: `feat`, `fix`, `docs`, `style`, `chore`, `refactor`, `test`.
 - Subject line only, max 32 chars, imperative mood.
 - Never create `README.md` unless asked.
