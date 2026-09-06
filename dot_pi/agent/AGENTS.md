@@ -2,6 +2,7 @@ Style:
 
 - Always write code, tools, and documentation in English. Speak to me in Indonesian.
 - Never add any `//` comments within the code.
+- Never use em-dashes.
 
 Commands:
 
@@ -15,4 +16,3 @@ Git:
 - Conventional commits: `type: general`. Types used: `feat`, `fix`, `docs`, `style`, `chore`, `refactor`, `test`.
 - Subject line only, maximum 32 characters, using the imperative mood.
 - Never create a `README.md` unless requested.
-- PR content: summary of key non-technical points, not code changes; no em-dashes.
