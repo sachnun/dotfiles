@@ -58,6 +58,7 @@ rust = "stable"
 minimum_release_age = "0"
 auto_update = true
 experimental = true
+trusted_config_paths = ["~"]
 
 [settings.npm]
 shell_out = true
