@@ -17,6 +17,7 @@
 "pacman:starship" = "latest"
 "pacman:ffmpeg" = "latest"
 "pacman:cloudflared" = "latest"
+"pacman:docker" = "latest"
 "pacman:python" = "latest"
 "pacman:go" = "latest"
 "pacman:nodejs" = "latest"
@@ -27,6 +28,9 @@
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
+
+[bootstrap.services.docker]
+state = "running"
 
 [tools]
 "github:ekzhang/bore" = "latest"
@@ -51,6 +55,7 @@ gcloud = "latest"
 herdr = "latest"
 "npm:agent-browser" = "latest"
 "npm:edgeone" = "latest"
+rust = "stable"
 
 [settings]
 minimum_release_age = "0"

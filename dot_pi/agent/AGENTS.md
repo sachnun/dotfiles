@@ -1,7 +1,7 @@
 Style:
 
-- Always write code, tools and documentation in English.
-- Never add comments of any kind in code (no inline, block, or doc comments).
+- Always write code, tools, docs in English. Talk with me in Indonesia.
+- Never add comments `//` of any kind in code.
 
 Commands:
 
