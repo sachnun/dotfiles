@@ -13,6 +13,6 @@ COMMANDS:
 GIT:
 
 - Follow conventional commits: `type: general`. Types to use: `feat`, `fix`, `docs`, `style`, `chore`, `refactor`, `test`.
-- Use only a subject line, limited to 32 characters, in the imperative mood.
+- Use only a subject line, limited, in the imperative mood.
 - Never create a `README.md` unless specifically requested.
-- Refrain from using em-dashes.
+- PR content: summary of key non-technical points, not code changes; no em-dashes.
