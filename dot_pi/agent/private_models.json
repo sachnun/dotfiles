@@ -84,7 +84,11 @@
           "id": "meta/muse-spark-1.3-contributor",
           "maxTokens": 943718,
           "name": "Muse Spark 1.3",
-          "reasoning": true
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "xhigh": "xhigh",
+            "max": "max"
+          }
         },
         {
           "compat": {
