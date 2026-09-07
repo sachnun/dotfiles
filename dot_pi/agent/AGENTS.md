@@ -1,6 +1,6 @@
 Style:
 
-- Always write code, tools, and documentation in English. Speak to me in Indonesian.
+- Always write code, tools, docs, git in English. Speak to me in Indonesian.
 - Never add any `//` comments within the code.
 - Never use em-dashes.
 
