@@ -54,22 +54,6 @@
           "compat": {
             "supportsDeveloperRole": false
           },
-          "contextWindow": 1048576,
-          "cost": {
-            "cacheRead": 0,
-            "cacheWrite": 0,
-            "input": 0,
-            "output": 0
-          },
-          "id": "deepseek/deepseek-v4-pro",
-          "maxTokens": 384000,
-          "name": "DeepSeek V4 Pro",
-          "reasoning": true
-        },
-        {
-          "compat": {
-            "supportsDeveloperRole": false
-          },
           "contextWindow": 1310720,
           "cost": {
             "cacheRead": 0,
@@ -97,10 +81,30 @@
             "input": 0,
             "output": 0
           },
-          "id": "upstage/solar-pro4",
-          "maxTokens": 384000,
-          "name": "Solar Pro 4",
+          "id": "meta/muse-spark-1.3-contributor",
+          "maxTokens": 943718,
+          "name": "Muse Spark 1.3",
           "reasoning": true
+        },
+        {
+          "compat": {
+            "supportsDeveloperRole": false
+          },
+          "contextWindow": 1048576,
+          "cost": {
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "input": 0,
+            "output": 0
+          },
+          "id": "google/gemini-3.8-flash",
+          "input": [
+            "text",
+            "image"
+          ],
+          "maxTokens": 65536,
+          "name": "Gemini 3.8 Flash",
+          "reasoning": false
         }
       ]
     },
