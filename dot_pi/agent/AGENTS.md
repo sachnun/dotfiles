@@ -1,6 +1,6 @@
 Style:
 
-- Always write code, tools, docs, git in English. Speak to me in Indonesian.
+- Always write code, docs, commit, pull requests in English.
 - Never add comments within the code.
 
 Commands:

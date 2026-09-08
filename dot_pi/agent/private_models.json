@@ -123,7 +123,7 @@
             ]
         },
         "opencode": {
-            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+            // "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
             "headers": {
                 "User-Agent": "opencode/pi"
             },
