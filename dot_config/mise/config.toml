@@ -53,7 +53,7 @@ herdr = "latest"
 "npm:agent-browser" = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
-age = "latest"
+pnpm = "latest"
 
 [settings]
 minimum_release_age = "0"
