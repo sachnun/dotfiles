@@ -31,6 +31,9 @@
                     "compat": {
                         "supportsDeveloperRole": false
                     },
+                    "thinkingLevelMap": {
+                        "max": "max"
+                    },
                     "contextWindow": 1048576,
                     "cost": {
                         "cacheRead": 0,
