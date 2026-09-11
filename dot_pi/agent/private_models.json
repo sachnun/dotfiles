@@ -109,6 +109,9 @@
                     "id": "deepseek-v4.1-flash",
                     "name": "DeepSeek V4.1 Flash",
                     "reasoning": true,
+                    "thinkingLevelMap": {
+                        "max": "max"
+                    },
                     "input": ["text", "image"],
                     "contextWindow": 1048576,
                     "maxTokens": 65536,
@@ -136,7 +139,6 @@
             ]
         },
         "opencode": {
-            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
             "headers": {
                 "User-Agent": "opencode/pi"
             },
