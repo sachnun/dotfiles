@@ -1,6 +1,6 @@
 Style:
 
-- Always write code, docs, commit, pull requests in English.
+- IMPORTANT: Always write code, docs, body of pull requests in English.
 - Never add comments within the code.
 
 Commands:
