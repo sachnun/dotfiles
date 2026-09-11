@@ -106,6 +106,20 @@
             "baseUrl": "https://proxy.opendum.tech/v1",
             "models": [
                 {
+                    "id": "deepseek-v4.1-flash",
+                    "name": "DeepSeek V4.1 Flash",
+                    "reasoning": true,
+                    "input": ["text", "image"],
+                    "contextWindow": 1048576,
+                    "maxTokens": 65536,
+                    "cost": {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    }
+                },
+                {
                     "id": "gemini-3.8-flash",
                     "name": "Gemini 3.8 Flash",
                     "reasoning": true,

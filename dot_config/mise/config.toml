@@ -50,7 +50,7 @@ railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
 herdr = "latest"
-"npm:agent-browser" = "latest"
+"npm:agent-browser" = { version = "latest", allow_builds = ["agent-browser"] }
 "npm:edgeone" = "latest"
 rust = "stable"
 pnpm = "latest"
