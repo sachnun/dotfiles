@@ -1,6 +1,6 @@
 ---
 name: wsl
-description: Interop across the Linux/Windows boundary in WSL2.
+description: Interop across the Linux/Windows boundary in WSL2, including Windows Chrome via CDP.
 ---
 
 # WSL
@@ -113,13 +113,19 @@ cmd /c "robocopy C:\src C:\dst /E /MIR"
 
 ```bash
 tasklist.exe /v | rg -i chrome
-taskkill.exe /IM chrome.exe /F
 sc.exe query Spooler
 reg.exe query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
 schtasks.exe /query /fo csv /nh
 ipconfig.exe /all | rg -i "IPv4|Default Gateway"
 netstat.exe -ano | rg -i listen
 shutdown.exe /r /t 60 /c "reboot by WSL"
+```
+
+## Chrome CDP
+
+```bash
+powershell.exe -NoProfile -Command "Start-Process chrome -ArgumentList '--headless','--remote-debugging-port=9222','--user-data-dir=C:\Windows\Temp\chrome-debug','about:blank'"
+curl -s http://localhost:9222/json/version
 ```
 
 ## WSL boundary gotchas
@@ -130,6 +136,8 @@ shutdown.exe /r /t 60 /c "reboot by WSL"
 ## Sources
 
 - https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_powershell_exe
-- https://learn.microsoft.com/windows-server/administration/windows-commands/windows-commands
 - https://learn.microsoft.com/windows/security/application-security/application-control/user-account-control/how-it-works
 - https://learn.microsoft.com/powershell/module/microsoft.powershell.management/start-process
+- https://learn.microsoft.com/windows/wsl/basic-commands
+- https://chromedevtools.github.io/devtools-protocol
+- https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
