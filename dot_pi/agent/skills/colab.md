@@ -1,6 +1,6 @@
 ---
 name: colab
-description: Run compute jobs on Google Colab VMs (CPU/GPU/TPU) via the `colab` CLI.
+description: Run compute jobs on Google Colab VMs via the `colab` CLI.
 ---
 
 # Colab
