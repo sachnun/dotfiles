@@ -1,6 +1,6 @@
 ---
 name: exa
-description: Web search and page fetching. Use for any current or external information.
+description: Web search and page fetch for current info.
 ---
 
 # Exa Web Search
