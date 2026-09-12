@@ -33,12 +33,6 @@ event: message
 data: {"result":{"content":[{"type":"text","text":"# Example Domain\n..."}],"_meta":{}},"jsonrpc":"2.0","id":1}
 ```
 
-# Jina Reader
-
-```bash
-curl -sS --max-time 60 "https://r.jina.ai/https://example.com"
-```
-
 # DeepWiki
 
 ```bash
