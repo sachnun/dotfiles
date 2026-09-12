@@ -1,6 +1,6 @@
 ---
 name: wsl
-description: Interop across the Linux/Windows boundary in WSL2, including Windows Chrome via CDP.
+description: Interop across the Linux/Windows boundary in WSL2.
 ---
 
 # WSL
@@ -41,25 +41,6 @@ Piped Windows tools emit mixed encodings:
 - `cmd.exe` -> raw console bytes; run `chcp 65001` first.
 - ASCII-only output (`tasklist`, `ipconfig`, `sc`, `reg`) passes clean.
 
-## PowerShell ad-hoc syntax
-
-Cmdlets and language for Windows PowerShell 5.1:
-
-```powershell
-Get-Process | Where-Object CPU -gt 10 | Sort-Object CPU -Descending | Select-Object -First 5
-Get-ChildItem C:\ -Filter *.log -Recurse -ErrorAction SilentlyContinue | Select FullName, Length
-Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Select ProcessId, CommandLine
-Invoke-RestMethod https://api.example.com/x | ConvertTo-Json -Depth 6
-Get-Content a.txt | ForEach-Object { $_.Trim() } | Set-Content b.txt
-$out = & native.exe @args; $LASTEXITCODE
-```
-
-- Prefer CIM over WMI: `Get-CimInstance` / `Invoke-CimMethod` are the modern cmdlets; the v1 WMI cmdlets (`Get-WmiObject`) are legacy.
-- Errors: `$ErrorActionPreference='Stop'` plus `try { } catch { }`.
-- Discover: `Get-Command -Noun process`, `Get-Help Get-Process -Examples`, `Get-Member`.
-- Format at the end of the pipe: `Format-Table`, `Format-List`, `Out-GridView`; serialise with `ConvertTo-Json` / `ConvertTo-Csv`.
-- `$env:VAR` (PowerShell) and `%VAR%` (cmd) do not cross shells.
-
 ## UAC and elevation
 
 An admin gets a filtered standard token by default; group membership is not enough, so test the live token (returns `False` in a filtered shell):
@@ -89,45 +70,6 @@ Start-ScheduledTask -TaskName Elev
 
 Disabling UAC (`EnableLUA=0`, needs admin and reboot) removes prompts but is strongly discouraged.
 
-## cmd ad-hoc syntax
-
-```
-cmd [/c|/k] [/s] [/q] [/d] [/a|/u] [/t:{bf|f}] [/e:{on|off}] [/f:{on|off}] [/v:{on|off}] [string]
-```
-
-```bat
-cmd /c "dir /b /a-d *.txt"
-set NAME=world & echo Hello %NAME%
-cmd /v:on /c "set x=hi & echo !x!"
-cmd /c "app.exe > out.txt 2>&1"
-cmd /c "netstat -ano | findstr LISTENING"
-cmd /c "robocopy C:\src C:\dst /E /MIR"
-```
-
-`%VAR%` expands at parse time; enable `!VAR!` with `/v:on` when the value changes inside the same line or a block. Use `set NAME=value` for the current session or `setx NAME value` to persist.
-
-- `/c` run then exit, `/k` run and keep open, `/q` no echo, `/d` skip AutoRun.
-- Loops: `for %i in (*.log) do type "%i"`; double the `%` (`%%i`) inside a batch file.
-
-## Common ad-hoc targets
-
-```bash
-tasklist.exe /v | rg -i chrome
-sc.exe query Spooler
-reg.exe query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
-schtasks.exe /query /fo csv /nh
-ipconfig.exe /all | rg -i "IPv4|Default Gateway"
-netstat.exe -ano | rg -i listen
-shutdown.exe /r /t 60 /c "reboot by WSL"
-```
-
-## Chrome CDP
-
-```bash
-powershell.exe -NoProfile -Command "Start-Process chrome -ArgumentList '--headless','--remote-debugging-port=9222','--user-data-dir=C:\Windows\Temp\chrome-debug','about:blank'"
-curl -s http://localhost:9222/json/version
-```
-
 ## WSL boundary gotchas
 
 - Paths: `wslpath -w /mnt/c/x` -> `C:\x`, `wslpath -u 'C:\x'` -> `/mnt/c/x`. Windows drives at `/mnt/<letter>`; files for Windows apps must live on `/mnt/c/...`, not the ext4 home. Scratch files go in `[Environment]::GetEnvironmentVariable('TEMP')`, not an invented `C:\tmp`.
@@ -139,5 +81,3 @@ curl -s http://localhost:9222/json/version
 - https://learn.microsoft.com/windows/security/application-security/application-control/user-account-control/how-it-works
 - https://learn.microsoft.com/powershell/module/microsoft.powershell.management/start-process
 - https://learn.microsoft.com/windows/wsl/basic-commands
-- https://chromedevtools.github.io/devtools-protocol
-- https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
