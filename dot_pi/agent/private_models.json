@@ -41,7 +41,7 @@
                     "id": "deepseek/deepseek-v4-flash",
                     "input": ["text", "image"],
                     "maxTokens": 384000,
-                    "name": "DeepSeek V4 Flash",
+                    "name": "DeepSeek V4.1 Flash",
                     "reasoning": true
                 },
                 {
@@ -80,23 +80,6 @@
                         "xhigh": "xhigh",
                         "max": "max"
                     }
-                },
-                {
-                    "compat": {
-                        "supportsDeveloperRole": false
-                    },
-                    "contextWindow": 1048576,
-                    "cost": {
-                        "cacheRead": 0,
-                        "cacheWrite": 0,
-                        "input": 0,
-                        "output": 0
-                    },
-                    "id": "google/gemini-3.8-flash",
-                    "input": ["text", "image"],
-                    "maxTokens": 65536,
-                    "name": "Gemini 3.8 Flash",
-                    "reasoning": false
                 }
             ]
         },
@@ -155,19 +138,6 @@
                 }
             ]
         },
-        "opencode": {
-            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
-            "headers": {
-                "User-Agent": "opencode/pi"
-            },
-            "modelOverrides": {
-                "big-pickle": {
-                    "contextWindow": 1048576,
-                    "maxTokens": 131072,
-                    "input": ["text", "image"]
-                }
-            }
-        },
         "justwoker": {
             "name": "JustWoker",
             "api": "openai-completions",
@@ -191,6 +161,19 @@
                     }
                 }
             ]
+        },
+        "opencode": {
+            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
+            "headers": {
+                "User-Agent": "opencode/pi"
+            },
+            "modelOverrides": {
+                "big-pickle": {
+                    "contextWindow": 1048576,
+                    "maxTokens": 131072,
+                    "input": ["text", "image"]
+                }
+            }
         }
     }
 }
