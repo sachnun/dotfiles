@@ -6,23 +6,12 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
-  "packages": [
-    "npm:pi-caveman"
-  ],
+  "packages": [],
   "terminal": {
     "showTerminalProgress": true,
     "clearOnShrink": false
   },
-  "extensions": [
-    "-extensions/telegram/index.ts",
-    "-extensions/chrome/index.ts",
-    "-extensions/perch.ts",
-    "-extensions/exa.ts",
-    "-extensions/cline.ts",
-    "-extensions/tok.ts",
-    "-extensions/opencode.ts",
-    "-extensions/find.ts"
-  ],
+  "extensions": [],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
   "uiMode": "fullscreen",
@@ -48,7 +37,5 @@
     "opencode/big-pickle"
   ],
   "fullscreenCopyOnSelect": false,
-  "skills": [
-    "-skills/playwriter/SKILL.md"
-  ]
+  "skills": []
 }
