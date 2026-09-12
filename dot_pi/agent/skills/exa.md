@@ -1,6 +1,6 @@
 ---
 name: exa
-description: Web search and page fetch for current info.
+description: Web search, page fetch, and GitHub repo docs.
 ---
 
 # Exa Web Search
@@ -31,4 +31,20 @@ curl -sS --max-time 60 -X POST https://mcp.exa.ai/mcp \
 ```
 event: message
 data: {"result":{"content":[{"type":"text","text":"# Example Domain\n..."}],"_meta":{}},"jsonrpc":"2.0","id":1}
+```
+
+# DeepWiki
+
+```bash
+curl -sS --max-time 60 -X POST https://mcp.deepwiki.com/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_wiki_structure","arguments":{"repoName":"facebook/react"}}}'
+```
+
+Tools: `read_wiki_structure`, `read_wiki_contents`, `ask_question` (`repoName`, `question`).
+
+```
+event: message
+data: {"result":{"content":[{"type":"text","text":"Available pages for facebook/react:\n..."}],"_meta":{}},"jsonrpc":"2.0","id":1}
 ```
