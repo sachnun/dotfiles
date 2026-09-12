@@ -69,14 +69,21 @@ gh browse 123 --no-browser
 ```bash
 gh search repos "language:typescript stars:>1000" --limit 20 --json fullName,url
 gh search code "useState" --language tsx --limit 20
+gh search code "panic" --repo cli/cli --language go --filename pkg/ --extension go --match file --limit 30 --json path,repository,textMatches,url
 gh search issues "repo:cli/cli label:bug" --state open
 gh search prs "author:monalisa" --merged
 gh search commits "fix auth" --repo OWNER/REPO
 gh api repos/{owner}/{repo} --method GET
 gh api repos/{owner}/{repo}/contents/path --jq '.content'
+gh api repos/{owner}/{repo}/git/trees/HEAD?recursive=1 --jq '.tree.[].path'
 gh status --exclude owner/repo --org myorg
 ```
 
+- No `gh grep` in core -> `search code` scoped first.
+- `search code` uses legacy engine -> no regex via API, may differ from github.com.
+- Scope first: `--repo/--owner/--language/--filename/--extension/--match/--size` -> faster triage.
+- Avoid clone -> `read-file/read-dir`, `api .../contents`, `api .../git/trees` then fetch hits only.
+- Clone last resort -> `--depth 1` to `/tmp`, delete after.
 - Exclusion needs `--`: `gh search issues -- "query -label:bug"`.
 - Fall back to `gh api` when a subcommand lacks fields.
 - `gh status` surfaces assigned PRs, review requests, mentions.
