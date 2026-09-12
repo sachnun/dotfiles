@@ -41,6 +41,7 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "opencode/muse-spark-1.3-contributor-free",
+    "freebux/deepseek/deepseek-v4-flash",
     "opendum/deepseek-v4.1-flash",
     "freebux/z-ai/glm-5.3-flash",
     "opendum/gemini-3.8-flash",

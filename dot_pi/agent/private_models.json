@@ -42,7 +42,10 @@
                     "input": ["text", "image"],
                     "maxTokens": 384000,
                     "name": "DeepSeek V4.1 Flash",
-                    "reasoning": true
+                    "reasoning": true,
+                    "thinkingLevelMap": {
+                        "max": "max"
+                    }
                 },
                 {
                     "compat": {
