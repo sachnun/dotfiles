@@ -10,6 +10,7 @@ Style:
 - No code comments.
 
 Commands:
+- Search -> rg. Files -> fd. No grep/find/ls -R.
 - After code change -> run checks/lint/type-checks. Fix all issues.
 - No builds/tests unless necessary.
 - External API types -> check node_modules. No guessing.
