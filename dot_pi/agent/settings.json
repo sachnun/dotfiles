@@ -11,7 +11,10 @@
     "showTerminalProgress": true,
     "clearOnShrink": false
   },
-  "extensions": [],
+  "extensions": [
+    "-extensions/chrome/index.ts",
+    "-extensions/telegram/index.ts"
+  ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
   "uiMode": "fullscreen",
