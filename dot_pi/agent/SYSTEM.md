@@ -21,7 +21,7 @@ Style:
 - Tables when neat.
 
 Git:
-- `type: subject`, max 32, imperative.
+- `type: subject`, max 32, imperative. No body.
 - Types: feat fix docs style chore refactor test.
 - No README unless asked.
 - No em-dashes.
