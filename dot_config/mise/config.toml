@@ -53,6 +53,7 @@ herdr = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
 pnpm = "latest"
+"pipx:kaggle" = "latest"
 
 [settings]
 minimum_release_age = "0"
@@ -66,3 +67,6 @@ shell_out = true
 [shell_alias]
 cr = "chezmoi re-add"
 cu = "chezmoi update"
+
+[env]
+KAGGLE_API_TOKEN = { age = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBVQ0xtazdoTCtqemFsUE5vS05GbXN5RlNoaGtsK09ENjZESlMwZzZMQTB3Cm4rQXZNWmZvemVFcDU3eEJNajloTm9iRHdLUGxXeWxvWTMxMGphdU9wUm8KLT4gc3NoLWVkMjU1MTkgN015NWN3IHJqSC9sK3JEbEVaM0NaSHBsUG9JY3RSWU9hdHo0RU1yUFIvZWsyM3hVU1EKRVFSenpvaTc3ZjF0d3hWK1I4UGdEK3dwb2R2SmdsODd6WXlYUmE0SDRRNAotPiBqcEEla3k0Py1ncmVhc2UgISMgRnUsMQpCd2RNL0ZZdjk1OEVVRGp3a2VZZU9HcSsrNWdCMHRDaUkvR0czQmd0Ulovb2FjYjZJb0J6NzNKNkVlb0NOc0cxCmV0N1l6Q2p0TTJBU2JLNm9qTGQ3WUZZTUE2S3c1OHFjQyswNUJhcnlISkdhVWFob3hJWUx4QXEvbFVtMVVwQzQKSGcKLS0tIDU5emFLeFZaQnNtSFRrQlFjelBEUWczMzVxMURLL2tzbTlmeStwWjI0VkkKxfhitiMXs4epEaRDxcgWSKKbnW7BeWqka8o5kdI1BMDVpbqW3NfJigGpI2itMvMoy9s9guo8LgqkuiIlunq/hM9Ui9k/" }

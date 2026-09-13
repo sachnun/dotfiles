@@ -23,6 +23,7 @@ colab stop -s x
 - `exec` takes only `-f` or stdin. `.ipynb` in → `<basename>_output.ipynb` out. `--output-image <path>` saves plots.
 - `run` streams chatter to stderr, script output to stdout; exit codes propagate.
 - Never run `repl`, `console`, `auth`, `drivemount` interactively (need a TTY, hang).
+- Exec timeout ~60s (`--timeout`, default 30.0s). Long jobs: background + poll.
 
 ## Inspect
 
