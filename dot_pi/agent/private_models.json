@@ -1,27 +1,6 @@
 {
     "$schema": "models.schema.json",
     "providers": {
-        "entrim": {
-            "name": "Entrim",
-            "api": "openai-completions",
-            "baseUrl": "https://api.entrim.ai/v1",
-            "models": [
-                {
-                    "id": "deepseek-ai/DeepSeek-V4-Flash",
-                    "name": "DeepSeek V4 Flash",
-                    "reasoning": true,
-                    "input": ["text"],
-                    "contextWindow": 1048576,
-                    "maxTokens": 393216,
-                    "cost": {
-                        "input": 0.09,
-                        "output": 0.17,
-                        "cacheRead": 0.015,
-                        "cacheWrite": 0
-                    }
-                }
-            ]
-        },
         "freebux": {
             "name": "Freebux",
             "api": "openai-completions",
@@ -39,7 +18,10 @@
                         "output": 0
                     },
                     "id": "deepseek/deepseek-v4-flash",
-                    "input": ["text", "image"],
+                    "input": [
+                        "text",
+                        "image"
+                    ],
                     "maxTokens": 384000,
                     "name": "DeepSeek V4.1 Flash",
                     "reasoning": true,
@@ -59,7 +41,10 @@
                         "output": 0
                     },
                     "id": "z-ai/glm-5.3-flash",
-                    "input": ["text", "image"],
+                    "input": [
+                        "text",
+                        "image"
+                    ],
                     "maxTokens": 131072,
                     "name": "GLM 5.3 Flash",
                     "reasoning": true
@@ -98,7 +83,10 @@
                     "thinkingLevelMap": {
                         "max": "max"
                     },
-                    "input": ["text", "image"],
+                    "input": [
+                        "text",
+                        "image"
+                    ],
                     "contextWindow": 1048576,
                     "maxTokens": 65536,
                     "cost": {
@@ -112,7 +100,10 @@
                     "id": "gemini-3.8-flash",
                     "name": "Gemini 3.8 Flash",
                     "reasoning": true,
-                    "input": ["text", "image"],
+                    "input": [
+                        "text",
+                        "image"
+                    ],
                     "contextWindow": 1048576,
                     "maxTokens": 65536,
                     "cost": {
@@ -129,7 +120,10 @@
                     "thinkingLevelMap": {
                         "xhigh": "xhigh"
                     },
-                    "input": ["text", "image"],
+                    "input": [
+                        "text",
+                        "image"
+                    ],
                     "contextWindow": 1048576,
                     "maxTokens": 943718,
                     "cost": {
@@ -150,9 +144,36 @@
                 "big-pickle": {
                     "contextWindow": 1048576,
                     "maxTokens": 131072,
-                    "input": ["text", "image"]
+                    "input": [
+                        "text",
+                        "image"
+                    ]
                 }
             }
+        },
+        "nine": {
+            "name": "Nine",
+            "api": "openai-completions",
+            "baseUrl": "https://9router-production-c138.up.railway.app/v1",
+            "models": [
+                {
+                    "id": "ag/gemini-3.8-flash-high",
+                    "name": "Gemini 3.8 Flash High",
+                    "reasoning": false,
+                    "input": [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 1048576,
+                    "maxTokens": 65536,
+                    "cost": {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    }
+                }
+            ]
         }
     }
 }
