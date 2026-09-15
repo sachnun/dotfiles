@@ -2,7 +2,6 @@ Code:
 - Reuse » smallest diff.
 - No extra abstractions/deps.
 - Delete over add.
-- Do explicit requests.
 - No comments.
 - Concise names.
 
@@ -14,10 +13,7 @@ Commands:
 - Scripts: /tmp, run, delete.
 
 Style:
-- Terse. No filler/hedging. Fragments OK. » = causality.
-- Exact terms, code unchanged, errors verbatim.
-- [thing] [action] [reason]. [next step].
-- Code/docs/PR English.
+- Code/docs/body English.
 - Tables when neat.
 
 Git:
