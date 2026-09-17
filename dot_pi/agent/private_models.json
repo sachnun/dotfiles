@@ -18,10 +18,7 @@
                         "output": 0
                     },
                     "id": "deepseek/deepseek-v4-flash",
-                    "input": [
-                        "text",
-                        "image"
-                    ],
+                    "input": ["text", "image"],
                     "maxTokens": 384000,
                     "name": "DeepSeek V4.1 Flash",
                     "reasoning": true,
@@ -41,137 +38,10 @@
                         "output": 0
                     },
                     "id": "z-ai/glm-5.3-flash",
-                    "input": [
-                        "text",
-                        "image"
-                    ],
+                    "input": ["text", "image"],
                     "maxTokens": 131072,
                     "name": "GLM 5.3 Flash",
                     "reasoning": true
-                },
-                {
-                    "compat": {
-                        "supportsDeveloperRole": false
-                    },
-                    "contextWindow": 1048576,
-                    "cost": {
-                        "cacheRead": 0,
-                        "cacheWrite": 0,
-                        "input": 0,
-                        "output": 0
-                    },
-                    "id": "meta/muse-spark-1.3-contributor",
-                    "maxTokens": 943718,
-                    "name": "Muse Spark 1.3",
-                    "reasoning": true,
-                    "thinkingLevelMap": {
-                        "xhigh": "xhigh",
-                        "max": "max"
-                    }
-                }
-            ]
-        },
-        "opendum": {
-            "name": "Opendum",
-            "api": "openai-completions",
-            "baseUrl": "https://proxy.opendum.tech/v1",
-            "models": [
-                {
-                    "id": "deepseek-v4.1-flash",
-                    "name": "DeepSeek V4.1 Flash",
-                    "reasoning": true,
-                    "thinkingLevelMap": {
-                        "max": "max"
-                    },
-                    "input": [
-                        "text",
-                        "image"
-                    ],
-                    "contextWindow": 1048576,
-                    "maxTokens": 65536,
-                    "cost": {
-                        "input": 0,
-                        "output": 0,
-                        "cacheRead": 0,
-                        "cacheWrite": 0
-                    }
-                },
-                {
-                    "id": "gemini-3.8-flash",
-                    "name": "Gemini 3.8 Flash",
-                    "reasoning": true,
-                    "input": [
-                        "text",
-                        "image"
-                    ],
-                    "contextWindow": 1048576,
-                    "maxTokens": 65536,
-                    "cost": {
-                        "input": 0,
-                        "output": 0,
-                        "cacheRead": 0,
-                        "cacheWrite": 0
-                    }
-                },
-                {
-                    "id": "muse-spark-1.3-contributor",
-                    "name": "Muse Spark 1.3 Contributor",
-                    "reasoning": true,
-                    "thinkingLevelMap": {
-                        "xhigh": "xhigh"
-                    },
-                    "input": [
-                        "text",
-                        "image"
-                    ],
-                    "contextWindow": 1048576,
-                    "maxTokens": 943718,
-                    "cost": {
-                        "input": 0,
-                        "output": 0,
-                        "cacheRead": 0,
-                        "cacheWrite": 0
-                    }
-                }
-            ]
-        },
-        "opencode": {
-            "baseUrl": "https://unroxy.koyeb.app/opencode.ai/zen/v1",
-            "headers": {
-                "User-Agent": "opencode/pi"
-            },
-            "modelOverrides": {
-                "big-pickle": {
-                    "contextWindow": 1048576,
-                    "maxTokens": 131072,
-                    "input": [
-                        "text",
-                        "image"
-                    ]
-                }
-            }
-        },
-        "nine": {
-            "name": "Nine",
-            "api": "openai-completions",
-            "baseUrl": "https://9router-production-c138.up.railway.app/v1",
-            "models": [
-                {
-                    "id": "ag/gemini-3.8-flash-high",
-                    "name": "Gemini 3.8 Flash High",
-                    "reasoning": false,
-                    "input": [
-                        "text",
-                        "image"
-                    ],
-                    "contextWindow": 1048576,
-                    "maxTokens": 65536,
-                    "cost": {
-                        "input": 0,
-                        "output": 0,
-                        "cacheRead": 0,
-                        "cacheWrite": 0
-                    }
                 }
             ]
         }
