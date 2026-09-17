@@ -40,5 +40,7 @@
     "opencode/big-pickle"
   ],
   "fullscreenCopyOnSelect": false,
-  "skills": []
+  "skills": [
+    "-skills/colab.md"
+  ]
 }
