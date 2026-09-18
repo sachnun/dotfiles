@@ -1,43 +1,43 @@
 {
-    "lastChangelogVersion": "0.85.1",
-    "defaultProvider": "freebux",
-    "defaultModel": "deepseek/deepseek-v4-flash",
-    "hideThinkingBlock": true,
-    "treeFilterMode": "default",
-    "defaultThinkingLevel": "max",
-    "theme": "dark",
-    "packages": [],
-    "terminal": {
-        "showTerminalProgress": true,
-        "clearOnShrink": false
-    },
-    "extensions": [
-        "-extensions/chrome/index.ts",
-        "-extensions/telegram/index.ts"
-    ],
-    "quietStartup": false,
-    "httpIdleTimeoutMs": 30000,
-    "uiMode": "fullscreen",
-    "fullscreenScrollbar": "auto",
-    "images": {
-        "blockImages": false
-    },
-    "enableSkillCommands": true,
-    "showCacheMissNotices": true,
-    "collapseChangelog": true,
-    "tuiMode": "fullscreen",
-    "steeringMode": "all",
-    "markdown": {
-        "mermaid": "streaming"
-    },
-    "enableInstallTelemetry": true,
-    "fullscreenExitOutput": "resume-hint",
-    "showHardwareCursor": false,
-    "enabledModels": [
-        "freebux/deepseek/deepseek-v4-flash",
-        "opendum/muse-spark-1.3-contributor",
-        "opendum/gemini-3.8-flash",
-        "opendum/big-pickle"
-    ],
-    "fullscreenCopyOnSelect": false
+  "lastChangelogVersion": "0.85.1",
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-flash",
+  "hideThinkingBlock": true,
+  "treeFilterMode": "default",
+  "defaultThinkingLevel": "max",
+  "theme": "dark",
+  "packages": [],
+  "terminal": {
+    "showTerminalProgress": true,
+    "clearOnShrink": false
+  },
+  "extensions": [
+    "-extensions/chrome/index.ts",
+    "-extensions/telegram/index.ts"
+  ],
+  "quietStartup": false,
+  "httpIdleTimeoutMs": 30000,
+  "uiMode": "fullscreen",
+  "fullscreenScrollbar": "auto",
+  "images": {
+    "blockImages": false
+  },
+  "enableSkillCommands": true,
+  "showCacheMissNotices": true,
+  "collapseChangelog": true,
+  "tuiMode": "fullscreen",
+  "steeringMode": "all",
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "enableInstallTelemetry": true,
+  "fullscreenExitOutput": "resume-hint",
+  "showHardwareCursor": false,
+  "enabledModels": [
+    "freebux/deepseek/deepseek-v4-flash",
+    "opendum/muse-spark-1.3-contributor",
+    "opendum/gemini-3.8-flash",
+    "opendum/big-pickle"
+  ],
+  "fullscreenCopyOnSelect": false
 }
