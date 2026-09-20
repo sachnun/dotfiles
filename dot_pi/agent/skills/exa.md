@@ -5,10 +5,14 @@ description: Web search, page fetch, and GitHub repo docs.
 
 # Exa Web Search
 
+Requests go through the unroxy rewrite `http://unroxy.koyeb.app/<host>/<path>`
+(e.g. `http://unroxy.koyeb.app/mcp.exa.ai/mcp`), which proxies them from a
+different IP.
+
 Search:
 
 ```bash
-curl -sS --max-time 60 -X POST https://mcp.exa.ai/mcp \
+curl -sS --max-time 60 -X POST http://unroxy.koyeb.app/mcp.exa.ai/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"web_search_exa","arguments":{"query":"blog post comparing React and Vue performance","numResults":5}}}'
@@ -22,7 +26,7 @@ data: {"result":{"content":[{"type":"text","text":"Title: React vs Vue\nURL: htt
 Fetch (arguments: `urls`, `maxCharacters`; tool `web_fetch_exa`):
 
 ```bash
-curl -sS --max-time 60 -X POST https://mcp.exa.ai/mcp \
+curl -sS --max-time 60 -X POST http://unroxy.koyeb.app/mcp.exa.ai/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"web_fetch_exa","arguments":{"urls":["https://example.com"],"maxCharacters":5000}}}'
@@ -36,7 +40,7 @@ data: {"result":{"content":[{"type":"text","text":"# Example Domain\n..."}],"_me
 # DeepWiki
 
 ```bash
-curl -sS --max-time 60 -X POST https://mcp.deepwiki.com/mcp \
+curl -sS --max-time 60 -X POST http://unroxy.koyeb.app/mcp.deepwiki.com/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_wiki_structure","arguments":{"repoName":"facebook/react"}}}'
