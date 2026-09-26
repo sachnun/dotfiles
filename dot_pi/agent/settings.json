@@ -35,9 +35,7 @@
   "showHardwareCursor": false,
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
-    "opendum/muse-spark-1.3-contributor",
-    "opendum/gemini-3.8-flash",
-    "opendum/big-pickle"
+    "opendum/deepseek-v4.1-flash"
   ],
   "fullscreenCopyOnSelect": false
 }

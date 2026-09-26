@@ -28,10 +28,10 @@ function toProviderModel(model: CatalogModel): ProviderModelConfig {
 		name: model.id,
 		reasoning,
 		...(reasoning ? { thinkingLevelMap: toThinkingLevelMap(model.reasoning_effort ?? []) } : {}),
-		input: modalities.includes("image") || modalities.includes("pdf") ? ["text", "image"] : ["text"],
+		input: modalities.includes("image") ? ["text", "image"] : ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: model.limit?.context || 128000,
-		maxTokens: model.limit?.output || 8192,
+		contextWindow: model.limit?.context || 500000,
+		maxTokens: model.limit?.output || 128000,
 	};
 }
 
