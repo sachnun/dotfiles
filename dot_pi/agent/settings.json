@@ -6,7 +6,9 @@
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
-  "packages": [],
+  "packages": [
+    "git:github.com/sachnun/pi-opendum"
+  ],
   "terminal": {
     "showTerminalProgress": true,
     "clearOnShrink": false
