@@ -13,6 +13,18 @@ interface CatalogModel {
 	modalities?: { input?: string[] };
 }
 
+const ACRONYMS = new Set(["ai", "glm", "gpt"]);
+
+function toModelName(id: string): string {
+	return id
+		.split("/")
+		.pop()!
+		.split(/[-_]/)
+		.filter(Boolean)
+		.map((part) => (ACRONYMS.has(part.toLowerCase()) ? part.toUpperCase() : /\d/.test(part) ? part : part[0].toUpperCase() + part.slice(1)))
+		.join(" ");
+}
+
 function toThinkingLevelMap(efforts: string[]): ProviderModelConfig["thinkingLevelMap"] {
 	if (efforts.length === 0) return undefined;
 	const map: NonNullable<ProviderModelConfig["thinkingLevelMap"]> = {};
@@ -25,7 +37,7 @@ function toProviderModel(model: CatalogModel): ProviderModelConfig {
 	const reasoning = model.reasoning ?? true;
 	return {
 		id: model.id,
-		name: model.id,
+		name: toModelName(model.id),
 		reasoning,
 		...(reasoning ? { thinkingLevelMap: toThinkingLevelMap(model.reasoning_effort ?? []) } : {}),
 		input: modalities.includes("image") ? ["text", "image"] : ["text"],
