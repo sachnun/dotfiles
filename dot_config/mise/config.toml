@@ -32,7 +32,6 @@ login_shell = "/usr/bin/fish"
 [tools]
 "github:ekzhang/bore" = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
-"pipx:google-colab-cli" = "latest"
 turso = "latest"
 uv = "latest"
 wrangler = { version = "latest", allow_builds = [

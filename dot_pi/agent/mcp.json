@@ -1,8 +1,17 @@
 {
   "mcpServers": {
+    "agent-browser": {
+      "command": "agent-browser",
+      "args": [
+        "mcp"
+      ],
+      "exposure": "codemode-deferred"
+    },
     "cua-driver": {
       "command": "cua-driver",
-      "args": ["mcp"],
+      "args": [
+        "mcp"
+      ],
       "env": {
         "CUA_DRIVER_PERMISSION_MODE": "standard"
       },
@@ -17,6 +26,13 @@
     },
     "context7": {
       "url": "https://mcp.context7.com/mcp",
+      "exposure": "codemode-deferred"
+    },
+    "colab-mcp": {
+      "command": "uvx",
+      "args": [
+        "git+https://github.com/googlecolab/colab-mcp"
+      ],
       "exposure": "codemode-deferred"
     }
   }
