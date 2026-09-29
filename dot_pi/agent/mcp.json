@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "cloudflare": {
+      "url": "https://mcp.cloudflare.com/mcp"
+    }
+  }
+}
