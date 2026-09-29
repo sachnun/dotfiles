@@ -1,5 +1,13 @@
 {
   "mcpServers": {
+    "cua-driver": {
+      "command": "cua-driver",
+      "args": ["mcp"],
+      "env": {
+        "CUA_DRIVER_PERMISSION_MODE": "standard"
+      },
+      "exposure": "codemode-deferred"
+    },
     "exa": {
       "url": "https://mcp.exa.ai/mcp"
     },
