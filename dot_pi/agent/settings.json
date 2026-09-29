@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.87.1",
+  "lastChangelogVersion": "0.99.1",
   "defaultProvider": "freebux",
   "defaultModel": "deepseek/deepseek-v4-flash",
   "hideThinkingBlock": true,
@@ -15,7 +15,10 @@
   },
   "extensions": [
     "-extensions/chrome/index.ts",
-    "-extensions/telegram/index.ts"
+    "-extensions/telegram/index.ts",
+    "-builtin:llama.cpp",
+    "+builtin:mcp",
+    "+builtin:tool-search"
   ],
   "quietStartup": false,
   "httpIdleTimeoutMs": 30000,
@@ -35,9 +38,17 @@
   "enableInstallTelemetry": true,
   "fullscreenExitOutput": "resume-hint",
   "showHardwareCursor": false,
+  "defaultTools": [
+    "+codemode"
+  ],
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
     "opendum/deepseek-v4.1-flash"
   ],
-  "fullscreenCopyOnSelect": false
+  "fullscreenCopyOnSelect": false,
+  "fullscreenWheelScrollLines": "auto",
+  "skills": [
+    "-skills/kaggle/SKILL.md",
+    "-skills/wsl.md"
+  ]
 }
