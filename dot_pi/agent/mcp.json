@@ -4,7 +4,12 @@
       "url": "https://mcp.exa.ai/mcp"
     },
     "cloudflare": {
-      "url": "https://mcp.cloudflare.com/mcp"
+      "url": "https://mcp.cloudflare.com/mcp",
+      "exposure": "codemode-deferred"
+    },
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "exposure": "codemode-deferred"
     }
   }
 }
