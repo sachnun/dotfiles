@@ -47,7 +47,6 @@ neonctl = "latest"
 railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
-"npm:agent-browser" = { version = "latest", allow_builds = ["agent-browser"] }
 "npm:edgeone" = "latest"
 rust = "stable"
 pnpm = "latest"

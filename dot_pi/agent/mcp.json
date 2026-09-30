@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "agent-browser": {
-      "command": "agent-browser",
+      "command": "npx",
       "args": [
+        "agent-browser",
         "mcp"
       ],
       "exposure": "codemode-deferred"
