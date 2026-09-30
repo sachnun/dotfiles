@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "agent-browser": {
-      "command": "npx",
+      "command": "pnx",
       "args": [
         "agent-browser",
         "mcp"
