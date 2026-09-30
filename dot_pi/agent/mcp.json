@@ -35,6 +35,14 @@
         "git+https://github.com/googlecolab/colab-mcp"
       ],
       "exposure": "codemode-deferred"
+    },
+    "kaggle": {
+      "url": "https://www.kaggle.com/mcp",
+      "exposure": "codemode-deferred",
+      "oauth": {
+        "clientId": "pi-mcp-kaggle-87d62ca9",
+        "callbackPort": 8765
+      }
     }
   }
 }
