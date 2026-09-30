@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "agent-browser": {
-      "command": "pnx",
+      "command": "pnpm",
       "args": [
+        "dlx",
         "agent-browser",
         "mcp"
       ],
@@ -22,8 +23,11 @@
       "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp"
     },
     "cloudflare": {
+      "exposure": "codemode-deferred",
       "url": "https://mcp.cloudflare.com/mcp",
-      "exposure": "codemode-deferred"
+      "headers": {
+        "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
+      }
     },
     "context7": {
       "url": "https://mcp.context7.com/mcp",
