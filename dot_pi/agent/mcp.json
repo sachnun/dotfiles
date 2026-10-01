@@ -6,8 +6,7 @@
         "dlx",
         "agent-browser",
         "mcp"
-      ],
-      "exposure": "codemode-deferred"
+      ]
     },
     "cua-driver": {
       "command": "cua-driver",
@@ -16,33 +15,28 @@
       ],
       "env": {
         "CUA_DRIVER_PERMISSION_MODE": "standard"
-      },
-      "exposure": "codemode-deferred"
+      }
     },
     "exa": {
       "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp"
     },
     "cloudflare": {
-      "exposure": "codemode-deferred",
       "url": "https://mcp.cloudflare.com/mcp",
       "headers": {
         "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
       }
     },
     "context7": {
-      "url": "https://mcp.context7.com/mcp",
-      "exposure": "codemode-deferred"
+      "url": "https://mcp.context7.com/mcp"
     },
     "colab-mcp": {
       "command": "uvx",
       "args": [
         "git+https://github.com/googlecolab/colab-mcp"
-      ],
-      "exposure": "codemode-deferred"
+      ]
     },
     "kaggle": {
       "url": "https://www.kaggle.com/mcp",
-      "exposure": "codemode-deferred",
       "oauth": {
         "clientId": "pi-mcp-kaggle-87d62ca9",
         "callbackPort": 8765
