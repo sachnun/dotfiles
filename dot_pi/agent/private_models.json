@@ -1,18 +1,4 @@
 {
   "$schema": "models.schema.json",
-  "providers": {
-    "antseed": {
-      "baseUrl": "http://127.0.0.1:8377/v1",
-      "api": "openai-completions",
-      "apiKey": "antseed",
-      "models": [
-        {
-          "id": "glm-5.3-flash",
-          "name": "GLM 5.3 Flash (antseed)",
-          "reasoning": true,
-          "maxTokens": 16384
-        }
-      ]
-    }
-  }
+  "providers": {}
 }
