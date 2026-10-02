@@ -5,7 +5,7 @@
 - Use fd, rg. don't use find/grep.
 - No build or test unless needed.
 - No sleep, show log.
-- Ad hoc in codemode.
+- Ad hoc in `/tmp`.
 
 - Write commit subjects as `type: subject`, imperative mood, no body.
 - Use types: feat, fix, docs, style, chore, refactor, test.
