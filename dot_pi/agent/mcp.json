@@ -19,10 +19,12 @@
       "enabled": false
     },
     "exa": {
-      "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp"
+      "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp",
+      "description": "Neural web search and page fetching"
     },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp",
+      "description": "Cloudflare docs search and Workers API execution",
       "headers": {
         "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
       }
@@ -31,6 +33,7 @@
       "url": "https://mcp.context7.com/mcp"
     },
     "colab-mcp": {
+      "description": "Drive a Colab runtime from this machine",
       "command": "uvx",
       "args": [
         "git+https://github.com/googlecolab/colab-mcp"
@@ -38,10 +41,15 @@
     },
     "kaggle": {
       "url": "https://www.kaggle.com/mcp",
+      "description": "Kaggle datasets, competitions, notebooks and models",
       "oauth": {
         "clientId": "pi-mcp-kaggle-87d62ca9",
         "callbackPort": 8765
       }
+    },
+    "neon": {
+      "url": "https://mcp.neon.tech/mcp",
+      "description": "Neon Postgres projects, branches, databases and SQL"
     }
   }
 }
