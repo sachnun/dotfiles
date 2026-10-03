@@ -37,7 +37,6 @@ uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
 bun = "latest"
-neonctl = "latest"
 "github:koyeb/koyeb-cli" = "latest"
 railway = "latest"
 flyctl = "latest"
