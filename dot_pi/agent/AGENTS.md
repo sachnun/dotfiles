@@ -1,5 +1,6 @@
 - Write code, docs, body in English.
 - Use tables where they keep information neat.
+- IMPORTANT: Never include comments in the code.
 
 - Use fd, rg. don't use find/grep.
 - No build or test unless needed.

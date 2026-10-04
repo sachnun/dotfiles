@@ -30,6 +30,7 @@
   "fullscreenExitOutput": "resume-hint",
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
+    "freebux/deepseek/deepseek-v4-flash-fast",
     "opendum/deepseek-v4.1-flash",
     "antseed/glm-5.3-flash"
   ],
@@ -39,6 +40,6 @@
     "-skills/kaggle/SKILL.md",
     "-skills/wsl.md"
   ],
-  "defaultProvider": "opendum",
-  "defaultModel": "deepseek-v4.1-flash"
+  "defaultProvider": "freebux",
+  "defaultModel": "deepseek/deepseek-v4-flash-fast"
 }
