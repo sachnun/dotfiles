@@ -32,7 +32,7 @@
     "context7": {
       "url": "https://mcp.context7.com/mcp"
     },
-    "colab-mcp": {
+    "google-colab": {
       "description": "Drive a Colab runtime from this machine",
       "command": "uvx",
       "args": [

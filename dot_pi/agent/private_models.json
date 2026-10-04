@@ -1,18 +1,19 @@
 {
-  "$schema": "models.schema.json",
-  "providers": {
-    "antseed": {
-      "baseUrl": "http://127.0.0.1:8389/v1",
-      "api": "openai-completions",
-      "apiKey": "local",
-      "models": [
-        {
-          "id": "glm-5.3-flash",
-          "name": "GLM 5.3 Flash (local antseed)",
-          "reasoning": true,
-          "maxTokens": 16384
+    "$schema": "models.schema.json",
+    "providers": {
+        "antseed": {
+            "baseUrl": "https://antseed-worker.sachnun.workers.dev/v1",
+            "api": "openai-completions",
+            "name": "Antseed",
+            "models": [
+                {
+                    "id": "glm-5.3-flash",
+                    "name": "GLM 5.3 Flash",
+                    "reasoning": true,
+                    "maxTokens": 131072,
+                    "contextWindow": 300000
+                }
+            ]
         }
-      ]
     }
-  }
 }
