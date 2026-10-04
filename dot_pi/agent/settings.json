@@ -31,8 +31,7 @@
   "enabledModels": [
     "freebux/deepseek/deepseek-v4-flash",
     "freebux/deepseek/deepseek-v4-flash-fast",
-    "opendum/deepseek-v4.1-flash",
-    "antseed/glm-5.3-flash"
+    "opendum/workbuddy/deepseek-v4.1-flash"
   ],
   "fullscreenCopyOnSelect": false,
   "fullscreenWheelScrollLines": "auto",
@@ -40,6 +39,6 @@
     "-skills/kaggle/SKILL.md",
     "-skills/wsl.md"
   ],
-  "defaultProvider": "freebux",
-  "defaultModel": "deepseek/deepseek-v4-flash-fast"
+  "defaultProvider": "opendum",
+  "defaultModel": "deepseek-v4.1-flash"
 }
