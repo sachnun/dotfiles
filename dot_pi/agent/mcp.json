@@ -19,7 +19,7 @@
       "enabled": false
     },
     "exa": {
-      "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp",
+      "url": "https://mcp.exa.ai/mcp",
       "description": "Neural web search and page fetching"
     },
     "cloudflare": {
