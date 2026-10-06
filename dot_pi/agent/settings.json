@@ -5,7 +5,8 @@
   "defaultThinkingLevel": "max",
   "theme": "dark",
   "packages": [
-    "git:github.com/sachnun/pi-opendum"
+    "git:github.com/sachnun/pi-opendum",
+    "npm:pi-goal"
   ],
   "terminal": {
     "showTerminalProgress": true,
