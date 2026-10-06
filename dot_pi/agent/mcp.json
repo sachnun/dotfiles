@@ -49,6 +49,9 @@
     "neon": {
       "url": "https://mcp.neon.tech/mcp",
       "description": "Neon Postgres projects, branches, databases and SQL"
+    },
+    "nuxt": {
+      "url": "https://nuxt.com/mcp"
     }
   }
 }
