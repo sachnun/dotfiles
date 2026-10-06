@@ -15,8 +15,7 @@
       ],
       "env": {
         "CUA_DRIVER_PERMISSION_MODE": "standard"
-      },
-      "enabled": false
+      }
     },
     "exa": {
       "url": "https://mcp.exa.ai/mcp",

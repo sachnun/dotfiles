@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.0.3",
+  "lastChangelogVersion": "1.0.4",
   "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
@@ -20,7 +20,7 @@
   },
   "enableSkillCommands": true,
   "showCacheMissNotices": true,
-  "collapseChangelog": true,
+  "collapseChangelog": false,
   "tuiMode": "fullscreen",
   "steeringMode": "all",
   "markdown": {
