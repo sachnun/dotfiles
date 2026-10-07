@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "agent-browser": {
-      "command": "bunx",
+      "command": "npx",
       "args": [
         "agent-browser",
         "mcp"
