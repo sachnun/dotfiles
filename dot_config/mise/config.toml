@@ -30,22 +30,17 @@
 login_shell = "/usr/bin/fish"
 
 [tools]
-"github:ekzhang/bore" = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
-turso = "latest"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
 bun = "latest"
-neonctl = "latest"
 "github:koyeb/koyeb-cli" = "latest"
 railway = "latest"
 flyctl = "latest"
 gcloud = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
-pnpm = "latest"
-"pipx:kaggle" = "latest"
 
 [settings]
 minimum_release_age = "0"
