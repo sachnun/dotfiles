@@ -49,6 +49,10 @@
     "neon": {
       "url": "https://mcp.neon.tech/mcp",
       "description": "Neon Postgres projects, branches, databases and SQL"
+    },
+    "turso": {
+      "url": "https://mcp.turso.ai/mcp",
+      "description": "Turso/libSQL databases, groups and SQL"
     }
   }
 }
