@@ -34,7 +34,6 @@ login_shell = "/usr/bin/fish"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
-bun = "latest"
 "github:koyeb/koyeb-cli" = "latest"
 railway = "latest"
 flyctl = "latest"
