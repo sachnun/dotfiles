@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "agent-browser": {
-      "command": "pnpm",
+      "command": "bunx",
       "args": [
-        "dlx",
         "agent-browser",
         "mcp"
       ]
