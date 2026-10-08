@@ -45,6 +45,16 @@
     "turso": {
       "url": "https://mcp.turso.ai/mcp",
       "description": "Turso/libSQL databases, groups and SQL"
+    },
+    "colab": {
+      "url": "https://colab-bridge.sachnun.workers.dev/mcp",
+      "description": "Run Python, shell commands and manage files on Google Colab VMs",
+      "oauth": {
+        "authServerMetadataUrl": "https://colab-bridge.sachnun.workers.dev/oauth/authorization-server-metadata"
+      }
+    },
+    "railway": {
+      "url": "https://mcp.railway.com"
     }
   }
 }
