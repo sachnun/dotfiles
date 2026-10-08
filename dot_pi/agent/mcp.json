@@ -7,15 +7,6 @@
         "mcp"
       ]
     },
-    "cua-driver": {
-      "command": "cua-driver",
-      "args": [
-        "mcp"
-      ],
-      "env": {
-        "CUA_DRIVER_PERMISSION_MODE": "standard"
-      }
-    },
     "exa": {
       "url": "https://mcp.exa.ai/mcp",
       "description": "Neural web search and page fetching"

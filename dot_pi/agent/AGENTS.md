@@ -1,6 +1,7 @@
 - Write code, docs, body in English.
 - Use tables where they keep information neat.
-- IMPORTANT: Never include comments in the code.
+- No comments in the code.
+- No AI slop, no hyphen.
 
 - Use fd, rg. don't use find/grep.
 - No build or test unless needed.
