@@ -41,6 +41,7 @@ gcloud = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
 bun = "latest"
+"pipx:google-colab-cli" = "latest"
 
 [settings]
 minimum_release_age = "0"

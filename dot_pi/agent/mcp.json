@@ -30,13 +30,6 @@
     "context7": {
       "url": "https://mcp.context7.com/mcp"
     },
-    "google-colab": {
-      "description": "Drive a Colab runtime from this machine",
-      "command": "uvx",
-      "args": [
-        "git+https://github.com/googlecolab/colab-mcp"
-      ]
-    },
     "kaggle": {
       "url": "https://www.kaggle.com/mcp",
       "description": "Kaggle datasets, competitions, notebooks and models",
