@@ -52,6 +52,9 @@
       "args": [
         "@koyeb/mcp-server"
       ]
+    },
+    "netlify": {
+      "url": "https://netlify-mcp.netlify.app/mcp"
     }
   }
 }
