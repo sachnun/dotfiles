@@ -46,6 +46,12 @@
     },
     "railway": {
       "url": "https://mcp.railway.com"
+    },
+    "koyeb": {
+      "command": "npx",
+      "args": [
+        "@koyeb/mcp-server"
+      ]
     }
   }
 }

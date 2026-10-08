@@ -34,13 +34,11 @@ login_shell = "/usr/bin/fish"
 uv = "latest"
 yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
-"github:koyeb/koyeb-cli" = "latest"
 flyctl = "latest"
 gcloud = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
 bun = "latest"
-"pipx:google-colab-cli" = "latest"
 
 [settings]
 minimum_release_age = "0"
