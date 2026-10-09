@@ -1,9 +1,7 @@
 - Write code, docs, body in English.
 - Use tables where they keep information neat.
-- No comments in the code.
-- No AI slop, no hyphen.
+- Zero comment. no hyphen.
 
-- Use fd, rg. don't use find/grep.
 - No build or test unless needed.
 - No sleep, show log.
 - Ad hoc in `/tmp`.
