@@ -1,5 +1,4 @@
 {
-    "$schema": "models.schema.json",
     "providers": {
         "antseed": {
             "baseUrl": "https://antseed-worker.sachnun.workers.dev/v1",
