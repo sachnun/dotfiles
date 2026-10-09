@@ -29,8 +29,6 @@
   "enableInstallTelemetry": true,
   "fullscreenExitOutput": "resume-hint",
   "enabledModels": [
-    "freebux/deepseek/deepseek-v4-flash",
-    "freebux/deepseek/deepseek-v4-flash-fast",
     "opendum/workbuddy/deepseek-v4.1-flash"
   ],
   "fullscreenCopyOnSelect": false,
