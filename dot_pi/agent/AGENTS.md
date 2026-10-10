@@ -2,6 +2,7 @@
 - Use tables where they keep information neat.
 - Zero comment. no hyphen.
 
+- Research exa & context7 before.
 - No build or test unless needed.
 - No sleep, show log.
 - Ad hoc in `/tmp`.
