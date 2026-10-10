@@ -45,7 +45,8 @@
       }
     },
     "railway": {
-      "url": "https://mcp.railway.com"
+      "url": "https://mcp.railway.com",
+      "enabled": false
     },
     "koyeb": {
       "command": "npx",
