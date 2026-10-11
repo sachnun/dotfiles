@@ -39,6 +39,7 @@ gcloud = "latest"
 "npm:edgeone" = "latest"
 rust = "stable"
 bun = "latest"
+herdr = "latest"
 
 [settings]
 minimum_release_age = "0"
