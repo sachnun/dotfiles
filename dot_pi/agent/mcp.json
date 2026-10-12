@@ -56,6 +56,9 @@
     },
     "netlify": {
       "url": "https://netlify-mcp.netlify.app/mcp"
+    },
+    "edgeone": {
+      "url": "https://edgeone-bridge.sachnun.workers.dev/mcp"
     }
   }
 }
