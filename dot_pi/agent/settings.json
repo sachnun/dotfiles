@@ -39,5 +39,8 @@
     "-skills/wsl.md"
   ],
   "defaultProvider": "opendum",
-  "defaultModel": "workbuddy/deepseek-v4.1-flash"
+  "defaultModel": "workbuddy/deepseek-v4.1-flash",
+  "extensions": [
+    "-extensions/freebux.ts"
+  ]
 }
