@@ -8,12 +8,10 @@
       ]
     },
     "exa": {
-      "url": "https://unroxy.koyeb.app/https://mcp.exa.ai/mcp",
-      "description": "Neural web search and page fetching"
+      "url": "https://mcp.exa.ai/mcp"
     },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp",
-      "description": "Cloudflare docs search and Workers API execution",
       "headers": {
         "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
       }
@@ -23,23 +21,19 @@
     },
     "kaggle": {
       "url": "https://www.kaggle.com/mcp",
-      "description": "Kaggle datasets, competitions, notebooks and models",
       "oauth": {
         "clientId": "pi-mcp-kaggle-87d62ca9",
         "callbackPort": 8765
       }
     },
     "neon": {
-      "url": "https://mcp.neon.tech/mcp",
-      "description": "Neon Postgres projects, branches, databases and SQL"
+      "url": "https://mcp.neon.tech/mcp"
     },
     "turso": {
-      "url": "https://mcp.turso.ai/mcp",
-      "description": "Turso/libSQL databases, groups and SQL"
+      "url": "https://mcp.turso.ai/mcp"
     },
     "colab": {
       "url": "https://colab-bridge.sachnun.workers.dev/mcp",
-      "description": "Run Python, shell commands and manage files on Google Colab VMs",
       "oauth": {
         "authServerMetadataUrl": "https://colab-bridge.sachnun.workers.dev/oauth/authorization-server-metadata"
       }
