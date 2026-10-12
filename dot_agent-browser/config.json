@@ -1,0 +1,3 @@
+{
+  "args": "--no-sandbox,--no-zygote,--disable-dev-shm-usage,--use-gl=swiftshader"
+}
