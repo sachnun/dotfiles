@@ -6,7 +6,6 @@ const STRIDE = 50;
 const PARA_MIN_LEN = 40;
 const FINGERPRINT_LEN = 60;
 const SEMANTIC_THRESHOLD = 3;
-const MAX_RERUN = 3;
 
 const MESSAGE = "Thinking Loop";
 const TRIM_MARKER = "Thinking loop trimmed";
@@ -21,11 +20,13 @@ export default function (pi: ExtensionAPI) {
   let lastLen = 0;
   let lastIndex: number | null = null;
   let sem = newSemanticState();
-  let pendingRerun = false;
-  let rerunStreak = 0;
+  let stopped = false;
 
-  function warn(ctx: ExtensionContext) {
+  function stop(ctx: ExtensionContext) {
+    if (stopped) return;
+    stopped = true;
     ctx.ui.notify(MESSAGE, "warning");
+    ctx.abort();
   }
 
   function resetStream() {
@@ -43,8 +44,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("agent_start", () => {
     resetStream();
-    pendingRerun = false;
-    rerunStreak = 0;
+    stopped = false;
   });
 
   pi.on("turn_start", resetStream);
@@ -71,7 +71,7 @@ export default function (pi: ExtensionAPI) {
 
     lastLen = thinking.length;
     if (detectRepeatingSuffix(thinking, THINKING_WINDOW) || detectSemanticLoop(thinking, sem))
-      warn(ctx);
+      stop(ctx);
   });
 
   pi.on("message_end", (event, ctx) => {
@@ -80,25 +80,9 @@ export default function (pi: ExtensionAPI) {
     const thinking = index === null ? null : extractThinkingAt(event.message, index);
     resetStream();
     if (!thinking) return;
-    if (!isLooping(thinking)) {
-      rerunStreak = 0;
-      return;
-    }
-    warn(ctx);
-    pendingRerun = true;
+    if (!isLooping(thinking)) return;
+    stop(ctx);
     return { message: sanitizeThinkingAt(event.message, index, TRIM_MARKER) };
-  });
-
-  pi.on("turn_end", (event) => {
-    if (!pendingRerun) return;
-    pendingRerun = false;
-    if (rerunStreak >= MAX_RERUN) return;
-    rerunStreak++;
-    const targets = [event.messageEntryId, ...event.toolResultEntryIds];
-    return {
-      entries: targets.map((targetId) => ({ type: "context_edit", targetId, replacement: null })),
-      continue: true,
-    };
   });
 }
 
