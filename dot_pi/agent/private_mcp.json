@@ -53,6 +53,13 @@
     },
     "edgeone": {
       "url": "https://edgeone-bridge.sachnun.workers.dev/mcp"
+    },
+    "rea": {
+      "command": "npx",
+      "args": [
+        "rea-agents",
+        "mcp"
+      ]
     }
   }
 }
