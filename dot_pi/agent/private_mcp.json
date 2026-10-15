@@ -60,6 +60,9 @@
         "rea-agents",
         "mcp"
       ]
+    },
+    "parallel": {
+      "url": "https://search.parallel.ai/mcp"
     }
   }
 }
