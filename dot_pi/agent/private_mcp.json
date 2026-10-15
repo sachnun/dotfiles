@@ -7,9 +7,6 @@
         "mcp"
       ]
     },
-    "exa": {
-      "url": "https://mcp.exa.ai/mcp"
-    },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp",
       "headers": {
@@ -62,7 +59,7 @@
       ]
     },
     "parallel": {
-      "url": "https://search.parallel.ai/mcp"
+      "url": "https://search.parallel.ai/mcp-oauth"
     }
   }
 }
