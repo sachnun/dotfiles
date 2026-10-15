@@ -29,7 +29,8 @@
   "enableInstallTelemetry": true,
   "fullscreenExitOutput": "resume-hint",
   "enabledModels": [
-    "opendum/workbuddy/deepseek-v4.1-flash"
+    "opendum/workbuddy/deepseek-v4.1-flash",
+    "opendum/opencode/deepseek-v4.1-flash"
   ],
   "fullscreenCopyOnSelect": false,
   "fullscreenWheelScrollLines": "auto",
