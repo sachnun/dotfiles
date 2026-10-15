@@ -42,6 +42,7 @@
   "defaultModel": "workbuddy/deepseek-v4.1-flash",
   "extensions": [
     "-extensions/freebux.ts",
-    "-extensions/loop.ts"
+    "+extensions/tps.ts",
+    "+extensions/loop.ts"
   ]
 }
