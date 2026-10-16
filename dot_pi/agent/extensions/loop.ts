@@ -8,7 +8,6 @@ const FINGERPRINT_LEN = 60;
 const SEMANTIC_THRESHOLD = 3;
 
 const MESSAGE = "Thinking Loop";
-const TRIM_MARKER = "Thinking loop trimmed";
 
 type SemanticState = { counts: Map<string, number>; scanned: number; inFence: boolean };
 
@@ -82,7 +81,7 @@ export default function (pi: ExtensionAPI) {
     if (!thinking) return;
     if (!isLooping(thinking)) return;
     stop(ctx);
-    return { message: sanitizeThinkingAt(event.message, index, TRIM_MARKER) };
+    return { message: dropThinkingAt(event.message, index) };
   });
 }
 
@@ -99,14 +98,12 @@ function findLastThinkingIndex(message: any): number | null {
   return null;
 }
 
-function sanitizeThinkingAt(message: any, index: number | null, marker: string): any {
+function dropThinkingAt(message: any, index: number | null): any {
   if (index === null || !Array.isArray(message?.content) || message.content[index]?.type !== "thinking")
     return message;
   return {
     ...message,
-    content: message.content.map((block: any, i: number) =>
-      i === index ? { type: "text", text: marker } : block
-    ),
+    content: message.content.filter((_: any, i: number) => i !== index),
   };
 }
 
