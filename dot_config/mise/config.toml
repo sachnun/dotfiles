@@ -32,7 +32,6 @@ login_shell = "/usr/bin/fish"
 [tools]
 "npm:@earendil-works/pi-coding-agent" = "latest"
 uv = "latest"
-yt-dlp = { version = "latest", rename_exe = "yt-dlp" }
 "pipx:speedtest-cli" = "latest"
 flyctl = "latest"
 gcloud = "latest"
