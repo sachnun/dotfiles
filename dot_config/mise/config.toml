@@ -25,6 +25,7 @@
 "pacman:github-cli" = "latest"
 "pacman:glab" = "latest"
 "pacman:less" = "latest"
+"pacman:lsof" = "latest"
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
