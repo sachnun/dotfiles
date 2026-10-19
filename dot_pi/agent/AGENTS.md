@@ -1,8 +1,9 @@
+- Read the documentation first.
 - Write code, docs, body in English.
 - Use tables where they keep information neat.
 - Zero comment. no hyphen.
 
-- Use `fd`, don't `find`.
+- Use `fd`, don't `find` because slow.
 - No build or test unless needed.
 - No sleep, show log.
 - Ad hoc in `/tmp`.
