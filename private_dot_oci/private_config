@@ -1,0 +1,6 @@
+[DEFAULT]
+user=ocid1.user.oc1..aaaaaaaacnivzhftw473s25ykwvdkaag7rgdt3jquh5pe2raupuijvtwavza
+fingerprint=16:a3:ff:33:0e:e8:3c:83:55:b8:4e:a5:cc:57:96:d0
+tenancy=ocid1.tenancy.oc1..aaaaaaaaupnzq2it62o7m6jxs57p2nk6qzhiwgqp4an6xbrrsblaykxufx4q
+region=ap-batam-1
+key_file=~/.oci/oci_api_key.pem
