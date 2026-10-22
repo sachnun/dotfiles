@@ -27,7 +27,8 @@
       "url": "https://mcp.neon.tech/mcp"
     },
     "turso": {
-      "url": "https://mcp.turso.ai/mcp"
+      "url": "https://mcp.turso.ai/mcp",
+      "enabled": false
     },
     "colab": {
       "url": "https://colab-bridge.sachnun.workers.dev/mcp",
