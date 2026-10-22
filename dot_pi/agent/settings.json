@@ -1,6 +1,6 @@
 {
   "lastChangelogVersion": "1.4.0",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "treeFilterMode": "default",
   "defaultThinkingLevel": "max",
   "theme": "dark",
