@@ -65,6 +65,7 @@ gcloud = "latest"
 rust = "stable"
 bun = "latest"
 herdr = "latest"
+oci = "latest"
 
 [settings]
 minimum_release_age = "0"
