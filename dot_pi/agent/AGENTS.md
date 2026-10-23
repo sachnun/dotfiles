@@ -13,6 +13,6 @@
 - Use [Bun test](https://bun.sh/docs/test).
 - Use [Bun check](https://bun.sh/docs/runtime/check).
 
-- Write commit subjects as `type: subject`, short, imperative mood, no body.
+- Write commit subjects as `type: subject`, imperative mood, no body.
 - Use types: feat, fix, docs, style, chore, refactor, test.
 - Ask before committing/pushing.
