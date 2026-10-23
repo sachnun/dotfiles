@@ -66,6 +66,7 @@ rust = "stable"
 bun = "latest"
 herdr = "latest"
 oci = "latest"
+"aqua:gitea.com/gitea/tea" = "0.16.0"
 
 [settings]
 minimum_release_age = "0"
