@@ -1,6 +1,5 @@
 - Write code, docs, body in English.
 - Write code without comments.
-- Write docs, body without hyphens, word 'so'.
 - Use tables where they keep information neat.
 
 - Use `fd`, don't `find` because slow.
