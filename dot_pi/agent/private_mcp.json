@@ -49,19 +49,6 @@
     "netlify": {
       "url": "https://netlify-mcp.netlify.app/mcp"
     },
-    "edgeone": {
-      "url": "https://edgeone-bridge.sachnun.workers.dev/mcp"
-    },
-    "rea": {
-      "command": "npx",
-      "args": [
-        "rea-agents",
-        "mcp"
-      ]
-    },
-    "parallel": {
-      "url": "https://search.parallel.ai/mcp-oauth"
-    },
     "exa": {
       "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa"
     }
