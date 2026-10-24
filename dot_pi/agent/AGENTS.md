@@ -1,6 +1,6 @@
 - Write code, docs, body in English.
-- Write code without comments.
 - Use tables where they keep information neat.
+- Remove code comments.
 
 - Use `fd`, don't `find` because slow.
 - Tail better than sleep.
@@ -8,7 +8,8 @@
 - Run lint and fix.
 - Ad hoc in `/tmp`.
 
-- Use [Effect](https://effect.website/) for production-ready.
+- Use effect ts v4 for production-ready.
+- Check external types; don't guess.
 
 - Write commit subjects as `type: subject`, imperative mood, no body.
 - Use types: feat, fix, docs, style, chore, refactor, test.
