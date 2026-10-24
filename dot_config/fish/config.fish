@@ -5,6 +5,7 @@ end
 umask 0022
 
 fish_add_path $HOME/.local/bin
+set -gx BUN_INSTALL $HOME/.bun
 fish_add_path $HOME/.bun/bin
 
 source $__fish_config_dir/env.fish
