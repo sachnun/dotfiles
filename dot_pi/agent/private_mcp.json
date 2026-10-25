@@ -37,7 +37,7 @@
       "description": "Manage Turso/libSQL: organizations, database groups, databases, and run SQL queries."
     },
     "colab": {
-      "url": "https://colab-bridge.sachnun.workers.dev/mcp",
+      "url": "https://colab-bridge.primare.workers.dev/mcp",
       "oauth": {
         "authServerMetadataUrl": "https://colab-bridge.sachnun.workers.dev/oauth/authorization-server-metadata"
       },
