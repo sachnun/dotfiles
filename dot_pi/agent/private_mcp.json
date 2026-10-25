@@ -39,7 +39,7 @@
     "colab": {
       "url": "https://colab-bridge.primare.workers.dev/mcp",
       "oauth": {
-        "authServerMetadataUrl": "https://colab-bridge.sachnun.workers.dev/oauth/authorization-server-metadata"
+        "authServerMetadataUrl": "https://colab-bridge.primare.workers.dev/oauth/authorization-server-metadata"
       },
       "description": "Bridge to a Google Colab runtime to execute Python cells, manage notebooks, and use GPU/TPU accelerators."
     },
