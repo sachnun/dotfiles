@@ -62,6 +62,9 @@
     "exa": {
       "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa",
       "description": "Web search and page retrieval: neural search, advanced filtered search, and full-text fetch of known URLs for current information."
+    },
+    "huggingface": {
+      "url": "https://huggingface.co/mcp?login"
     }
   }
 }
