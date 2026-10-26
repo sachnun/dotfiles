@@ -5,66 +5,29 @@
       "args": [
         "agent-browser",
         "mcp"
-      ],
-      "description": "Drive a real Chromium browser: open pages, snapshot the DOM for element refs, click, fill, type, screenshot, run JS, and manage tabs."
+      ]
     },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp",
       "headers": {
         "Authorization": "Bearer ${CLOUDFLARE_API_TOKEN}"
-      },
-      "description": "Search Cloudflare documentation and run JavaScript against the Cloudflare API (Workers, Pages, R2, D1, KV, DNS, Zero Trust, account and billing)."
-    },
-    "context7": {
-      "url": "https://mcp.context7.com/mcp",
-      "description": "Fetch current, version-specific documentation and code examples for libraries, frameworks, SDKs, and CLIs; resolve a library ID first, then query its docs."
-    },
-    "kaggle": {
-      "url": "https://www.kaggle.com/mcp",
-      "oauth": {
-        "clientId": "pi-mcp-kaggle-87d62ca9",
-        "callbackPort": 8765
-      },
-      "description": "Search and download Kaggle competitions, datasets, notebooks, models, benchmarks, and forum write-ups, and submit competition entries."
-    },
-    "neon": {
-      "url": "https://mcp.neon.tech/mcp",
-      "description": "Manage Neon serverless Postgres: projects, branches, databases, run SQL, and fetch connection strings."
-    },
-    "turso": {
-      "url": "https://mcp.turso.ai/mcp",
-      "enabled": false,
-      "description": "Manage Turso/libSQL: organizations, database groups, databases, and run SQL queries."
+      }
     },
     "colab": {
       "url": "https://colab-bridge.primare.workers.dev/mcp",
       "oauth": {
         "authServerMetadataUrl": "https://colab-bridge.primare.workers.dev/oauth/authorization-server-metadata"
-      },
-      "description": "Bridge to a Google Colab runtime to execute Python cells, manage notebooks, and use GPU/TPU accelerators."
-    },
-    "railway": {
-      "url": "https://mcp.railway.com",
-      "enabled": false,
-      "description": "Manage Railway projects, services, deployments, variables, and logs."
+      }
     },
     "koyeb": {
       "command": "npx",
       "args": [
         "@koyeb/mcp-server"
-      ],
-      "description": "Manage Koyeb: create apps and services, deploy directories, inspect deployments and instances, query logs, and exec into running containers."
+      ]
     },
-    "netlify": {
-      "url": "https://netlify-mcp.netlify.app/mcp",
-      "description": "Read and update Netlify projects, deploys, extensions, team settings, and observability, plus coding context for Netlify features and SDKs."
-    },
-    "exa": {
-      "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa",
-      "description": "Web search and page retrieval: neural search, advanced filtered search, and full-text fetch of known URLs for current information."
-    },
-    "huggingface": {
-      "url": "https://huggingface.co/mcp?login"
+    "executor": {
+      "url": "https://mcp.executor.sh/mcp",
+      "exposure": "direct"
     }
   }
 }
