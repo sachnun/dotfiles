@@ -1,6 +1,6 @@
 - Write code, docs, body in English.
 - Use tables where they keep information neat.
-- Remove code comments.
+- Clean code from all comment types.
 
 - Use effect types for production-ready.
 - Check `context7`; don't guess.
