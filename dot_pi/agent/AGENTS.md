@@ -2,8 +2,7 @@
 - Use tables where they keep information neat.
 - Clean code from all comment types.
 
-- Use effect types for production-ready.
-- Check `context7`; don't guess.
+- Check external dependencies; don't guess.
 
 - Use `fd`, don't `find` because slow.
 - No run build or test unless needed.
