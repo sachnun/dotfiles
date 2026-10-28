@@ -17,8 +17,7 @@
       "url": "https://mcp.executor.sh/mcp"
     },
     "exa": {
-      "url": "https://mcp.exa.ai/mcp",
-      "exposure": "direct"
+      "url": "https://mcp.exa.ai/mcp"
     }
   }
 }

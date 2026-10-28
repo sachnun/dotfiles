@@ -9,7 +9,9 @@
   ],
   "terminal": {
     "showTerminalProgress": true,
-    "clearOnShrink": false
+    "clearOnShrink": false,
+    "imageWidthCells": 60,
+    "showImages": false
   },
   "quietStartup": false,
   "httpIdleTimeoutMs": 300000,
